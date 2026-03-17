@@ -23,7 +23,7 @@ function App() {
   const [endUnit, setEndUnit] = useState('');
   const [endPart, setEndPart] = useState('');
   const [school, setSchool] = useState('木太中');
-  const [mode, setMode] = useState('en-ja'); // 出題モード共通
+  const [mode, setMode] = useState(''); // 出題モード共通
   const [testWords, setTestWords] = useState([]);
   const [rangeText, setRangeText] = useState('');
   const [showAnswer, setShowAnswer] = useState(false);
