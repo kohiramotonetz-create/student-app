@@ -237,3 +237,26 @@ th, td {
   border-radius: 10px;
   cursor: pointer;
 }
+
+.grade-selector {
+  display: flex;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.grade-btn {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  background: #f9f9f9;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.grade-btn.active {
+  background: #007bff;
+  color: white;
+  border-color: #0056b3;
+  font-weight: bold;
+}

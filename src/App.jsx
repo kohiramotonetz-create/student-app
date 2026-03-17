@@ -148,67 +148,85 @@ function App() {
         </div>
       )}
 
-      {/* 3-1：【完全版維持】紙テスト作成 */}
-      {step === 'test-setup' && (
-        <div className="test-builder-layout">
-          <div className="settings-panel no-print">
-            <h3>📝 テスト作成設定</h3>
-            <div className="config-group">
-              <label>学校名 / 出題モード</label>
-              <select value={school} onChange={(e) => setSchool(e.target.value)}>
-                <option value="木太中">木太中</option><option value="玉藻中">玉藻中</option><option value="桜町中">桜町中</option><option value="附属中">附属中</option>
-              </select>
-              <select value={mode} onChange={(e) => setMode(e.target.value)}>
-                <option value="en-ja">英語 → 日本語</option><option value="ja-en">日本語 → 英語</option>
-              </select>
-            </div>
-            <div className="config-group">
-              <label>▼ 開始範囲</label>
-              <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
-                {units.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-              <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
-                {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <label>▼ 終了範囲</label>
-              <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
-                {units.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-              <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>
-                {[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            <button className="btn-main" onClick={generatePaperTest}>🔄 問題を生成</button>
-            <button className="btn-sub" onClick={() => setShowAnswer(!showAnswer)}>👁 解答表示：{showAnswer ? 'ON' : 'OFF'}</button>
-            <button className="btn-print" onClick={() => window.print()}>🖨 印刷 / PDF保存</button>
-            <button className="btn-back" onClick={() => setStep('menu')}>戻る</button>
-          </div>
-          <div className="preview-panel">
-            <div className="test-paper" id="paper">
-              <div className="header-area">
-                <div style={{fontSize: '14px'}}>名前 ____________________</div>
-                <h1 style={{fontSize: '24px'}}>英単語テスト</h1>
-                <div style={{fontSize: '14px', fontWeight: 'bold'}}>{school}</div>
-              </div>
-              <p style={{fontSize: '12px', margin: '5px 0', color: '#444'}}>{rangeText}</p>
-              <table>
-                <thead>
-                  <tr><th style={{width: '40px'}}>No.</th><th>{mode==='en-ja'?'英単語':'日本語訳'}</th><th>{mode==='en-ja'?'日本語訳':'英単語'}</th></tr>
-                </thead>
-                <tbody>
-                  {testWords.length > 0 ? testWords.map((d, i) => (
-                    <tr key={i}>
-                      <td style={{textAlign:'center'}}>{i+1}</td>
-                      <td>{mode==='en-ja'?d.en:d.ja}</td>
-                      <td>{showAnswer ? (mode==='en-ja'?d.ja:d.en) : ''}</td>
-                    </tr>
-                  )) : [...Array(20)].map((_, i) => <tr key={i}><td>{i+1}</td><td></td><td></td></tr>)}
-                </tbody>
-              </table>
-            </div>
-          </div>
+      // --- ステートに追加 ---
+const [selectedGrade, setSelectedGrade] = useState('中1'); // デフォルト学年
+
+// --- 学年リストの生成 (allItemsが変わるたびに更新) ---
+const gradeList = useMemo(() => {
+  // 「中1 Unit1」などの先頭2文字（中1, 中2, 中3）を抽出して重複を排除
+  const grades = allData.map(d => d.unitGroup.substring(0, 2));
+  return [...new Set(grades)].sort();
+}, [allData]);
+
+// --- 選択された学年に基づくユニットリスト ---
+const filteredUnits = useMemo(() => {
+  return [...new Set(allData
+    .filter(d => d.unitGroup.startsWith(selectedGrade))
+    .map(d => d.unitGroup)
+  )];
+}, [allData, selectedGrade]);
+
+// --- HTML部分の修正 ---
+{step === 'test-setup' && (
+  <div className="test-builder-layout">
+    <div className="settings-panel no-print">
+      <h3>📝 テスト作成設定</h3>
+      
+      <div className="config-group">
+        <label>学校名 / 出題モード</label>
+        <select value={school} onChange={(e) => setSchool(e.target.value)}>
+          <option value="木太中">木太中</option><option value="玉藻中">玉藻中</option>
+          <option value="桜町中">桜町中</option><option value="附属中">附属中</option>
+        </select>
+        <select value={mode} onChange={(e) => setMode(e.target.value)}>
+          <option value="en-ja">英語 → 日本語</option><option value="ja-en">日本語 → 英語</option>
+        </select>
+      </div>
+
+      {/* ★新規追加：学年選択ボタン */}
+      <div className="config-group">
+        <label>対象学年</label>
+        <div className="grade-selector">
+          {gradeList.map(g => (
+            <button 
+              key={g} 
+              className={selectedGrade === g ? "grade-btn active" : "grade-btn"}
+              onClick={() => setSelectedGrade(g)}
+            >
+              {g}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
+
+      <div className="config-group">
+        <label>▼ 開始範囲 ({selectedGrade})</label>
+        <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
+          {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
+        </select>
+        <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
+          {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+
+        <label>▼ 終了範囲 ({selectedGrade})</label>
+        <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
+          {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
+        </select>
+        <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>
+          {[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+      </div>
+
+      <button className="btn-main" onClick={generatePaperTest}>🔄 問題を生成</button>
+      <button className="btn-sub" onClick={() => setShowAnswer(!showAnswer)}>👁 解答表示：{showAnswer ? 'ON' : 'OFF'}</button>
+      <button className="btn-print" onClick={() => window.print()}>🖨 印刷 / PDF保存</button>
+      <button className="btn-back" onClick={() => setStep('menu')}>戻る</button>
+    </div>
+    
+    {/* 右側のプレビューパネルは変更なし */}
+    <div className="preview-panel">...</div>
+  </div>
+)}
 
       {/* 3-2：自習クイズ設定 */}
       {step === 'quiz-setup' && (
