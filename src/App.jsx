@@ -230,7 +230,7 @@ function App() {
             </div>
 
             <button className="btn-main" onClick={generatePaperTest}>🔄 問題を生成</button>
-            <button className="btn-sub" onClick={() => setShowAnswer(!showAnswer)}>👁 解答表示：{showAnswer ? 'ON' : 'OFF'}</button>
+            <button className="btn-sub" onClick={() => setShowAnswer(!showAnswer)}>👁 解答表示：{showAnswer ? 'OFF' : 'ON'}</button>
             <button className="btn-print" onClick={() => window.print()}>🖨 印刷 / PDF保存</button>
             <button className="btn-back" onClick={() => setStep('menu')}>戻る</button>
           </div>
