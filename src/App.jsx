@@ -242,19 +242,30 @@ function App() {
     
     const resultData = {
       action: "saveLog",
-      sheetName: "定期テスト英単語", // スプレッドシートのシート名
-      userName: userName, // ログイン時の名前
+      sheetName: "定期テスト英単語",
+      userName: userName,
       testRange: `${startUnit} ${startPart} ～ ${endUnit} ${endPart}`,
       mode: mode,
       score: correctCount,
       total: totalCount,
       percentage: Math.round((correctCount / totalCount) * 100) + "%",
-      // 履歴を「問題1(○), 問題2(×)...」という形式の文字列にする
       history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
     };
 
     try {
-      await axios.post(GAS_URL, JSON.stringify(resultData), {
+      // ここを確実に LOG_GAS_URL に！
+      await axios.post(LOG_GAS_URL, JSON.stringify(resultData), {
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      console.log("学習ログを送信しました");
+    } catch (e) {
+      console.error("ログ送信エラー:", e);
+    }
+  };
+
+    try {
+      // ログ保存用の URL に変更
+      await axios.post(LOG_GAS_URL, JSON.stringify(resultData), { 
         headers: { 'Content-Type': 'text/plain' }
       });
       console.log("学習ログを送信しました");
