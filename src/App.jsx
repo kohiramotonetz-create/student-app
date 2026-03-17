@@ -7,7 +7,6 @@ const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
 const QUESTION_COUNT = 20;
 
-
 function App() {
   // --- 1：共通ステート ---
   const [step, setStep] = useState('login'); 
@@ -25,8 +24,8 @@ function App() {
   const [endUnit, setEndUnit] = useState('');
   const [endPart, setEndPart] = useState('');
   const [school, setSchool] = useState('木太中');
-  const [customSchool, setCustomSchool] = useState(''); // 追加：自由入力用
-  const [mode, setMode] = useState(''); // 出題モード共通
+  const [customSchool, setCustomSchool] = useState('');
+  const [mode, setMode] = useState('en-ja'); 
   const [testWords, setTestWords] = useState([]);
   const [rangeText, setRangeText] = useState('');
   const [showAnswer, setShowAnswer] = useState(false);
@@ -63,7 +62,7 @@ function App() {
     }
   }, [startUnit, endUnit, allData]);
 
-  // --- 共通ロジック：CSV読込 ---
+  // --- CSV読込 ---
   const loadCsv = async () => {
     try {
       const res = await fetch('/wordlist.csv?v=' + new Date().getTime());
@@ -96,7 +95,7 @@ function App() {
     )];
   }, [allData, selectedGrade]);
 
-  // --- 認証系ロジック ---
+  // --- 認証系 ---
   const handleLogin = async () => {
     if (!userId || !password) return alert("入力してください");
     setLoading(true);
@@ -149,7 +148,7 @@ function App() {
     }
   };
 
-  // --- テスト生成・クイズロジック ---
+  // --- テスト生成 ---
   const generatePaperTest = () => {
     const sKey = startUnit + startPart;
     const eKey = endUnit + endPart;
@@ -178,17 +177,10 @@ function App() {
 
   const submitQuizAnswer = () => {
     const item = quizItems[qIndex];
-    // モードによって正解と言語を切り替え
     const correctAnswer = (mode === 'ja-en') ? item.en : item.ja;
     const questionText = (mode === 'ja-en') ? item.ja : item.en;
-    
     const isCorrect = currentInput.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
-    const record = { 
-      q: questionText, 
-      a: currentInput, 
-      correct: correctAnswer, 
-      ok: isCorrect 
-    };
+    const record = { q: questionText, a: currentInput, correct: correctAnswer, ok: isCorrect };
     setQuizAnswers(prev => [...prev, record]);
     setQuizReview({ visible: true, record });
   };
@@ -202,44 +194,34 @@ function App() {
       if (qIndex + 1 < quizItems.length) {
         setQIndex(qIndex + 1);
       } else {
-        // 最後の問題を解き終わったタイミングで送信
         const finalAnswers = [...quizAnswers]; 
         setStep('quiz-result');
-        sendQuizResultToGAS(finalAnswers); // ここで呼び出す
+        sendQuizResultToGAS(finalAnswers);
       }
     } else { 
       alert("正解を正しく入力してください"); 
     }
   };
 
-  // --- 1. 間違えた問題のみ再トライするロジック ---
   const retryWrongQuestions = () => {
-    // quizAnswersから「okがfalse」のものだけを取り出し、元の問題データ形式(en, jaなど)を復元
     const wrongItems = quizAnswers
       .filter(a => !a.ok)
       .map(ans => {
-        // allDataから、問題文(ans.q)が一致するものを探す
         return allData.find(d => (mode === 'ja-en' ? d.ja : d.en) === ans.q);
       })
-      .filter(Boolean); // 見つからないものを除外
-
+      .filter(Boolean);
     if (wrongItems.length === 0) return alert("間違えた問題はありません！");
-
-    // ランダムに並び替え
     const shuffled = [...wrongItems].sort(() => 0.5 - Math.random());
-    
     setQuizItems(shuffled);
     setQIndex(0);
     setQuizAnswers([]);
     setCurrentInput("");
-    setStep('quiz-main'); // クイズ画面へ戻る
+    setStep('quiz-main');
   };
 
-  // --- 2. Googleスプレッドシートへ履歴を送信するロジック ---
   const sendQuizResultToGAS = async (finalAnswers) => {
     const correctCount = finalAnswers.filter(a => a.ok).length;
     const totalCount = finalAnswers.length;
-    
     const resultData = {
       action: "saveLog",
       sheetName: "定期テスト英単語",
@@ -251,21 +233,8 @@ function App() {
       percentage: Math.round((correctCount / totalCount) * 100) + "%",
       history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
     };
-
     try {
-      // ここを確実に LOG_GAS_URL に！
       await axios.post(LOG_GAS_URL, JSON.stringify(resultData), {
-        headers: { 'Content-Type': 'text/plain' }
-      });
-      console.log("学習ログを送信しました");
-    } catch (e) {
-      console.error("ログ送信エラー:", e);
-    }
-  };
-
-    try {
-      // ログ保存用の URL に変更
-      await axios.post(LOG_GAS_URL, JSON.stringify(resultData), { 
         headers: { 'Content-Type': 'text/plain' }
       });
       console.log("学習ログを送信しました");
@@ -278,7 +247,6 @@ function App() {
     <div className="container">
       {loading && <div className="loading-overlay">通信中...</div>}
 
-      {/* ログイン画面 */}
       {step === 'login' && (
         <div className="login-box">
           <h1>Student App</h1>
@@ -288,22 +256,15 @@ function App() {
         </div>
       )}
 
-      {/* パスワード変更画面 */}
       {step === 'change-password' && (
         <div className="login-box">
           <h2>🔐 パスワード変更</h2>
           <p>初回ログインのため、新しいパスワードを設定してください。</p>
-          <input 
-            type="password" 
-            placeholder="新しいパスワード" 
-            value={newPassword} 
-            onChange={(e) => setNewPassword(e.target.value)} 
-          />
+          <input type="password" placeholder="新しいパスワード" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
           <button onClick={handleChangePassword}>変更して開始</button>
         </div>
       )}
 
-      {/* メニュー画面 */}
       {step === 'menu' && (
         <div className="menu-box">
           <h1>メニュー</h1>
@@ -316,7 +277,6 @@ function App() {
         </div>
       )}
 
-      {/* 紙テスト作成画面 */}
       {step === 'test-setup' && (
         <div className="test-builder-layout">
           <div className="settings-panel no-print">
@@ -327,15 +287,8 @@ function App() {
                 <option value="木太中">木太中</option><option value="玉藻中">玉藻中</option><option value="桜町中">桜町中</option><option value="附属中">附属中</option><option value="custom">-- 直接入力 --</option>
               </select>
               {school === 'custom' && (
-                <input
-                　type="text"
-                　placeholder="学校名を入力"
-                　value={customSchool}
-                　onChange={(e) => setCustomSchool(e.target.value)}
-                　style={{ marginTop: '5px', width: '100%' }}
-                />
+                <input type="text" placeholder="学校名を入力" value={customSchool} onChange={(e) => setCustomSchool(e.target.value)} style={{ marginTop: '5px', width: '100%' }} />
               )}
-
               <select value={mode} onChange={(e) => setMode(e.target.value)}>
                 <option value="en-ja">英語 → 日本語</option><option value="ja-en">日本語 → 英語</option>
               </select>
@@ -376,20 +329,10 @@ function App() {
           <div className="preview-panel">
             <div className="test-paper" id="paper">
               <div className="header-area" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                {/* 名前（左側） */}
-              <div style={{ fontSize: '14px', width: '200px', textAlign: 'left' }}>名前 ____________________    
-            </div>
-            
-            {/* タイトル（中央固定） */}
-          <h1 style={{ fontSize: '24px', flex: 1, textAlign: 'center', margin: 0 }}>
-            英単語テスト
-          </h1>
-          
-          {/* 学校名（右側） */}
-        <div style={{ fontSize: '14px', fontWeight: 'bold', width: '200px', textAlign: 'right' }}>
-          {school === 'custom' ? customSchool : school}
-        </div>
-      </div>
+                <div style={{ fontSize: '14px', width: '200px', textAlign: 'left' }}>名前 ____________________</div>
+                <h1 style={{ fontSize: '24px', flex: 1, textAlign: 'center', margin: 0 }}>英単語テスト</h1>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', width: '200px', textAlign: 'right' }}>{school === 'custom' ? customSchool : school}</div>
+              </div>
               <p style={{fontSize: '12px', margin: '5px 0', color: '#444'}}>{rangeText}</p>
               <table>
                 <thead>
@@ -402,7 +345,7 @@ function App() {
                       <td>{mode==='en-ja'?d.en:d.ja}</td>
                       <td>{showAnswer ? (mode==='en-ja'?d.ja:d.en) : ''}</td>
                     </tr>
-                  )) : [...Array(20)].map((_, i) => <tr key={i}><td>{i+1}</td><td></td><td></td></tr>)}
+                  )) : [...Array(20)].map((_, i) => <tr key={i}><td style={{textAlign:'center'}}>{i+1}</td><td></td><td></td></tr>)}
                 </tbody>
               </table>
             </div>
@@ -410,7 +353,6 @@ function App() {
         </div>
       )}
 
-      {/* 自習クイズ設定画面 */}
       {step === 'quiz-setup' && (
         <div className="login-box">
           <h2>🚀 自習クイズ設定</h2>
@@ -422,27 +364,13 @@ function App() {
               ))}
             </div>
           </div>
-          
           <div className="config-group">
-              <label>出題モード</label>
-              <div className="mode-selector" style={{ display: 'flex', gap: '5px' }}>
-                <button
-                 className={mode === 'ja-en' ? "grade-btn active" : "grade-btn"} 
-                 onClick={() => setMode('ja-en')}
-                 style={{ flex: 1, padding: '8px', fontSize: '14px' }}
-                >
-                  日 → 英
-                </button>
-                <button
-                　className={mode === 'en-ja' ? "grade-btn active" : "grade-btn"}
-                　onClick={() => setMode('en-ja')}
-                　style={{ flex: 1, padding: '8px', fontSize: '14px' }}
-                >
-                        英 → 日
-                </button>
-              </div>
-        　</div>
-
+            <label>出題モード</label>
+            <div className="mode-selector" style={{ display: 'flex', gap: '5px' }}>
+              <button className={mode === 'ja-en' ? "grade-btn active" : "grade-btn"} onClick={() => setMode('ja-en')} style={{ flex: 1, padding: '8px', fontSize: '14px' }}>日 → 英</button>
+              <button className={mode === 'en-ja' ? "grade-btn active" : "grade-btn"} onClick={() => setMode('en-ja')} style={{ flex: 1, padding: '8px', fontSize: '14px' }}>英 → 日</button>
+            </div>
+          </div>
           <div className="config-group">
             <label>▼ 開始範囲（{selectedGrade}）</label>
             <div style={{ display: 'flex', gap: '5px' }}>
@@ -468,27 +396,15 @@ function App() {
         </div>
       )}
 
-      {/* クイズ実行画面 */}
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
-          <div className="q-display-box">
-            {mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}
-          </div>
-          <input 
-            className="q-input" 
-            value={currentInput} 
-            onChange={(e) => setCurrentInput(e.target.value)} 
-            onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} 
-            placeholder={mode === 'ja-en' ? "英語で入力" : "日本語で入力"}
-            autoFocus 
-          />
+          <div className="q-display-box">{mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}</div>
+          <input className="q-input" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} placeholder={mode === 'ja-en' ? "英語で入力" : "日本語で入力"} autoFocus />
           {!quizReview.visible && <button className="ans-btn" onClick={submitQuizAnswer}>答え合わせ</button>}
           {quizReview.visible && (
             <div className="review-box">
-              <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>
-                {quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}
-              </p>
+              <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>{quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}</p>
               {quizReview.record.ok ? (
                 <button className="next-btn" onClick={() => {
                   setQuizReview({ visible: false });
@@ -496,22 +412,15 @@ function App() {
                   if (qIndex + 1 < quizItems.length) {
                     setQIndex(qIndex + 1);
                   } else {
-                 // 20問目に正解して終わる時もデータを送信する
-                 　const finalAnswers = [...quizAnswers];
-                 　setStep('quiz-result');
-                 　sendQuizResultToGAS(finalAnswers);
-                }
-              }}>次へ</button>
-            ) : (
+                    const finalAnswers = [...quizAnswers];
+                    setStep('quiz-result');
+                    sendQuizResultToGAS(finalAnswers);
+                  }
+                }}>次へ</button>
+              ) : (
                 <div className="practice-area">
                   <p style={{fontSize: '12px', marginBottom: '5px'}}>正解をタイプして次へ：</p>
-                  <input 
-                    className="p-input" 
-                    value={practice} 
-                    onChange={(e) => setPractice(e.target.value)} 
-                    onKeyDown={(e) => e.key === 'Enter' && finishPractice()} 
-                    autoFocus 
-                  />
+                  <input className="p-input" value={practice} onChange={(e) => setPractice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && finishPractice()} autoFocus />
                   <button className="next-btn" onClick={finishPractice}>確認</button>
                 </div>
               )}
@@ -522,45 +431,34 @@ function App() {
 
       {step === 'quiz-result' && (
         <div className="login-box" style={{ maxWidth: '800px' }}>
-        　<h2>結果発表</h2>
-        　<div style={{ fontSize: '32px', margin: '10px 0' }}>
-          　{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length} 点
-          　({Math.round((quizAnswers.filter(a => a.ok).length / quizAnswers.length) * 100)}%)
+          <h2>結果発表</h2>
+          <div style={{ fontSize: '32px', margin: '10px 0' }}>
+            {quizAnswers.filter(a => a.ok).length} / {quizAnswers.length} 点
+            ({Math.round((quizAnswers.filter(a => a.ok).length / quizAnswers.length) * 100)}%)
           </div>
-      　　{/* 回答一覧表 */}
-      　　<div className="result-table-container" style={{ maxHeight: '400px', overflowY: 'auto', marginBottom: '20px' }}>
-        　<table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-          　<thead>
-          　　<tr style={{ borderBottom: '2px solid #ccc' }}>
-            　　<th>判定</th><th>問題</th><th>正解</th><th>あなたの回答</th>
-          　　</tr>
-          </thead>
-          <tbody>
-            {quizAnswers.map((a, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
-              <td style={{ color: a.ok ? 'green' : 'red', fontWeight: 'bold' }}>{a.ok ? '○' : '×'}</td>
-              <td>{a.q}</td>
-              <td>{a.correct}</td>
-              <td style={{ color: a.ok ? 'inherit' : 'red' }}>{a.a}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-
-    <div className="button-grid">
-      {/* 間違えた問題のみ再挑戦ボタン（×がある場合のみ表示） */}
-      {quizAnswers.some(a => !a.ok) && (
-        <button className="primary-btn" onClick={retryWrongQuestions}>
-          ❌ 間違えた問題のみ再トライ
-        </button>
+          <div className="result-table-container" style={{ maxHeight: '400px', overflowY: 'auto', marginBottom: '20px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #ccc' }}><th>判定</th><th>問題</th><th>正解</th><th>あなたの回答</th></tr>
+              </thead>
+              <tbody>
+                {quizAnswers.map((a, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ color: a.ok ? 'green' : 'red', fontWeight: 'bold' }}>{a.ok ? '○' : '×'}</td>
+                    <td>{a.q}</td><td>{a.correct}</td><td style={{ color: a.ok ? 'inherit' : 'red' }}>{a.a}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="button-grid">
+            {quizAnswers.some(a => !a.ok) && <button className="primary-btn" onClick={retryWrongQuestions}>❌ 間違えた問題のみ再トライ</button>}
+            <button className="secondary" onClick={() => setStep('menu')}>メニューへ戻る</button>
+          </div>
+        </div>
       )}
-      <button className="secondary" onClick={() => setStep('menu')}>メニューへ戻る</button>
     </div>
-  </div>
-)}
-    </div>
-  )
+  );
 }
 
-export default App
+export default App;
