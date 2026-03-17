@@ -239,29 +239,43 @@ function App() {
 
       {/* 自習クイズ設定画面 */}
       {step === 'quiz-setup' && (
-        <div className="login-box">
-          <h2>🚀 自習クイズ設定</h2>
-          <div className="config-group">
-            <label>学年選択</label>
-            <div className="grade-selector">
-              {gradeList.map(g => (
-                <button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>
-              ))}
-            </div>
-          </div>
-          <div className="config-group">
-            <label>範囲（{selectedGrade}）</label>
-            <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
-              {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
-            <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
-              {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <button className="primary-btn" onClick={startQuiz}>スタート！</button>
-          <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
-        </div>
-      )}
+          <div className="login-box">
+                <h2>🚀 自習クイズ設定</h2>
+                <div className="config-group">
+                <label>学年選択</label>
+                <div className="grade-selector">
+                 {gradeList.map(g => (
+          　　　　<button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>
+          ))}
+     　 </div>
+    　</div>
+
+    <div className="config-group">
+      <label>▼ 開始範囲（{selectedGrade}）</label>
+      <div style={{ display: 'flex', gap: '5px' }}>
+        <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
+          {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
+        </select>
+        <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
+          {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+      </div>
+
+      <label style={{ marginTop: '10px', display: 'block' }}>▼ 終了範囲（{selectedGrade}）</label>
+      <div style={{ display: 'flex', gap: '5px' }}>
+        <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
+          {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
+        </select>
+        <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>
+          {[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+      </div>
+    </div>
+
+    <button className="primary-btn" onClick={startQuiz}>スタート！</button>
+    <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
+  </div>
+)}
 
       {/* クイズ実行・結果画面は以前のロジックと同じ（省略せずに実装） */}
       {step === 'quiz-main' && quizItems[qIndex] && (
