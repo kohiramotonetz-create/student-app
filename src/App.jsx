@@ -11,10 +11,11 @@ function App() {
   const [step, setStep] = useState('login'); 
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState(''); // 追加：新パスワード用
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [allData, setAllData] = useState([]); // CSV全データ
-  const [selectedGrade, setSelectedGrade] = useState('中1'); // 学年選択用
+  const [allData, setAllData] = useState([]); 
+  const [selectedGrade, setSelectedGrade] = useState('中1');
 
   // --- 2：紙テスト用ステート ---
   const [startUnit, setStartUnit] = useState('');
@@ -35,9 +36,7 @@ function App() {
   const [quizReview, setQuizReview] = useState({ visible: false, record: null });
   const [practice, setPractice] = useState("");
 
-  // --- ロジック：自動範囲補正 ---
-  
-  // 1. 学年が切り替わった時に、ユニットの初期値をセットする
+  // --- 自動範囲補正ロジック ---
   useEffect(() => {
     const filtered = [...new Set(allData
       .filter(d => d.unitGroup.startsWith(selectedGrade))
@@ -49,17 +48,12 @@ function App() {
     }
   }, [selectedGrade, allData]);
 
-  // 2. ユニットが切り替わった時に、そのユニットの最初のPartを自動選択する
   useEffect(() => {
     if (allData.length === 0) return;
-
-    // 開始Partの補正
     const sParts = [...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))];
     if (sParts.length > 0 && (!startPart || !sParts.includes(startPart))) {
       setStartPart(sParts[0]);
     }
-
-    // 終了Partの補正
     const eParts = [...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))];
     if (eParts.length > 0 && (!endPart || !eParts.includes(endPart))) {
       setEndPart(eParts[0]);
@@ -87,13 +81,11 @@ function App() {
     } catch (e) { console.error("CSV load error"); }
   };
 
-  // 学年リスト自動抽出
   const gradeList = useMemo(() => {
     const grades = allData.map(d => d.unitGroup.substring(0, 2));
     return [...new Set(grades)].sort();
   }, [allData]);
 
-  // 表示用のユニット一覧
   const filteredUnits = useMemo(() => {
     return [...new Set(allData
       .filter(d => d.unitGroup.startsWith(selectedGrade))
@@ -101,20 +93,61 @@ function App() {
     )];
   }, [allData, selectedGrade]);
 
+  // --- 認証系ロジック ---
   const handleLogin = async () => {
     if (!userId || !password) return alert("入力してください");
     setLoading(true);
     try {
-      const response = await axios.post(GAS_URL, JSON.stringify({ action: "login", userId, password }), { headers: { 'Content-Type': 'text/plain' } });
+      const response = await axios.post(GAS_URL, JSON.stringify({ 
+        action: "login", 
+        userId, 
+        password 
+      }), { headers: { 'Content-Type': 'text/plain' } });
+
       if (response.data.result === "success") {
         setUserName(response.data.name);
-        setStep('menu');
-        loadCsv();
-      } else { alert("認証失敗"); }
-    } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
+        // 初回フラグのチェック
+        if (response.data.isInitial) {
+          setStep('change-password');
+        } else {
+          setStep('menu');
+          loadCsv();
+        }
+      } else { 
+        alert("認証失敗"); 
+      }
+    } catch (e) { 
+      alert("通信エラー"); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
-  // --- テスト生成系ロジック ---
+  const handleChangePassword = async () => {
+    if (!newPassword) return alert("新しいパスワードを入力してください");
+    setLoading(true);
+    try {
+      const response = await axios.post(GAS_URL, JSON.stringify({ 
+        action: "updatePassword", 
+        userId, 
+        newPassword 
+      }), { headers: { 'Content-Type': 'text/plain' } });
+
+      if (response.data.result === "success") {
+        alert("パスワードを更新しました。メニューに進みます。");
+        setStep('menu');
+        loadCsv();
+      } else {
+        alert("更新に失敗しました");
+      }
+    } catch (e) {
+      alert("通信エラーが発生しました");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- テスト生成・クイズロジック ---
   const generatePaperTest = () => {
     const sKey = startUnit + startPart;
     const eKey = endUnit + endPart;
@@ -163,6 +196,7 @@ function App() {
     <div className="container">
       {loading && <div className="loading-overlay">通信中...</div>}
 
+      {/* ログイン画面 */}
       {step === 'login' && (
         <div className="login-box">
           <h1>Student App</h1>
@@ -172,6 +206,22 @@ function App() {
         </div>
       )}
 
+      {/* パスワード変更画面 */}
+      {step === 'change-password' && (
+        <div className="login-box">
+          <h2>🔐 パスワード変更</h2>
+          <p>初回ログインのため、新しいパスワードを設定してください。</p>
+          <input 
+            type="password" 
+            placeholder="新しいパスワード" 
+            value={newPassword} 
+            onChange={(e) => setNewPassword(e.target.value)} 
+          />
+          <button onClick={handleChangePassword}>変更して開始</button>
+        </div>
+      )}
+
+      {/* メニュー画面 */}
       {step === 'menu' && (
         <div className="menu-box">
           <h1>メニュー</h1>
@@ -184,6 +234,9 @@ function App() {
         </div>
       )}
 
+      {/* 以降、紙テスト設定・自習クイズ設定・実行画面などは変更なしのため省略せず保持 */}
+      {/* (既存の return 内の test-setup, quiz-setup, quiz-main, quiz-result の JSX をそのままここに配置) */}
+      
       {step === 'test-setup' && (
         <div className="test-builder-layout">
           <div className="settings-panel no-print">
@@ -197,7 +250,6 @@ function App() {
                 <option value="en-ja">英語 → 日本語</option><option value="ja-en">日本語 → 英語</option>
               </select>
             </div>
-
             <div className="config-group">
               <label>対象学年</label>
               <div className="grade-selector">
@@ -206,7 +258,6 @@ function App() {
                 ))}
               </div>
             </div>
-
             <div className="config-group">
               <label>▼ 開始範囲 ({selectedGrade})</label>
               <div style={{ display: 'flex', gap: '5px' }}>
@@ -217,7 +268,6 @@ function App() {
                   {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
-
               <label style={{marginTop: '10px', display: 'block'}}>▼ 終了範囲 ({selectedGrade})</label>
               <div style={{ display: 'flex', gap: '5px' }}>
                 <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
@@ -228,7 +278,6 @@ function App() {
                 </select>
               </div>
             </div>
-
             <button className="btn-main" onClick={generatePaperTest}>🔄 問題を生成</button>
             <button className="btn-sub" onClick={() => setShowAnswer(!showAnswer)}>👁 解答表示：{showAnswer ? 'OFF' : 'ON'}</button>
             <button className="btn-print" onClick={() => window.print()}>🖨 印刷 / PDF保存</button>
@@ -272,7 +321,6 @@ function App() {
               ))}
             </div>
           </div>
-
           <div className="config-group">
             <label>▼ 開始範囲（{selectedGrade}）</label>
             <div style={{ display: 'flex', gap: '5px' }}>
@@ -283,7 +331,6 @@ function App() {
                 {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
-
             <label style={{ marginTop: '10px', display: 'block' }}>▼ 終了範囲（{selectedGrade}）</label>
             <div style={{ display: 'flex', gap: '5px' }}>
               <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
@@ -294,7 +341,6 @@ function App() {
               </select>
             </div>
           </div>
-
           <button className="primary-btn" onClick={startQuiz}>スタート！</button>
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
