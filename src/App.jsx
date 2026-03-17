@@ -268,7 +268,7 @@ function App() {
                 　style={{ marginTop: '5px', width: '100%' }}
                 />
               )}
-              
+
               <select value={mode} onChange={(e) => setMode(e.target.value)}>
                 <option value="en-ja">英語 → 日本語</option><option value="ja-en">日本語 → 英語</option>
               </select>
@@ -311,7 +311,9 @@ function App() {
               <div className="header-area">
                 <div style={{fontSize: '14px'}}>名前 ____________________</div>
                 <h1 style={{fontSize: '24px'}}>英単語テスト</h1>
-                <div style={{fontSize: '14px', fontWeight: 'bold'}}>{school}</div>
+                <div style={{fontSize: '14px', fontWeight: 'bold'}}>
+                  {school === 'custom' ? customSchool : school}
+                </div>
               </div>
               <p style={{fontSize: '12px', margin: '5px 0', color: '#444'}}>{rangeText}</p>
               <table>
