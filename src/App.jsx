@@ -86,6 +86,7 @@ function App() {
     } catch (e) { console.error("CSV load error"); setLoading(false); }
   };
 
+  // 不規則動詞用CSV読込（ヘッダー名に依存しない安全版）
   const loadFukisokuCsv = async () => {
     setLoading(true);
     try {
@@ -94,10 +95,13 @@ function App() {
       Papa.parse(text, {
         header: true, skipEmptyLines: true,
         complete: (results) => {
-          const data = results.data.map(d => ({
-            en: d["英語"],
-            ja: d["日本語"]
-          })).filter(d => d.en);
+          const data = results.data.map(row => {
+            const keys = Object.keys(row);
+            return {
+              en: row[keys[0]], // 1列目（英語）
+              ja: row[keys[1]]  // 2列目（日本語）
+            };
+          }).filter(d => d.en && d.ja);
           setAllData(data);
           setLoading(false);
         }
@@ -181,14 +185,16 @@ function App() {
     setStep('quiz-main');
   };
 
+  // 不規則動詞スタート（日本語→英語固定）
   const startFukisokuQuiz = () => {
-    if (allData.length === 0) return alert("データがありません");
+    if (allData.length === 0) return alert("データが読み込めていません。");
     const selected = [...allData].sort(() => 0.5 - Math.random()).slice(0, 20);
     setQuizType('fukisoku');
     setQuizItems(selected);
     setQIndex(0);
     setQuizAnswers([]);
-    setMode('ja-en');
+    setMode('ja-en'); // ★ここで日本語→英語に固定
+    setCurrentInput("");
     setStep('quiz-main');
   };
 
@@ -235,7 +241,6 @@ function App() {
     const correctCount = finalAnswers.filter(a => a.ok).length;
     const totalCount = finalAnswers.length;
 
-    // ここで送信先シート名と範囲テキストを切り分ける
     const isFukisoku = quizType === 'fukisoku';
     const sheetName = isFukisoku ? "英単語（不規則変化）" : "定期テスト英単語";
     const testRange = isFukisoku ? "全範囲(不規則変化)" : `${startUnit} ${startPart} ～ ${endUnit} ${endPart}`;
@@ -297,7 +302,7 @@ function App() {
       {step === 'fukisoku-setup' && (
         <div className="login-box">
           <h2>🔄 不規則動詞 特訓</h2>
-          <p>全範囲からランダムに20問出題されます。</p>
+          <p>日本語を見て、英語の不規則変化を入力してください。</p>
           <button className="primary-btn" onClick={startFukisokuQuiz}>スタート！</button>
           <button className="secondary" onClick={() => { setStep('menu'); loadCsv(); }}>戻る</button>
         </div>
