@@ -1,6 +1,9 @@
 import { useState } from 'react'
+import axios from 'axios'
 import './App.css'
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyi79TzGe0892weIoRyoQrj_6jG7B-l1MYhYzp2duJIdPi2-FC7if5yPDzYLmslYzaUsA/exec";
+
+// ★ここを書き換え！直接URLを書かずに、環境変数を読み込むようにします
+const GAS_URL = import.meta.env.VITE_GAS_URL;
 
 function App() {
   const [step, setStep] = useState('login'); // login, change-password, menu, test
