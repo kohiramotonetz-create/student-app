@@ -240,20 +240,18 @@ th, td {
 
 .grade-selector {
   display: flex;
-  gap: 8px;
-  margin-top: 5px;
+  gap: 5px;
+  margin: 10px 0;
 }
-
 .grade-btn {
   flex: 1;
-  padding: 8px;
+  padding: 10px 5px;
   border: 1px solid #ddd;
-  background: #f9f9f9;
-  border-radius: 6px;
+  background: #f0f0f0;
+  border-radius: 5px;
   cursor: pointer;
   font-size: 14px;
 }
-
 .grade-btn.active {
   background: #007bff;
   color: white;

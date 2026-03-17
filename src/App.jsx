@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import Papa from 'papaparse'
 import './App.css'
@@ -7,27 +7,27 @@ const GAS_URL = import.meta.env.VITE_GAS_URL;
 const QUESTION_COUNT = 20;
 
 function App() {
-  // --- レイヤー1：共通・ログイン ---
+  // --- 1：共通ステート ---
   const [step, setStep] = useState('login'); 
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [allData, setAllData] = useState([]);
-  const [units, setUnits] = useState([]);
+  const [allData, setAllData] = useState([]); // CSV全データ
+  const [selectedGrade, setSelectedGrade] = useState('中1'); // 学年選択用
 
-  // --- レイヤー3-1：紙テスト専用ステート (Pro版の機能を維持) ---
+  // --- 2：紙テスト用ステート ---
   const [startUnit, setStartUnit] = useState('');
   const [startPart, setStartPart] = useState('');
   const [endUnit, setEndUnit] = useState('');
   const [endPart, setEndPart] = useState('');
   const [school, setSchool] = useState('木太中');
-  const [mode, setMode] = useState('en-ja'); // 出題モード
+  const [mode, setMode] = useState('en-ja');
   const [testWords, setTestWords] = useState([]);
   const [rangeText, setRangeText] = useState('');
-  const [showAnswer, setShowAnswer] = useState(false); // 解答の表示/非表示
+  const [showAnswer, setShowAnswer] = useState(false);
 
-  // --- レイヤー3-2：自習クイズ専用ステート ---
+  // --- 3：自習クイズ用ステート ---
   const [quizItems, setQuizItems] = useState([]);
   const [qIndex, setQIndex] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState([]);
@@ -35,7 +35,7 @@ function App() {
   const [quizReview, setQuizReview] = useState({ visible: false, record: null });
   const [practice, setPractice] = useState("");
 
-  // --- 共通：データ読込 ---
+  // --- 共通ロジック：CSV読込・学年フィルタ ---
   const loadCsv = async () => {
     try {
       const res = await fetch('/wordlist.csv?v=' + new Date().getTime());
@@ -51,16 +51,30 @@ function App() {
             ja: d["日本語"]
           })).filter(d => d.en);
           setAllData(data);
-          const uniqueUnits = [...new Set(data.map(d => d.unitGroup))];
-          setUnits(uniqueUnits);
-          if (uniqueUnits.length > 0) {
-            setStartUnit(uniqueUnits[0]);
-            setEndUnit(uniqueUnits[0]);
-          }
         }
       });
-    } catch (e) { console.error("CSV error"); }
+    } catch (e) { console.error("CSV load error"); }
   };
+
+  // 学年リスト (中1, 中2, 中3など) を自動抽出
+  const gradeList = useMemo(() => {
+    const grades = allData.map(d => d.unitGroup.substring(0, 2));
+    return [...new Set(grades)].sort();
+  }, [allData]);
+
+  // 現在選ばれている学年のユニット一覧
+  const filteredUnits = useMemo(() => {
+    const filtered = [...new Set(allData
+      .filter(d => d.unitGroup.startsWith(selectedGrade))
+      .map(d => d.unitGroup)
+    )];
+    // 学年を切り替えた際に初期値をセット
+    if (filtered.length > 0) {
+      setStartUnit(filtered[0]);
+      setEndUnit(filtered[0]);
+    }
+    return filtered;
+  }, [allData, selectedGrade]);
 
   const handleLogin = async () => {
     if (!userId || !password) return alert("入力してください");
@@ -75,7 +89,7 @@ function App() {
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
 
-  // --- 紙テスト用：問題生成 ---
+  // --- 紙テスト生成ロジック ---
   const generatePaperTest = () => {
     const sKey = startUnit + startPart;
     const eKey = endUnit + endPart;
@@ -88,9 +102,9 @@ function App() {
     setRangeText(`範囲: ${sKey} ～ ${eKey} (全${range.length}問から20問抽出)`);
   };
 
-  // --- クイズ用：開始 ---
+  // --- クイズ開始ロジック ---
   const startQuiz = () => {
-    const sKey = startUnit + startPart; // 紙テストと同じ範囲指定を使用
+    const sKey = startUnit + startPart;
     const eKey = endUnit + endPart;
     const startIndex = allData.findIndex(d => d.key === sKey);
     const endIndex = allData.findLastIndex(d => d.key === eKey);
@@ -118,14 +132,14 @@ function App() {
       setCurrentInput("");
       if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1);
       else setStep('quiz-result');
-    } else { alert("正解と一致しません"); }
+    } else { alert("正解を打ってください"); }
   };
 
   return (
     <div className="container">
       {loading && <div className="loading-overlay">通信中...</div>}
 
-      {/* 1：ログイン */}
+      {/* ログイン画面 */}
       {step === 'login' && (
         <div className="login-box">
           <h1>Student App</h1>
@@ -135,7 +149,7 @@ function App() {
         </div>
       )}
 
-      {/* 2：メニュー */}
+      {/* メニュー画面 */}
       {step === 'menu' && (
         <div className="menu-box">
           <h1>メニュー</h1>
@@ -148,122 +162,124 @@ function App() {
         </div>
       )}
 
-      // --- ステートに追加 ---
-const [selectedGrade, setSelectedGrade] = useState('中1'); // デフォルト学年
+      {/* 紙テスト作成画面 */}
+      {step === 'test-setup' && (
+        <div className="test-builder-layout">
+          <div className="settings-panel no-print">
+            <h3>📝 テスト作成設定</h3>
+            <div className="config-group">
+              <label>基本設定</label>
+              <select value={school} onChange={(e) => setSchool(e.target.value)}>
+                <option value="木太中">木太中</option><option value="玉藻中">玉藻中</option><option value="桜町中">桜町中</option><option value="附属中">附属中</option>
+              </select>
+              <select value={mode} onChange={(e) => setMode(e.target.value)}>
+                <option value="en-ja">英語 → 日本語</option><option value="ja-en">日本語 → 英語</option>
+              </select>
+            </div>
 
-// --- 学年リストの生成 (allItemsが変わるたびに更新) ---
-const gradeList = useMemo(() => {
-  // 「中1 Unit1」などの先頭2文字（中1, 中2, 中3）を抽出して重複を排除
-  const grades = allData.map(d => d.unitGroup.substring(0, 2));
-  return [...new Set(grades)].sort();
-}, [allData]);
+            {/* 学年選択ボタン */}
+            <div className="config-group">
+              <label>対象学年</label>
+              <div className="grade-selector">
+                {gradeList.map(g => (
+                  <button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>
+                ))}
+              </div>
+            </div>
 
-// --- 選択された学年に基づくユニットリスト ---
-const filteredUnits = useMemo(() => {
-  return [...new Set(allData
-    .filter(d => d.unitGroup.startsWith(selectedGrade))
-    .map(d => d.unitGroup)
-  )];
-}, [allData, selectedGrade]);
+            <div className="config-group">
+              <label>▼ 開始範囲 ({selectedGrade})</label>
+              <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
+                {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
+                {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
 
-// --- HTML部分の修正 ---
-{step === 'test-setup' && (
-  <div className="test-builder-layout">
-    <div className="settings-panel no-print">
-      <h3>📝 テスト作成設定</h3>
-      
-      <div className="config-group">
-        <label>学校名 / 出題モード</label>
-        <select value={school} onChange={(e) => setSchool(e.target.value)}>
-          <option value="木太中">木太中</option><option value="玉藻中">玉藻中</option>
-          <option value="桜町中">桜町中</option><option value="附属中">附属中</option>
-        </select>
-        <select value={mode} onChange={(e) => setMode(e.target.value)}>
-          <option value="en-ja">英語 → 日本語</option><option value="ja-en">日本語 → 英語</option>
-        </select>
-      </div>
+              <label>▼ 終了範囲 ({selectedGrade})</label>
+              <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
+                {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>
+                {[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
 
-      {/* ★新規追加：学年選択ボタン */}
-      <div className="config-group">
-        <label>対象学年</label>
-        <div className="grade-selector">
-          {gradeList.map(g => (
-            <button 
-              key={g} 
-              className={selectedGrade === g ? "grade-btn active" : "grade-btn"}
-              onClick={() => setSelectedGrade(g)}
-            >
-              {g}
-            </button>
-          ))}
+            <button className="btn-main" onClick={generatePaperTest}>🔄 問題を生成</button>
+            <button className="btn-sub" onClick={() => setShowAnswer(!showAnswer)}>👁 解答表示：{showAnswer ? 'ON' : 'OFF'}</button>
+            <button className="btn-print" onClick={() => window.print()}>🖨 印刷 / PDF保存</button>
+            <button className="btn-back" onClick={() => setStep('menu')}>戻る</button>
+          </div>
+          <div className="preview-panel">
+            <div className="test-paper" id="paper">
+              <div className="header-area">
+                <div style={{fontSize: '14px'}}>名前 ____________________</div>
+                <h1 style={{fontSize: '24px'}}>英単語テスト</h1>
+                <div style={{fontSize: '14px', fontWeight: 'bold'}}>{school}</div>
+              </div>
+              <p style={{fontSize: '12px', margin: '5px 0', color: '#444'}}>{rangeText}</p>
+              <table>
+                <thead>
+                  <tr><th style={{width: '40px'}}>No.</th><th>{mode==='en-ja'?'英単語':'日本語訳'}</th><th>{mode==='en-ja'?'日本語訳':'英単語'}</th></tr>
+                </thead>
+                <tbody>
+                  {testWords.length > 0 ? testWords.map((d, i) => (
+                    <tr key={i}>
+                      <td style={{textAlign:'center'}}>{i+1}</td>
+                      <td>{mode==='en-ja'?d.en:d.ja}</td>
+                      <td>{showAnswer ? (mode==='en-ja'?d.ja:d.en) : ''}</td>
+                    </tr>
+                  )) : [...Array(20)].map((_, i) => <tr key={i}><td>{i+1}</td><td></td><td></td></tr>)}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="config-group">
-        <label>▼ 開始範囲 ({selectedGrade})</label>
-        <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
-          {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
-        </select>
-        <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
-          {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-
-        <label>▼ 終了範囲 ({selectedGrade})</label>
-        <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
-          {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
-        </select>
-        <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>
-          {[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-      </div>
-
-      <button className="btn-main" onClick={generatePaperTest}>🔄 問題を生成</button>
-      <button className="btn-sub" onClick={() => setShowAnswer(!showAnswer)}>👁 解答表示：{showAnswer ? 'ON' : 'OFF'}</button>
-      <button className="btn-print" onClick={() => window.print()}>🖨 印刷 / PDF保存</button>
-      <button className="btn-back" onClick={() => setStep('menu')}>戻る</button>
-    </div>
-    
-    {/* 右側のプレビューパネルは変更なし */}
-    <div className="preview-panel">...</div>
-  </div>
-)}
-
-      {/* 3-2：自習クイズ設定 */}
+      {/* 自習クイズ設定画面 */}
       {step === 'quiz-setup' && (
         <div className="login-box">
           <h2>🚀 自習クイズ設定</h2>
           <div className="config-group">
-            <label>出題範囲（紙テストと共通）</label>
+            <label>学年選択</label>
+            <div className="grade-selector">
+              {gradeList.map(g => (
+                <button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>
+              ))}
+            </div>
+          </div>
+          <div className="config-group">
+            <label>範囲（{selectedGrade}）</label>
             <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
-              {units.map(u => <option key={u} value={u}>{u}</option>)}
+              {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
             </select>
             <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
               {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
-          <button className="primary-btn" onClick={startQuiz}>スタート（20問）</button>
+          <button className="primary-btn" onClick={startQuiz}>スタート！</button>
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
       )}
 
-      {/* 3-2：クイズ実行 */}
+      {/* クイズ実行・結果画面は以前のロジックと同じ（省略せずに実装） */}
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
           <div className="q-display-box">{quizItems[qIndex].ja}</div>
-          <input className="q-input" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} autoFocus placeholder="英語を入力" />
+          <input className="q-input" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} autoFocus />
           {!quizReview.visible && <button className="ans-btn" onClick={submitQuizAnswer}>答え合わせ</button>}
           {quizReview.visible && (
             <div className="review-box">
-              <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>{quizReview.record.ok ? "✅ 正解！" : `❌ 不正解！ 正解: ${quizReview.record.correct}`}</p>
+              <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>{quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}</p>
               {quizReview.record.ok ? <button className="next-btn" onClick={() => { setQuizReview({ visible: false }); setCurrentInput(""); if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1); else setStep('quiz-result'); }}>次へ</button> :
-              <div className="practice-area"><p>正解を打って次へ：</p><input className="p-input" value={practice} onChange={(e) => setPractice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && finishPractice()} autoFocus /><button className="next-btn" onClick={finishPractice}>確認</button></div>}
+              <div className="practice-area"><input className="p-input" value={practice} onChange={(e) => setPractice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && finishPractice()} autoFocus /><button className="next-btn" onClick={finishPractice}>確認</button></div>}
             </div>
           )}
         </div>
       )}
 
-      {/* クイズ結果 */}
       {step === 'quiz-result' && (
         <div className="login-box">
           <h2>結果発表</h2>
