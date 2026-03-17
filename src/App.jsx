@@ -15,7 +15,7 @@ function App() {
 
 　　　
   // 1. ログイン処理
-  const handleLogin = async () => {
+  const handleLogin = async () => { // ← ここに async があるか確認！
     if (!userId || !password) return alert("IDとパスワードを入力してください");
     if (!GAS_URL) return alert("GASのURLが設定されていません");
     
@@ -32,7 +32,7 @@ function App() {
       if (response.data.result === "success") {
         setUserName(response.data.name);
 
-        // ★修正ポイント：adminの場合は強制的にメニューへ
+        // adminの場合はパスワード変更をスキップ
         if (userId === 'admin') {
           setStep('menu');
         } else if (response.data.isInitial === true) {
