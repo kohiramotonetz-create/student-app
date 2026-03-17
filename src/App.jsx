@@ -176,10 +176,33 @@ function App() {
 
   const submitQuizAnswer = () => {
     const item = quizItems[qIndex];
-    const isCorrect = currentInput.trim().toLowerCase() === item.en.trim().toLowerCase();
-    const record = { q: item.ja, a: currentInput, correct: item.en, ok: isCorrect };
+    // モードによって正解を切り替え
+    const correctAnswer = mode === 'ja-en' ? item.en : item.ja;
+    
+    const isCorrect = currentInput.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+    const record = { 
+      q: mode === 'ja-en' ? item.ja : item.en, 
+      a: currentInput, 
+      correct: correctAnswer, 
+      ok: isCorrect 
+    };
+    
     setQuizAnswers(prev => [...prev, record]);
     setQuizReview({ visible: true, record });
+  };
+
+  const finishPractice = () => {
+    // 練習入力の判定もモードに合わせる
+    const correctAnswer = quizReview.record.correct;
+    if (practice.trim().toLowerCase() === correctAnswer.toLowerCase()) {
+      setPractice("");
+      setQuizReview({ visible: false, record: null });
+      setCurrentInput("");
+      if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1);
+      else setStep('quiz-result');
+    } else { 
+      alert("正解を正しく入力してください"); 
+    }
   };
 
   const finishPractice = () => {
@@ -331,6 +354,28 @@ function App() {
                 {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
+            {/* 追加：出題モード選択 */}
+          <div className="config-group">
+            <label>出題モード</label>
+            <div className="mode-selector" style={{ display: 'flex', gap: '5px' }}>
+              <button 
+                className={mode === 'ja-en' ? "mode-btn active" : "mode-btn"} 
+                onClick={() => setMode('ja-en')}
+                style={{ flex: 1, padding: '8px', fontSize: '14px' }}
+              >
+                日 → 英
+              </button>
+              <button 
+                className={mode === 'en-ja' ? "mode-btn active" : "mode-btn"} 
+                onClick={() => setMode('en-ja')}
+                style={{ flex: 1, padding: '8px', fontSize: '14px' }}
+              >
+                英 → 日
+              </button>
+            </div>
+          </div>
+
+
             <label style={{ marginTop: '10px', display: 'block' }}>▼ 終了範囲（{selectedGrade}）</label>
             <div style={{ display: 'flex', gap: '5px' }}>
               <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
@@ -346,17 +391,53 @@ function App() {
         </div>
       )}
 
+      {/* クイズ実行画面（quiz-main）も、モードに合わせて表示を切り替えるように修正 */}
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
-          <div className="q-display-box">{quizItems[qIndex].ja}</div>
-          <input className="q-input" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} autoFocus />
+          
+          {/* モードによって出題（英語か日本語か）を切り替え */}
+          <div className="q-display-box">
+            {mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}
+          </div>
+
+          <input 
+            className="q-input" 
+            value={currentInput} 
+            onChange={(e) => setCurrentInput(e.target.value)} 
+            onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} 
+            placeholder={mode === 'ja-en' ? "英語で答えを入力" : "日本語で答えを入力"}
+            autoFocus 
+          />
+          
           {!quizReview.visible && <button className="ans-btn" onClick={submitQuizAnswer}>答え合わせ</button>}
+          
           {quizReview.visible && (
             <div className="review-box">
-              <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>{quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}</p>
-              {quizReview.record.ok ? <button className="next-btn" onClick={() => { setQuizReview({ visible: false }); setCurrentInput(""); if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1); else setStep('quiz-result'); }}>次へ</button> :
-              <div className="practice-area"><input className="p-input" value={practice} onChange={(e) => setPractice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && finishPractice()} autoFocus /><button className="next-btn" onClick={finishPractice}>確認</button></div>}
+              <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>
+                {quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${mode === 'ja-en' ? quizItems[qIndex].en : quizItems[qIndex].ja}`}
+              </p>
+              
+              {quizReview.record.ok ? (
+                <button className="next-btn" onClick={() => { 
+                  setQuizReview({ visible: false }); 
+                  setCurrentInput(""); 
+                  if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1); 
+                  else setStep('quiz-result'); 
+                }}>次へ</button>
+              ) : (
+                <div className="practice-area">
+                  <p style={{fontSize: '12px', marginBottom: '5px'}}>正解をタイプして次へ：</p>
+                  <input 
+                    className="p-input" 
+                    value={practice} 
+                    onChange={(e) => setPractice(e.target.value)} 
+                    onKeyDown={(e) => e.key === 'Enter' && finishPractice()} 
+                    autoFocus 
+                  />
+                  <button className="next-btn" onClick={finishPractice}>確認</button>
+                </div>
+              )}
             </div>
           )}
         </div>
