@@ -128,7 +128,7 @@ function App() {
     setLoading(true);
     try {
       const response = await axios.post(GAS_URL, JSON.stringify({ 
-        action: "updatePassword", 
+        action: "changePassword", 
         userId, 
         newPassword 
       }), { headers: { 'Content-Type': 'text/plain' } });
