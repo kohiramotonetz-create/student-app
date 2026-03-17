@@ -13,25 +13,43 @@ function App() {
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(false);
 
+　　　
   // 1. ログイン処理
   const handleLogin = async () => {
     if (!userId || !password) return alert("IDとパスワードを入力してください");
+    if (!GAS_URL) return alert("GASのURLが設定されていません");
+    
     setLoading(true);
-
     try {
-      // axios ではなく、ブラウザ標準の fetch を使います
-      const response = await fetch(GAS_URL, {
-        method: "POST",
-        mode: "no-cors", // これが重要！セキュリティ制限を緩めます
-        headers: {
-          "Content-Type": "text/plain",
-        },
-        body: JSON.stringify({
-          action: "login",
-          userId: userId,
-          password: password,
-        }),
+      const response = await axios.post(GAS_URL, JSON.stringify({
+        action: "login",
+        userId: userId,
+        password: password
+      }), {
+        headers: { 'Content-Type': 'text/plain' }
       });
+
+      if (response.data.result === "success") {
+        setUserName(response.data.name);
+
+        // ★修正ポイント：adminの場合は強制的にメニューへ
+        if (userId === 'admin') {
+          setStep('menu');
+        } else if (response.data.isInitial === true) {
+          setStep('change-password');
+        } else {
+          setStep('menu');
+        }
+      } else {
+        alert("IDまたはパスワードが違います");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("通信エラーが発生しました。");
+    } finally {
+      setLoading(false);
+    }
+  };
 
       // no-cors モードの場合、中身を読み取れない制限があるため、
       // 一旦「送信に成功した＝ID/Passが正しい」とみなして進むか、
