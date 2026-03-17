@@ -1,0 +1,120 @@
+/* 全体のレイアウト設定 */
+#root {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f0f2f5; /* 少しグレーの背景でアプリっぽく */
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  width: 100vw;
+}
+
+/* 各種カード（ログイン、メニュー、テスト）の共通スタイル */
+.login-box, .menu-box, .test-box {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  text-align: center;
+  width: 100%;
+  max-width: 400px; /* スマホやiPadで見やすい幅 */
+}
+
+h1 {
+  color: #1a73e8;
+  margin-bottom: 24px;
+  font-size: 24px;
+}
+
+h2 {
+  color: #333;
+  margin-bottom: 16px;
+}
+
+/* 入力フォームのスタイル */
+input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box; /* パディングを含めた幅計算 */
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s;
+}
+
+input:focus {
+  outline: none;
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
+}
+
+/* ボタンのスタイル */
+button {
+  background-color: #1a73e8;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 8px;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #1557b0;
+}
+
+button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* サブボタン（ログアウトなど） */
+.secondary {
+  background-color: transparent;
+  color: #5f6368;
+  border: 1px solid #dadce0;
+  margin-top: 16px;
+}
+
+.secondary:hover {
+  background-color: #f8f9fa;
+  color: #202124;
+}
+
+/* 通信中（ローディング）のオーバーレイ */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px); /* 背景をぼかすとおしゃれ */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: #1a73e8;
+  z-index: 9999;
+}
+
+/* ボタンを横並びにしたい時のグリッド */
+.button-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
