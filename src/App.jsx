@@ -34,6 +34,39 @@ function App() {
   const [currentInput, setCurrentInput] = useState("");
   const [quizReview, setQuizReview] = useState({ visible: false, record: null });
   const [practice, setPractice] = useState("");
+　const [showAnswer, setShowAnswer] = useState(false);
+
+  // --- ★ここから追加★ ---
+  // ユニットが切り替わった時に、そのユニットの最初のPartを自動選択する
+  useEffect(() => {
+    if (allData.length === 0) return;
+
+    // 開始Partの補正
+    const sParts = [...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))];
+    if (sParts.length > 0 && !sParts.includes(startPart)) {
+      setStartPart(sParts[0]);
+    }
+
+    // 終了Partの補正
+    const eParts = [...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))];
+    if (eParts.length > 0 && !eParts.includes(endPart)) {
+      setEndPart(eParts[0]);
+    }
+  }, [startUnit, endUnit, allData]);
+
+  // 学年が切り替わった時に、ユニットの初期値をセットする（既存のロジックを整理）
+  useEffect(() => {
+    const filtered = [...new Set(allData
+      .filter(d => d.unitGroup.startsWith(selectedGrade))
+      .map(d => d.unitGroup)
+    )];
+    if (filtered.length > 0) {
+      setStartUnit(filtered[0]);
+      setEndUnit(filtered[0]);
+    }
+  }, [selectedGrade, allData]);
+  // --- ★ここまで追加★ ---
+  
 
   // --- 共通ロジック：CSV読込・学年フィルタ ---
   const loadCsv = async () => {
