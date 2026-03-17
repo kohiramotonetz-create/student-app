@@ -34,27 +34,10 @@ function App() {
   const [currentInput, setCurrentInput] = useState("");
   const [quizReview, setQuizReview] = useState({ visible: false, record: null });
   const [practice, setPractice] = useState("");
-　const [showAnswer, setShowAnswer] = useState(false);
 
-  // --- ★ここから追加★ ---
-  // ユニットが切り替わった時に、そのユニットの最初のPartを自動選択する
-  useEffect(() => {
-    if (allData.length === 0) return;
-
-    // 開始Partの補正
-    const sParts = [...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))];
-    if (sParts.length > 0 && !sParts.includes(startPart)) {
-      setStartPart(sParts[0]);
-    }
-
-    // 終了Partの補正
-    const eParts = [...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))];
-    if (eParts.length > 0 && !eParts.includes(endPart)) {
-      setEndPart(eParts[0]);
-    }
-  }, [startUnit, endUnit, allData]);
-
-  // 学年が切り替わった時に、ユニットの初期値をセットする（既存のロジックを整理）
+  // --- ロジック：自動範囲補正 ---
+  
+  // 1. 学年が切り替わった時に、ユニットの初期値をセットする
   useEffect(() => {
     const filtered = [...new Set(allData
       .filter(d => d.unitGroup.startsWith(selectedGrade))
@@ -65,10 +48,25 @@ function App() {
       setEndUnit(filtered[0]);
     }
   }, [selectedGrade, allData]);
-  // --- ★ここまで追加★ ---
-  
 
-  // --- 共通ロジック：CSV読込・学年フィルタ ---
+  // 2. ユニットが切り替わった時に、そのユニットの最初のPartを自動選択する
+  useEffect(() => {
+    if (allData.length === 0) return;
+
+    // 開始Partの補正
+    const sParts = [...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))];
+    if (sParts.length > 0 && (!startPart || !sParts.includes(startPart))) {
+      setStartPart(sParts[0]);
+    }
+
+    // 終了Partの補正
+    const eParts = [...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))];
+    if (eParts.length > 0 && (!endPart || !eParts.includes(endPart))) {
+      setEndPart(eParts[0]);
+    }
+  }, [startUnit, endUnit, allData]);
+
+  // --- 共通ロジック：CSV読込 ---
   const loadCsv = async () => {
     try {
       const res = await fetch('/wordlist.csv?v=' + new Date().getTime());
@@ -89,24 +87,18 @@ function App() {
     } catch (e) { console.error("CSV load error"); }
   };
 
-  // 学年リスト (中1, 中2, 中3など) を自動抽出
+  // 学年リスト自動抽出
   const gradeList = useMemo(() => {
     const grades = allData.map(d => d.unitGroup.substring(0, 2));
     return [...new Set(grades)].sort();
   }, [allData]);
 
-  // 現在選ばれている学年のユニット一覧
+  // 表示用のユニット一覧
   const filteredUnits = useMemo(() => {
-    const filtered = [...new Set(allData
+    return [...new Set(allData
       .filter(d => d.unitGroup.startsWith(selectedGrade))
       .map(d => d.unitGroup)
     )];
-    // 学年を切り替えた際に初期値をセット
-    if (filtered.length > 0) {
-      setStartUnit(filtered[0]);
-      setEndUnit(filtered[0]);
-    }
-    return filtered;
   }, [allData, selectedGrade]);
 
   const handleLogin = async () => {
@@ -122,7 +114,7 @@ function App() {
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
 
-  // --- 紙テスト生成ロジック ---
+  // --- テスト生成系ロジック ---
   const generatePaperTest = () => {
     const sKey = startUnit + startPart;
     const eKey = endUnit + endPart;
@@ -135,7 +127,6 @@ function App() {
     setRangeText(`範囲: ${sKey} ～ ${eKey} (全${range.length}問から20問抽出)`);
   };
 
-  // --- クイズ開始ロジック ---
   const startQuiz = () => {
     const sKey = startUnit + startPart;
     const eKey = endUnit + endPart;
@@ -172,7 +163,6 @@ function App() {
     <div className="container">
       {loading && <div className="loading-overlay">通信中...</div>}
 
-      {/* ログイン画面 */}
       {step === 'login' && (
         <div className="login-box">
           <h1>Student App</h1>
@@ -182,7 +172,6 @@ function App() {
         </div>
       )}
 
-      {/* メニュー画面 */}
       {step === 'menu' && (
         <div className="menu-box">
           <h1>メニュー</h1>
@@ -195,7 +184,6 @@ function App() {
         </div>
       )}
 
-      {/* 紙テスト作成画面 */}
       {step === 'test-setup' && (
         <div className="test-builder-layout">
           <div className="settings-panel no-print">
@@ -210,7 +198,6 @@ function App() {
               </select>
             </div>
 
-            {/* 学年選択ボタン */}
             <div className="config-group">
               <label>対象学年</label>
               <div className="grade-selector">
@@ -222,20 +209,24 @@ function App() {
 
             <div className="config-group">
               <label>▼ 開始範囲 ({selectedGrade})</label>
-              <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
-                {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-              <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
-                {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
+              <div style={{ display: 'flex', gap: '5px' }}>
+                <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
+                  {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+                <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
+                  {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
 
-              <label>▼ 終了範囲 ({selectedGrade})</label>
-              <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
-                {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-              <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>
-                {[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
+              <label style={{marginTop: '10px', display: 'block'}}>▼ 終了範囲 ({selectedGrade})</label>
+              <div style={{ display: 'flex', gap: '5px' }}>
+                <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
+                  {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+                <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>
+                  {[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
             </div>
 
             <button className="btn-main" onClick={generatePaperTest}>🔄 問題を生成</button>
@@ -270,47 +261,45 @@ function App() {
         </div>
       )}
 
-      {/* 自習クイズ設定画面 */}
       {step === 'quiz-setup' && (
-          <div className="login-box">
-                <h2>🚀 自習クイズ設定</h2>
-                <div className="config-group">
-                <label>学年選択</label>
-                <div className="grade-selector">
-                 {gradeList.map(g => (
-          　　　　<button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>
-          ))}
-     　 </div>
-    　</div>
+        <div className="login-box">
+          <h2>🚀 自習クイズ設定</h2>
+          <div className="config-group">
+            <label>学年選択</label>
+            <div className="grade-selector">
+              {gradeList.map(g => (
+                <button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>
+              ))}
+            </div>
+          </div>
 
-    <div className="config-group">
-      <label>▼ 開始範囲（{selectedGrade}）</label>
-      <div style={{ display: 'flex', gap: '5px' }}>
-        <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
-          {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
-        </select>
-        <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
-          {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-      </div>
+          <div className="config-group">
+            <label>▼ 開始範囲（{selectedGrade}）</label>
+            <div style={{ display: 'flex', gap: '5px' }}>
+              <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
+                {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
+                {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
 
-      <label style={{ marginTop: '10px', display: 'block' }}>▼ 終了範囲（{selectedGrade}）</label>
-      <div style={{ display: 'flex', gap: '5px' }}>
-        <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
-          {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
-        </select>
-        <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>
-          {[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-      </div>
-    </div>
+            <label style={{ marginTop: '10px', display: 'block' }}>▼ 終了範囲（{selectedGrade}）</label>
+            <div style={{ display: 'flex', gap: '5px' }}>
+              <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
+                {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>
+                {[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
 
-    <button className="primary-btn" onClick={startQuiz}>スタート！</button>
-    <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
-  </div>
-)}
+          <button className="primary-btn" onClick={startQuiz}>スタート！</button>
+          <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
+        </div>
+      )}
 
-      {/* クイズ実行・結果画面は以前のロジックと同じ（省略せずに実装） */}
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
