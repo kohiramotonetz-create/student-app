@@ -336,24 +336,24 @@ function App() {
           </div>
           
           <div className="config-group">
-            <label>出題モード</label>
-            <div className="mode-selector" style={{ display: 'flex', gap: '5px' }}>
-              <button 
-                className={mode === 'ja-en' ? "mode-btn active" : "mode-btn"} 
-                onClick={() => setMode('ja-en')}
-                style={{ flex: 1, padding: '8px', fontSize: '14px' }}
-              >
-                日 → 英
-              </button>
-              <button 
-                className={mode === 'en-ja' ? "mode-btn active" : "mode-btn"} 
-                onClick={() => setMode('en-ja')}
-                style={{ flex: 1, padding: '8px', fontSize: '14px' }}
-              >
-                英 → 日
-              </button>
-            </div>
-          </div>
+              <label>出題モード</label>
+              <div className="mode-selector" style={{ display: 'flex', gap: '5px' }}>
+                <button
+                 className={mode === 'ja-en' ? "grade-btn active" : "grade-btn"} 
+                 onClick={() => setMode('ja-en')}
+                 style={{ flex: 1, padding: '8px', fontSize: '14px' }}
+                >
+                  日 → 英
+                </button>
+                <button
+                　className={mode === 'en-ja' ? "grade-btn active" : "grade-btn"}
+                　onClick={() => setMode('en-ja')}
+                　style={{ flex: 1, padding: '8px', fontSize: '14px' }}
+                >
+                        英 → 日
+                </button>
+              </div>
+        　</div>
 
           <div className="config-group">
             <label>▼ 開始範囲（{selectedGrade}）</label>
