@@ -1,132 +1,109 @@
 import { useState } from 'react'
 import axios from 'axios'
-import Papa from 'papaparse' // CSVを読み込むためのライブラリ
-import { jsPDF } from 'jspdf' // PDFを作成するためのライブラリ
+import Papa from 'papaparse'
+import { jsPDF } from 'jspdf'
 import './App.css'
 
-// 環境変数（Vercelや.env.local）からGoogleのURLを取得
+// 環境変数からGASのURLを取得
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 
 function App() {
-  // --- アプリの状態を管理する変数（ステート） ---
-  const [step, setStep] = useState('login');        // 画面切り替え（login, menu, test など）
-  const [userId, setUserId] = useState('');         // 入力されたユーザーID
-  const [password, setPassword] = useState('');     // 入力されたパスワード
-  const [newPassword, setNewPassword] = useState(''); // 新しいパスワード
-  const [userName, setUserName] = useState('');      // ログイン後のユーザー名
-  const [loading, setLoading] = useState(false);    // 通信中かどうかのフラグ
-  const [words, setWords] = useState([]);           // CSVから読み込んだ単語リスト
+  // --- ステート管理 ---
+  const [step, setStep] = useState('login'); 
+  const [userId, setUserId] = useState('');
+  const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [userName, setUserName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [words, setWords] = useState([]); // CSVデータ格納用
 
   // --- 1. ログイン処理 ---
   const handleLogin = async () => {
     if (!userId || !password) return alert("IDとパスワードを入力してください");
-    if (!GAS_URL) return alert("GASのURLが設定されていません");
-    
-    setLoading(true); // 通信開始（画面を暗くする）
+    setLoading(true);
     try {
       const response = await axios.post(GAS_URL, JSON.stringify({
-        action: "login",
-        userId: userId,
-        password: password
-      }), {
-        headers: { 'Content-Type': 'text/plain' } // GASとの通信の決まり文句
-      });
+        action: "login", userId, password
+      }), { headers: { 'Content-Type': 'text/plain' } });
 
       if (response.data.result === "success") {
         setUserName(response.data.name);
-
-        // 管理者(admin)はパスワード変更をスキップ、一般ユーザーは初回のみ変更画面へ
-        if (userId === 'admin') {
+        // 管理者はメニューへ、一般ユーザー初回はパスワード変更へ
+        if (userId === 'admin' || response.data.isInitial === false) {
           setStep('menu');
-        } else if (response.data.isInitial === true) {
-          setStep('change-password');
         } else {
-          setStep('menu');
+          setStep('change-password');
         }
       } else {
         alert("IDまたはパスワードが違います");
       }
     } catch (error) {
-      console.error(error);
-      alert("通信エラーが発生しました。");
-    } finally {
-      setLoading(false); // 通信終了
-    }
-  };
-
-  // --- 2. パスワード変更処理 ---
-  const handleChangePassword = async () => {
-    if (!newPassword) return alert("新しいパスワードを入力してください");
-    setLoading(true);
-    try {
-      const response = await axios.post(GAS_URL, JSON.stringify({
-        action: "changePassword",
-        userId: userId,
-        newPassword: newPassword
-      }), {
-        headers: { 'Content-Type': 'text/plain' }
-      });
-
-      if (response.data.result === "success") {
-        alert("パスワードを更新しました。もう一度ログインしてください。");
-        setStep('login');
-        setPassword('');
-      }
-    } catch (error) {
-      alert("更新に失敗しました");
+      alert("通信エラーが発生しました");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- 3. CSVファイルの読み込み処理（juniorからの移植） ---
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  // --- 2. プロジェクト内のCSV (public/wordlist.csv) を自動読み込み ---
+  const loadDefaultCsv = async () => {
+    setLoading(true);
+    try {
+      // publicフォルダのファイルは "/" からのパスで取得できます
+      const response = await fetch('/wordlist.csv');
+      if (!response.ok) throw new Error("ファイルが見つかりません");
+      
+      const csvText = await response.text();
 
-    Papa.parse(file, {
-      header: true,         // CSVの1行目を見出しとして扱う
-      skipEmptyLines: true, // 空白行は飛ばす
-      complete: (results) => {
-        setWords(results.data); // 読み込んだデータを保存
-        alert(`${results.data.length} 件の単語を読み込みました！`);
-      },
-    });
+      Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          setWords(results.data);
+          alert(`wordlist.csv から ${results.data.length} 件の単語を読み込みました！`);
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      alert("CSVの読み込みに失敗しました。publicフォルダに wordlist.csv があるか確認してください。");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // --- 4. PDF生成処理（juniorからの移植） ---
+  // --- 3. PDF生成処理 (日本語列名に対応) ---
   const generatePDF = () => {
-    if (words.length === 0) return alert("まずはCSVファイルを読み込んでください");
+    if (words.length === 0) return alert("先に単語リストを読み込んでください");
 
     const doc = new jsPDF();
     
-    // 単語リストをランダムに並び替えて20問選ぶ
+    // 【重要】日本語フォントを使う場合は、以前 junior で行ったように
+    // ここで doc.addFileToVFS と doc.addFont を設定する必要があります。
+    
+
     const shuffled = [...words].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, 20);
+    const selected = shuffled.slice(0, 20); // 20問抽出
 
     doc.setFontSize(18);
-    doc.text("English Vocabulary Test", 20, 20);
+    doc.text("Vocabulary Test", 20, 20);
     doc.setFontSize(12);
 
-    // 選ばれた単語をPDFに書き込む
     selected.forEach((item, index) => {
       const y = 40 + (index * 10);
-      // CSVの列名に合わせて item.english または item.単語 などを調整してください
-      const displayWord = item.english || item.単語 || "No Word";
-      doc.text(`${index + 1}. ${displayWord}`, 20, y);
-      doc.text("(                        )", 100, y); // 解答欄
+      // 画像の見出しに合わせて「英語」列を参照
+      const englishWord = item["英語"] || "---";
+      doc.text(`${index + 1}. ${englishWord}`, 20, y);
+      doc.text("(                        )", 110, y); 
     });
 
-    doc.save("test.pdf"); // PDFをダウンロード
+    doc.save("test.pdf");
   };
 
-  // --- 5. 画面の見た目（HTML） ---
+  // --- 画面表示 ---
   return (
     <div className="container">
-      {/* 画面が読み込み中の時のぐるぐる */}
-      {loading && <div className="loading-overlay">通信中...</div>}
+      {loading && <div className="loading-overlay">処理中...</div>}
 
-      {/* 【ログイン画面】 */}
+      {/* ログイン画面 */}
       {step === 'login' && (
         <div className="login-box">
           <h1>Student App</h1>
@@ -136,17 +113,7 @@ function App() {
         </div>
       )}
 
-      {/* 【パスワード変更画面】 */}
-      {step === 'change-password' && (
-        <div className="login-box">
-          <h2>パスワードの変更</h2>
-          <p>初回ログインです。新しいパスワードを設定してください。</p>
-          <input type="password" placeholder="新しいパスワード" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-          <button onClick={handleChangePassword}>更新してログインへ</button>
-        </div>
-      )}
-
-      {/* 【メニュー画面】 */}
+      {/* メニュー画面 */}
       {step === 'menu' && (
         <div className="menu-box">
           <h1>メニュー</h1>
@@ -156,28 +123,28 @@ function App() {
             <button disabled className="disabled-btn">🚀 その他（準備中）</button>
           </div>
           <br />
-          <button className="secondary" onClick={() => {setStep('login'); setPassword('');}}>ログアウト</button>
+          <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
         </div>
       )}
 
-      {/* 【英単語テスト作成画面】 */}
+      {/* テスト作成画面 */}
       {step === 'test' && (
         <div className="test-box">
           <h2>英単語テスト作成</h2>
           <div className="test-ui-container">
-            <p>1. CSVファイルをアップロードしてください</p>
-            <input type="file" accept=".csv" onChange={handleFileUpload} />
+            <p className="description">システム内の単語データを読み込みます</p>
+            <button className="load-btn" onClick={loadDefaultCsv}>📊 単語リストを読み込む</button>
             
             {words.length > 0 && (
-              <div className="status-area">
+              <div className="status-area fade-in">
                 <hr />
-                <p>現在 {words.length} 個の単語が読み込まれています。</p>
+                <p>✅ {words.length} 個のデータを取得済み</p>
                 <button className="generate-btn" onClick={generatePDF}>PDFテストを作成する</button>
               </div>
             )}
           </div>
           <br />
-          <button className="secondary" onClick={() => setStep('menu')}>メニューに戻る</button>
+          <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
       )}
     </div>
