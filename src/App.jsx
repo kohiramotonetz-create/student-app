@@ -308,13 +308,21 @@ function App() {
           </div>
           <div className="preview-panel">
             <div className="test-paper" id="paper">
-              <div className="header-area">
-                <div style={{fontSize: '14px'}}>名前 ____________________</div>
-                <h1 style={{fontSize: '24px'}}>英単語テスト</h1>
-                <div style={{fontSize: '14px', fontWeight: 'bold'}}>
-                  {school === 'custom' ? customSchool : school}
-                </div>
-              </div>
+              <div className="header-area" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                {/* 名前（左側） */}
+              <div style={{ fontSize: '14px', width: '200px', textAlign: 'left' }}>名前 ____________________    
+            </div>
+            
+            {/* タイトル（中央固定） */}
+          <h1 style={{ fontSize: '24px', flex: 1, textAlign: 'center', margin: 0 }}>
+            英単語テスト
+          </h1>
+          
+          {/* 学校名（右側） */}
+        <div style={{ fontSize: '14px', fontWeight: 'bold', width: '200px', textAlign: 'right' }}>
+          {school === 'custom' ? customSchool : school}
+        </div>
+      </div>
               <p style={{fontSize: '12px', margin: '5px 0', color: '#444'}}>{rangeText}</p>
               <table>
                 <thead>
