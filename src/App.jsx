@@ -11,7 +11,7 @@ function App() {
   const [step, setStep] = useState('login'); 
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
-  const [newPassword, setNewPassword] = useState(''); // 追加：新パスワード用
+  const [newPassword, setNewPassword] = useState('');
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(false);
   const [allData, setAllData] = useState([]); 
@@ -23,7 +23,7 @@ function App() {
   const [endUnit, setEndUnit] = useState('');
   const [endPart, setEndPart] = useState('');
   const [school, setSchool] = useState('木太中');
-  const [mode, setMode] = useState('en-ja');
+  const [mode, setMode] = useState('en-ja'); // 出題モード共通
   const [testWords, setTestWords] = useState([]);
   const [rangeText, setRangeText] = useState('');
   const [showAnswer, setShowAnswer] = useState(false);
@@ -106,7 +106,6 @@ function App() {
 
       if (response.data.result === "success") {
         setUserName(response.data.name);
-        // 初回フラグのチェック
         if (response.data.isInitial) {
           setStep('change-password');
         } else {
@@ -176,43 +175,35 @@ function App() {
 
   const submitQuizAnswer = () => {
     const item = quizItems[qIndex];
-    // モードによって正解を切り替え
-    const correctAnswer = mode === 'ja-en' ? item.en : item.ja;
+    // モードによって正解と言語を切り替え
+    const correctAnswer = (mode === 'ja-en') ? item.en : item.ja;
+    const questionText = (mode === 'ja-en') ? item.ja : item.en;
     
     const isCorrect = currentInput.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
     const record = { 
-      q: mode === 'ja-en' ? item.ja : item.en, 
+      q: questionText, 
       a: currentInput, 
       correct: correctAnswer, 
       ok: isCorrect 
     };
-    
     setQuizAnswers(prev => [...prev, record]);
     setQuizReview({ visible: true, record });
   };
 
   const finishPractice = () => {
-    // 練習入力の判定もモードに合わせる
     const correctAnswer = quizReview.record.correct;
-    if (practice.trim().toLowerCase() === correctAnswer.toLowerCase()) {
+    if (practice.trim().toLowerCase() === correctAnswer.trim().toLowerCase()) {
       setPractice("");
       setQuizReview({ visible: false, record: null });
       setCurrentInput("");
-      if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1);
-      else setStep('quiz-result');
+      if (qIndex + 1 < quizItems.length) {
+        setQIndex(qIndex + 1);
+      } else {
+        setStep('quiz-result');
+      }
     } else { 
       alert("正解を正しく入力してください"); 
     }
-  };
-
-  const finishPractice = () => {
-    if (practice.trim().toLowerCase() === quizReview.record.correct.toLowerCase()) {
-      setPractice("");
-      setQuizReview({ visible: false, record: null });
-      setCurrentInput("");
-      if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1);
-      else setStep('quiz-result');
-    } else { alert("正解を打ってください"); }
   };
 
   return (
@@ -257,9 +248,7 @@ function App() {
         </div>
       )}
 
-      {/* 以降、紙テスト設定・自習クイズ設定・実行画面などは変更なしのため省略せず保持 */}
-      {/* (既存の return 内の test-setup, quiz-setup, quiz-main, quiz-result の JSX をそのままここに配置) */}
-      
+      {/* 紙テスト作成画面 */}
       {step === 'test-setup' && (
         <div className="test-builder-layout">
           <div className="settings-panel no-print">
@@ -333,6 +322,7 @@ function App() {
         </div>
       )}
 
+      {/* 自習クイズ設定画面 */}
       {step === 'quiz-setup' && (
         <div className="login-box">
           <h2>🚀 自習クイズ設定</h2>
@@ -344,17 +334,7 @@ function App() {
               ))}
             </div>
           </div>
-          <div className="config-group">
-            <label>▼ 開始範囲（{selectedGrade}）</label>
-            <div style={{ display: 'flex', gap: '5px' }}>
-              <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
-                {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-              <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
-                {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            {/* 追加：出題モード選択 */}
+          
           <div className="config-group">
             <label>出題モード</label>
             <div className="mode-selector" style={{ display: 'flex', gap: '5px' }}>
@@ -375,7 +355,16 @@ function App() {
             </div>
           </div>
 
-
+          <div className="config-group">
+            <label>▼ 開始範囲（{selectedGrade}）</label>
+            <div style={{ display: 'flex', gap: '5px' }}>
+              <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
+                {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>
+                {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
             <label style={{ marginTop: '10px', display: 'block' }}>▼ 終了範囲（{selectedGrade}）</label>
             <div style={{ display: 'flex', gap: '5px' }}>
               <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
@@ -391,33 +380,27 @@ function App() {
         </div>
       )}
 
-      {/* クイズ実行画面（quiz-main）も、モードに合わせて表示を切り替えるように修正 */}
+      {/* クイズ実行画面 */}
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
-          
-          {/* モードによって出題（英語か日本語か）を切り替え */}
           <div className="q-display-box">
             {mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}
           </div>
-
           <input 
             className="q-input" 
             value={currentInput} 
             onChange={(e) => setCurrentInput(e.target.value)} 
             onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} 
-            placeholder={mode === 'ja-en' ? "英語で答えを入力" : "日本語で答えを入力"}
+            placeholder={mode === 'ja-en' ? "英語で入力" : "日本語で入力"}
             autoFocus 
           />
-          
           {!quizReview.visible && <button className="ans-btn" onClick={submitQuizAnswer}>答え合わせ</button>}
-          
           {quizReview.visible && (
             <div className="review-box">
               <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>
-                {quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${mode === 'ja-en' ? quizItems[qIndex].en : quizItems[qIndex].ja}`}
+                {quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}
               </p>
-              
               {quizReview.record.ok ? (
                 <button className="next-btn" onClick={() => { 
                   setQuizReview({ visible: false }); 
