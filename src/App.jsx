@@ -4,7 +4,9 @@ import Papa from 'papaparse'
 import './App.css'
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
+const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
 const QUESTION_COUNT = 20;
+
 
 function App() {
   // --- 1：共通ステート ---
@@ -200,10 +202,64 @@ function App() {
       if (qIndex + 1 < quizItems.length) {
         setQIndex(qIndex + 1);
       } else {
+        // 最後の問題を解き終わったタイミングで送信
+        const finalAnswers = [...quizAnswers]; 
         setStep('quiz-result');
+        sendQuizResultToGAS(finalAnswers); // ここで呼び出す
       }
     } else { 
       alert("正解を正しく入力してください"); 
+    }
+  };
+
+  // --- 1. 間違えた問題のみ再トライするロジック ---
+  const retryWrongQuestions = () => {
+    // quizAnswersから「okがfalse」のものだけを取り出し、元の問題データ形式(en, jaなど)を復元
+    const wrongItems = quizAnswers
+      .filter(a => !a.ok)
+      .map(ans => {
+        // allDataから、問題文(ans.q)が一致するものを探す
+        return allData.find(d => (mode === 'ja-en' ? d.ja : d.en) === ans.q);
+      })
+      .filter(Boolean); // 見つからないものを除外
+
+    if (wrongItems.length === 0) return alert("間違えた問題はありません！");
+
+    // ランダムに並び替え
+    const shuffled = [...wrongItems].sort(() => 0.5 - Math.random());
+    
+    setQuizItems(shuffled);
+    setQIndex(0);
+    setQuizAnswers([]);
+    setCurrentInput("");
+    setStep('quiz-main'); // クイズ画面へ戻る
+  };
+
+  // --- 2. Googleスプレッドシートへ履歴を送信するロジック ---
+  const sendQuizResultToGAS = async (finalAnswers) => {
+    const correctCount = finalAnswers.filter(a => a.ok).length;
+    const totalCount = finalAnswers.length;
+    
+    const resultData = {
+      action: "saveLog",
+      sheetName: "定期テスト英単語", // スプレッドシートのシート名
+      userName: userName, // ログイン時の名前
+      testRange: `${startUnit} ${startPart} ～ ${endUnit} ${endPart}`,
+      mode: mode,
+      score: correctCount,
+      total: totalCount,
+      percentage: Math.round((correctCount / totalCount) * 100) + "%",
+      // 履歴を「問題1(○), 問題2(×)...」という形式の文字列にする
+      history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
+    };
+
+    try {
+      await axios.post(GAS_URL, JSON.stringify(resultData), {
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      console.log("学習ログを送信しました");
+    } catch (e) {
+      console.error("ログ送信エラー:", e);
     }
   };
 
@@ -423,13 +479,19 @@ function App() {
                 {quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}
               </p>
               {quizReview.record.ok ? (
-                <button className="next-btn" onClick={() => { 
-                  setQuizReview({ visible: false }); 
-                  setCurrentInput(""); 
-                  if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1); 
-                  else setStep('quiz-result'); 
-                }}>次へ</button>
-              ) : (
+                <button className="next-btn" onClick={() => {
+                  setQuizReview({ visible: false });
+                  setCurrentInput("");
+                  if (qIndex + 1 < quizItems.length) {
+                    setQIndex(qIndex + 1);
+                  } else {
+                 // 20問目に正解して終わる時もデータを送信する
+                 　const finalAnswers = [...quizAnswers];
+                 　setStep('quiz-result');
+                 　sendQuizResultToGAS(finalAnswers);
+                }
+              }}>次へ</button>
+            ) : (
                 <div className="practice-area">
                   <p style={{fontSize: '12px', marginBottom: '5px'}}>正解をタイプして次へ：</p>
                   <input 
@@ -448,12 +510,44 @@ function App() {
       )}
 
       {step === 'quiz-result' && (
-        <div className="login-box">
-          <h2>結果発表</h2>
-          <div style={{fontSize: '32px', margin: '20px 0'}}>{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length} 点</div>
-          <button className="primary-btn" onClick={() => setStep('menu')}>メニューへ戻る</button>
-        </div>
+        <div className="login-box" style={{ maxWidth: '800px' }}>
+        　<h2>結果発表</h2>
+        　<div style={{ fontSize: '32px', margin: '10px 0' }}>
+          　{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length} 点
+          　({Math.round((quizAnswers.filter(a => a.ok).length / quizAnswers.length) * 100)}%)
+          </div>
+      　　{/* 回答一覧表 */}
+      　　<div className="result-table-container" style={{ maxHeight: '400px', overflowY: 'auto', marginBottom: '20px' }}>
+        　<table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+          　<thead>
+          　　<tr style={{ borderBottom: '2px solid #ccc' }}>
+            　　<th>判定</th><th>問題</th><th>正解</th><th>あなたの回答</th>
+          　　</tr>
+          </thead>
+          <tbody>
+            {quizAnswers.map((a, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
+              <td style={{ color: a.ok ? 'green' : 'red', fontWeight: 'bold' }}>{a.ok ? '○' : '×'}</td>
+              <td>{a.q}</td>
+              <td>{a.correct}</td>
+              <td style={{ color: a.ok ? 'inherit' : 'red' }}>{a.a}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <div className="button-grid">
+      {/* 間違えた問題のみ再挑戦ボタン（×がある場合のみ表示） */}
+      {quizAnswers.some(a => !a.ok) && (
+        <button className="primary-btn" onClick={retryWrongQuestions}>
+          ❌ 間違えた問題のみ再トライ
+        </button>
       )}
+      <button className="secondary" onClick={() => setStep('menu')}>メニューへ戻る</button>
+    </div>
+  </div>
+)}
     </div>
   )
 }
