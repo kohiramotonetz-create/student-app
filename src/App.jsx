@@ -23,6 +23,7 @@ function App() {
   const [endUnit, setEndUnit] = useState('');
   const [endPart, setEndPart] = useState('');
   const [school, setSchool] = useState('木太中');
+  const [customSchool, setCustomSchool] = useState(''); // 追加：自由入力用
   const [mode, setMode] = useState(''); // 出題モード共通
   const [testWords, setTestWords] = useState([]);
   const [rangeText, setRangeText] = useState('');
@@ -256,8 +257,18 @@ function App() {
             <div className="config-group">
               <label>基本設定</label>
               <select value={school} onChange={(e) => setSchool(e.target.value)}>
-                <option value="木太中">木太中</option><option value="玉藻中">玉藻中</option><option value="桜町中">桜町中</option><option value="附属中">附属中</option>
+                <option value="木太中">木太中</option><option value="玉藻中">玉藻中</option><option value="桜町中">桜町中</option><option value="附属中">附属中</option><option value="custom">-- 直接入力 --</option>
               </select>
+              {school === 'custom' && (
+                <input
+                　type="text"
+                　placeholder="学校名を入力"
+                　value={customSchool}
+                　onChange={(e) => setCustomSchool(e.target.value)}
+                　style={{ marginTop: '5px', width: '100%' }}
+                />
+              )}
+              
               <select value={mode} onChange={(e) => setMode(e.target.value)}>
                 <option value="en-ja">英語 → 日本語</option><option value="ja-en">日本語 → 英語</option>
               </select>
