@@ -263,21 +263,33 @@ function App() {
         </div>
       )}
 
-      {/* 高校生英単語 子メニュー */}
-      {step === 'highschool-menu' && (
-        <div className="menu-box">
-          <h1>高校生英単語</h1>
-          <p>単語帳を選択してください</p>
-          <div className="button-grid">
-            <button className="nav-btn" onClick={() => alert('準備中')}>ターゲット1900</button>
-            <button className="nav-btn" onClick={() => alert('準備中')}>ターゲット1200</button>
-            <button className="nav-btn" onClick={() => alert('準備中')}>速読英単語</button>
-            <button className="nav-btn" onClick={() => alert('準備中')}>ドラゴンイングリッシュ</button>
-            <button className="nav-btn" onClick={() => alert('準備中')}>ユメタン</button>
-            </div>
-            <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
-          </div>
-        )}
+      {/* --- 高校生英単語 子メニュー (修正版) --- */}
+{step === 'highschool-menu' && (
+  <div className="quiz-container"> {/* menu-box ではなく quiz-container を使うと安定します */}
+    <h1>高校生英単語</h1>
+    <p>単語帳を選択してください</p>
+    <div className="button-grid">
+      {[
+        { name: 'ターゲット1900', data: target1900Data },
+        { name: 'ターゲット1200', data: target1200Data },
+        { name: '速読英単語', data: sokudokuData },
+        { name: 'ドラゴンイングリッシュ', data: dragonData },
+        { name: 'ユメタン', data: yumetannData },
+      ].map((book) => (
+        <button key={book.name} className="nav-btn" onClick={() => {
+          if (book.data.length === 0) return alert("データがありません");
+          setSelectedBook(book);
+          setStartNo(1);
+          setEndNo(Math.min(book.data.length, 100));
+          setStep('highschool-setup');
+        }}>
+          {book.name}
+        </button>
+      ))}
+    </div>
+    <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
+  </div>
+)}
 
       {step === 'test-setup' && (
         <div className="test-builder-layout">
