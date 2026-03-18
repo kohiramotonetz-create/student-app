@@ -47,3 +47,75 @@ button { background-color: #1a73e8; color: white; padding: 12px 24px; border: no
 .test-title { color: #1a73e8; font-size: 22px; margin: 0; }
 
 @media print { .no-print { display: none !important; } .test-paper { box-shadow: none; margin: 0; } }
+
+/* --- 1. 学年ボタン：未選択はグレー、選択時のみ青 --- */
+.grade-btn {
+  flex: 1;
+  padding: 10px 5px;
+  border: 1px solid #ddd;
+  background-color: #f0f0f0; /* 初期値：薄いグレー */
+  color: #333;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.grade-btn.active {
+  background-color: #1a73e8 !important; /* 選択時：青 */
+  color: white !important;
+  border-color: #0056b3;
+  font-weight: bold;
+}
+
+/* --- 2. 20問目を1枚に収めるための調整 --- */
+.test-paper {
+  width: 210mm;
+  min-height: 297mm;
+  background: #fff;
+  padding: 10mm 15mm !important; /* 上下余白を少し削る */
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  box-sizing: border-box;
+}
+
+.paper-table {
+  width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse;
+}
+
+.paper-table th, .paper-table td {
+  border: 1px solid #000;
+  /* 1ページに収めるため高さを 11.5mm に固定 */
+  height: 11.5mm !important; 
+  padding: 0;
+  vertical-align: middle;
+}
+
+/* --- 3. 音声ボタンと列幅の固定（前回の修正維持） --- */
+.col-no {
+  width: 50px !important;
+  text-align: center;
+}
+
+.q-cell {
+  position: relative;
+  padding-left: 45px !important; /* ボタンのスペースを確保 */
+  text-align: left;
+}
+
+.no-print-speaker {
+  position: absolute !important;
+  left: 5px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 30px !important;
+  height: 30px !important;
+  background: white !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+}

@@ -15,7 +15,7 @@ function App() {
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(false);
   const [allData, setAllData] = useState([]); 
-  const [selectedGrade, setSelectedGrade] = useState('中1');
+  const [selectedGrade, setSelectedGrade] = useState('');
   const [startUnit, setStartUnit] = useState('');
   const [startPart, setStartPart] = useState('');
   const [endUnit, setEndUnit] = useState('');
@@ -191,7 +191,7 @@ function App() {
           <h1>メニュー</h1>
           <p>ようこそ {userName} 先生</p>
           <div className="button-grid">
-            <button className="nav-btn" onClick={() => { setIsKobunMode(false); setStep('test-setup'); }}>📝 英単語テスト作成(紙)</button>
+            <button className="nav-btn" onClick={() => { setIsKobunMode(false); setSelectedGrade(''); setStep('test-setup'); }}>📝 英単語テスト作成(紙)</button>
             <button className="nav-btn" onClick={() => { setIsFukisokuMode(false); setIsKobunMode(false); setStep('quiz-setup'); }}>🚀 1問ずつテスト(自習)</button>
             <button className="nav-btn" onClick={() => { setIsFukisokuMode(true); setIsKobunMode(false); setStep('fukisoku-setup'); }}>🔄 英単語（不規則変化）</button>
             <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => {
