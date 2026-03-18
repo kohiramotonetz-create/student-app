@@ -204,8 +204,8 @@ function App() {
       targetRange = "全範囲";
     } else if (selectedBook && selectedBook.name) {
       // 高校生用のシート名をここで直接指定
-      if (selectedBook.name === 'ターゲット1900') targetSheet = "ターゲット1900";
-      else if (selectedBook.name === 'ターゲット1200') targetSheet = "ターゲット1200";
+      if (selectedBook.name === 'ターゲット') targetSheet = "ターゲット";
+      else if (selectedBook.name === 'ターゲットmini') targetSheet = "ターゲットmini";
       else if (selectedBook.name === '速読英単語') targetSheet = "速読英単語";
       else if (selectedBook.name === 'ドラゴンイングリッシュ') targetSheet = "ドラゴンイングリッシュ";
       else if (selectedBook.name === 'ユメタン') targetSheet = "ユメタン";
@@ -280,8 +280,8 @@ function App() {
           <p>単語帳を選択してください</p>
           <div className="button-grid">
             {[
-              { name: 'ターゲット1900', data: target1900Data },
-              { name: 'ターゲット1200', data: target1200Data },
+              { name: 'ターゲット', data: targetData },
+              { name: 'ターゲットmini', data: targetminiData },
               { name: '速読英単語', data: sokudokuData },
               { name: 'ドラゴンイングリッシュ', data: dragonData },
               { name: 'ユメタン', data: yumetannData },
