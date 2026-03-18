@@ -547,7 +547,7 @@ function App() {
         </div>
       )}
 
-        // 不規則変化専用：スタート画面 //
+      {/* 不規則変化専用：スタート画面 */}
       {step === 'fukisoku-setup' && (
         <div className="login-box">
           <h2>🔄 英単語（不規則変化）</h2>
