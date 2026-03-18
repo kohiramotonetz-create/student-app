@@ -159,6 +159,10 @@ function App() {
     const endIndex = allData.findLastIndex(d => d.key === eKey);
     if (startIndex === -1 || endIndex === -1) return alert("範囲エラー");
     const range = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
+
+　　// ★ここが重要！高校生の選択をリセットする
+    setSelectedBook({ name: '', data: [] });
+
     setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT));
     setQIndex(0); setQuizAnswers([]); setIsFukisokuMode(false); setIsKobunMode(false);
     setSelectedBook({ name: '', data: [] });
@@ -194,12 +198,12 @@ function App() {
   };
 
   const sendQuizResultToGAS = async (finalAnswers) => {
-    // 1. まず変数を空で用意する
-    let targetSheet = "";
-    let targetRange = "";
+    let targetSheet = "定期テスト英単語"; 
+    let targetRange = `${startUnit}${startPart}～${endUnit}${endPart}`;
 
-    // 2. 【最優先】高校生の本（ターゲット等）が選択されている場合
-    if (selectedBook && selectedBook.name && selectedBook.data.length > 0) {
+    // 判定の優先順位を整理
+    // 1. 高校生モード（名前が入っていて、かつデータが存在する場合のみ）
+    if (selectedBook && selectedBook.name && selectedBook.data && selectedBook.data.length > 0) {
       if (selectedBook.name === 'ターゲット1900') targetSheet = "ターゲット1900";
       else if (selectedBook.name === 'ターゲット1200') targetSheet = "ターゲット1200";
       else if (selectedBook.name === '速読英単語') targetSheet = "速読英単語";
@@ -208,24 +212,17 @@ function App() {
       
       targetRange = `No.${startNo}～${endNo}`;
     } 
-    // 3. 古文モードの場合
+    // 2. 古文モード
     else if (isKobunMode) {
       targetSheet = "古文単語";
       targetRange = "古文単語（全範囲）";
     } 
-    // 4. 不規則変化モードの場合
+    // 3. 不規則変化モード
     else if (isFukisokuMode) {
       targetSheet = "英単語（不規則変化）";
       targetRange = "全範囲";
-    } 
-    // 5. 【それ以外】＝ 中学生用の定期テスト英単語
-    else {
-      targetSheet = "定期テスト英単語";
-      targetRange = `${startUnit}${startPart}～${endUnit}${endPart}`;
     }
-
-    // もし何らかのミスでシート名が空なら送信しない（エラー防止）
-    if (!targetSheet) return console.error("シート名が特定できませんでした");
+    // ※ 1〜3に当てはまらない場合は、最初のリセット値（定期テスト英単語）のまま送信される
 
     const resultData = { 
       action: "saveLog", 
@@ -240,7 +237,7 @@ function App() {
     };
 
     try { 
-      console.log("送信実行:", targetSheet, targetRange); // デバッグ用
+      console.log("実際に送信するシート:", targetSheet); // 確認用
       await axios.post(LOG_GAS_URL, JSON.stringify(resultData), { headers: { 'Content-Type': 'text/plain' } }); 
     } catch (e) { 
       console.error("送信エラー:", e); 
