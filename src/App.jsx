@@ -162,7 +162,7 @@ function App() {
     if (startIndex === -1 || endIndex === -1) return alert("範囲エラー");
     const range = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
 
-    setTargetSheetName("定期テスト英単語");
+    setTargetSheetName("定期テスト英単語"); // ★追加
     setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT));
     setQIndex(0); setQuizAnswers([]); setIsFukisokuMode(false); setIsKobunMode(false);
     setSelectedBook({ name: '', data: [] });
@@ -184,9 +184,23 @@ function App() {
     const clean = (str) => str ? str.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
     const isOk = quizReview.record.correct.split('/').some(ans => clean(practice) === clean(ans));
     if (isOk) {
-      setPractice(""); setQuizReview({ visible: false, record: null }); setCurrentInput("");
-      if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1);
-      else { setStep('quiz-result'); sendQuizResultToGAS([...quizAnswers]); }
+      // 1. まず練習用入力をクリア
+      setPractice(""); 
+      setQuizReview({ visible: false, record: null }); 
+      setCurrentInput("");
+
+      if (qIndex + 1 < quizItems.length) {
+        setQIndex(qIndex + 1);
+      } else {
+        // 2. ★【重要】全問終了時、その場の最新データを変数に固める
+        const finalDataForGas = [...quizAnswers]; 
+        
+        // 3. 結果画面へ切り替え
+        setStep('quiz-result'); 
+        
+        // 4. GASへ送信を実行
+        sendQuizResultToGAS(finalDataForGas); 
+      }
     } else alert("正解を入力してください");
   };
 
@@ -427,7 +441,16 @@ function App() {
           <p>全範囲から20問ランダムに出題されます</p>
           <button className="nav-btn" onClick={() => {
             const sel = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT);
-            setTargetSheetName("英単語（不規則変化）"); setQuizItems(sel); setQIndex(0); setQuizAnswers([]); setMode('ja-en'); setIsFukisokuMode(true); setIsKobunMode(false); setSelectedBook({ name: '', data: [] }); setStep('quiz-main');
+            // ★【重要】送信先シート名をここで上書きする
+            setTargetSheetName("英単語（不規則変化）"); 
+            setQuizItems(sel); 
+            setQIndex(0); 
+            setQuizAnswers([]); 
+            setMode('ja-en'); 
+            setIsFukisokuMode(true); 
+            setIsKobunMode(false); 
+            setSelectedBook({ name: '', data: [] }); 
+            setStep('quiz-main');
           }}>スタート</button>
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
