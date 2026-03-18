@@ -196,14 +196,9 @@ function App() {
     let targetSheet = "定期テスト英単語"; 
     let targetRange = `${startUnit}${startPart}～${endUnit}${endPart}`;
 
-    if (isKobunMode) {
-      targetSheet = "古文単語";
-      targetRange = "古文単語（全範囲）";
-    } else if (isFukisokuMode) {
-      targetSheet = "英単語（不規則変化）";
-      targetRange = "全範囲";
-    } else if (selectedBook && selectedBook.name) {
-      // ★修正：メニューのボタン名（ターゲット1900）に完全に合わせます
+    // --- 【重要】判定の優先順位を「高校生」を最優先に入れ替えます ---
+    if (selectedBook && selectedBook.name && selectedBook.data.length > 0) {
+      // 高校生用のシート名を確定
       if (selectedBook.name === 'ターゲット1900') targetSheet = "ターゲット1900";
       else if (selectedBook.name === 'ターゲット1200') targetSheet = "ターゲット1200";
       else if (selectedBook.name === '速読英単語') targetSheet = "速読英単語";
@@ -211,6 +206,12 @@ function App() {
       else if (selectedBook.name === 'ユメタン') targetSheet = "ユメタン";
       
       targetRange = `No.${startNo}～${endNo}`;
+    } else if (isKobunMode) {
+      targetSheet = "古文単語";
+      targetRange = "古文単語（全範囲）";
+    } else if (isFukisokuMode) {
+      targetSheet = "英単語（不規則変化）";
+      targetRange = "全範囲";
     }
 
     const resultData = { 
@@ -226,6 +227,8 @@ function App() {
     };
 
     try { 
+      // 送信直前にコンソールに「どこに送るか」を表示させて確認しやすくします
+      console.log("送信先シート名:", targetSheet);
       await axios.post(LOG_GAS_URL, JSON.stringify(resultData), { headers: { 'Content-Type': 'text/plain' } }); 
     } catch (e) { 
       console.error("送信エラー:", e); 
