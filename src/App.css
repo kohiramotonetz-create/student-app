@@ -107,7 +107,7 @@ button { background-color: #1a73e8; color: white; padding: 12px 24px; border: no
 .no-print-speaker {
   position: absolute !important;
   left: 5px !important;
-  top: 50% !important;
+  top: 40% !important;
   transform: translateY(-50%) !important;
   width: 30px !important;
   height: 30px !important;
