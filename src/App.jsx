@@ -192,16 +192,27 @@ function App() {
   };
 
   const sendQuizResultToGAS = async (finalAnswers) => {
-    // 1. デフォルト（中学生用）のシート名と範囲を設定
-    let targetSheet = isKobunMode ? "古文単語" : (isFukisokuMode ? "英単語（不規則変化）" : "定期テスト英単語");
-    let targetRange = isKobunMode ? "古文単語（全範囲）" : (isFukisokuMode ? "全範囲" : `${startUnit}${startPart}～${endUnit}${endPart}`);
+    let targetSheet = "定期テスト英単語"; // デフォルト
+    let targetRange = `${startUnit}${startPart}～${endUnit}${endPart}`;
 
-    // 2. 【修正箇所】高校生モード（selectedBookが選択されている場合）の判定を強化
-    // stepが quiz-result（結果画面）のとき、もし高校生用の本が選ばれていればそちらを優先する
-    if (selectedBook && selectedBook.name) {
-      targetSheet = selectedBook.name; 
-      targetRange = `No.${startNo}～${endNo}`;
-    }
+    // --- シート名の直接指定ロジック ---
+    if (isKobunMode) {
+      targetSheet = "古文単語";
+      targetRange = "古文単語（全範囲）";
+    } else if (isFukisokuMode) {
+      targetSheet = "英単語（不規則変化）";
+      targetRange = "全範囲";
+    } else if (selectedBook && selectedBook.name) {
+      // 高校生用のシート名をここで直接指定
+      if (selectedBook.name === 'ターゲット1900') targetSheet = "ターゲット1900";
+      else if (selectedBook.name === 'ターゲット1200') targetSheet = "ターゲット1200";
+      else if (selectedBook.name === '速読英単語') targetSheet = "速読英単語";
+      else if (selectedBook.name === 'ドラゴンイングリッシュ') targetSheet = "ドラゴンイングリッシュ";
+      else if (selectedBook.name === 'ユメタン') targetSheet = "ユメタン";
+      
+      targetRange = `No.${startNo}～${endNo}`;
+    }
+    // -------------------------------
 
     const resultData = { 
       action: "saveLog", 
