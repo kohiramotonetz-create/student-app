@@ -50,3 +50,21 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .test-title { flex: 0 0 auto; text-align: center; margin: 0 20px !important; font-size: 24px !important; color: #1a73e8 !important; white-space: nowrap; }
 
 @media print { .no-print { display: none !important; } .test-paper { box-shadow: none; margin: 0; } }
+
+/* クイズ結果画面のテーブル用 */
+.result-table-container {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.result-detail-table th {
+  position: sticky;
+  top: 0;
+  background: #f8f9fa;
+  z-index: 1;
+}
+
+.result-detail-table td {
+  text-align: left;
+}

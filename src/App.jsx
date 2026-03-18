@@ -135,7 +135,7 @@ function App() {
     const rawCorrect = (mode === 'ja-en') ? item.en : item.ja;
     const clean = (str) => str ? str.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
     const isCorrect = rawCorrect.split('/').some(ans => clean(currentInput) === clean(ans));
-    const record = { q: questionText, a: currentInput, correct: rawCorrect, en: isKobunMode ? "" : item.en, ok: isCorrect };
+    const record = { q: questionText, a: currentInput, correct: rawCorrect, en: isKobunMode ? "" : item.en, ok: isCorrect, rawItem: item };
     setQuizAnswers(prev => [...prev, record]);
     setQuizReview({ visible: true, record });
   };
@@ -151,9 +151,8 @@ function App() {
   };
 
   const retryWrongQuestions = () => {
-    const source = isKobunMode ? kobunData : (isFukisokuMode ? fukisokuData : allData);
-    const wrongItems = quizAnswers.filter(a => !a.ok).map(ans => source.find(d => (mode === 'ja-en' ? d.ja : d.en) === ans.q)).filter(Boolean);
-    if (wrongItems.length === 0) return alert("間違いなし！");
+    const wrongItems = quizAnswers.filter(a => !a.ok).map(ans => ans.rawItem);
+    if (wrongItems.length === 0) return alert("間違いはありません！");
     setQuizItems([...wrongItems].sort(() => 0.5 - Math.random()));
     setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setStep('quiz-main');
   };
@@ -346,19 +345,48 @@ function App() {
           <h2>🔄 不規則変化</h2>
           <p>全範囲から20問ランダムに出題されます</p>
           <button className="nav-btn" onClick={() => {
-            const sel = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, 20);
+            const sel = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT);
             setQuizItems(sel); setQIndex(0); setQuizAnswers([]); setMode('ja-en'); setIsFukisokuMode(true); setIsKobunMode(false); setStep('quiz-main');
           }}>スタート</button>
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
       )}
 
+      {/* 結果画面（詳細テーブル表示） */}
       {step === 'quiz-result' && (
-        <div className="quiz-container">
+        <div className="quiz-container" style={{maxWidth: '600px'}}>
           <h2>結果発表</h2>
-          <div style={{ fontSize: '32px', margin: '20px 0' }}>{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length}</div>
-          <button className="nav-btn" onClick={retryWrongQuestions}>❌ 間違い直し</button>
-          <button className="secondary" onClick={() => setStep('menu')}>メニューへ</button>
+          <div style={{ fontSize: '32px', margin: '10px 0' }}>{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length}</div>
+          
+          <div className="result-table-container" style={{maxHeight: '400px', overflowY: 'auto', marginBottom: '20px'}}>
+            <table className="result-detail-table" style={{width: '100%', borderCollapse: 'collapse', fontSize: '14px'}}>
+              <thead>
+                <tr style={{background: '#f8f9fa'}}>
+                  <th style={{border: '1px solid #ddd', padding: '8px'}}>判定</th>
+                  <th style={{border: '1px solid #ddd', padding: '8px'}}>問題</th>
+                  <th style={{border: '1px solid #ddd', padding: '8px'}}>正解</th>
+                  <th style={{border: '1px solid #ddd', padding: '8px'}}>あなたの回答</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quizAnswers.map((a, i) => (
+                  <tr key={i}>
+                    <td style={{border: '1px solid #ddd', padding: '8px', textAlign: 'center'}}>{a.ok ? '○' : '×'}</td>
+                    <td style={{border: '1px solid #ddd', padding: '8px'}}>{a.q}</td>
+                    <td style={{border: '1px solid #ddd', padding: '8px'}}>{a.correct}</td>
+                    <td style={{border: '1px solid #ddd', padding: '8px', color: a.ok ? 'inherit' : '#dc3545'}}>{a.a || '未回答'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="button-grid">
+            {quizAnswers.some(a => !a.ok) && (
+              <button className="nav-btn" onClick={retryWrongQuestions} style={{backgroundColor: '#ffc107', color: '#000'}}>❌ 間違い直し</button>
+            )}
+            <button className="secondary" onClick={() => setStep('menu')}>メニューへ戻る</button>
+          </div>
         </div>
       )}
     </div>
