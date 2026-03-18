@@ -37,15 +37,12 @@ function App() {
   const [kobunData, setKobunData] = useState([]);
   const [isKobunMode, setIsKobunMode] = useState(false); 
 
-  // --- 高校生用データのステートを追加 ---
-  // ★修正：ステート名を hsFiles の setter と一致させます
-const hsFiles = [
-  { name: 'target1900.csv', setter: setTargetData },     // ←ここ
-  { name: 'target1200.csv', setter: setTargetminiData },
-  { name: 'sokudoku.csv', setter: setSokudokuData },
-  { name: 'dragon.csv', setter: setDragonData },
-  { name: 'yumetann.csv', setter: setYumetannData },
-];
+  // --- 高校生用データのステート ---
+  const [targetData, setTargetData] = useState([]);
+  const [targetminiData, setTargetminiData] = useState([]);
+  const [sokudokuData, setSokudokuData] = useState([]);
+  const [dragonData, setDragonData] = useState([]);
+  const [yumetannData, setYumetannData] = useState([]);
 
   // --- 高校生用範囲設定のステート ---
   const [selectedBook, setSelectedBook] = useState({ name: '', data: [] });
@@ -85,6 +82,7 @@ const hsFiles = [
         const data = results.data.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en);
         setKobunData(data);
       }});
+
       // --- 高校生用データの読み込み ---
       const hsFiles = [
         { name: 'target1900.csv', setter: setTargetData },
@@ -101,8 +99,8 @@ const hsFiles = [
           const data = results.data.map(d => ({ 
             no: parseInt(d["No"]), 
             en: d["英語"], 
-            ja: d["日本語"], 
-            unit: d["単元"] 
+            ja: d["日本語"],
+            unit: d["単元"]
           })).filter(d => d.en); 
           file.setter(data);
         }});
@@ -163,6 +161,7 @@ const hsFiles = [
     const range = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
     setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT));
     setQIndex(0); setQuizAnswers([]); setIsFukisokuMode(false); setIsKobunMode(false);
+    setSelectedBook({ name: '', data: [] });
     setStep('quiz-main');
   };
 
@@ -195,20 +194,15 @@ const hsFiles = [
   };
 
   const sendQuizResultToGAS = async (finalAnswers) => {
-    // 1. まずデフォルト値を決める
     let targetSheet = "定期テスト英単語"; 
     let targetRange = `${startUnit}${startPart}～${endUnit}${endPart}`;
 
-    // 2. ここからが送っていただいた「判定の優先順位」のコードです
-    // --- ここを入れ替え ---
     if (selectedBook && selectedBook.name && selectedBook.data.length > 0) {
-      // 高校生用のシート名を確定
       if (selectedBook.name === 'ターゲット1900') targetSheet = "ターゲット1900";
       else if (selectedBook.name === 'ターゲット1200') targetSheet = "ターゲット1200";
       else if (selectedBook.name === '速読英単語') targetSheet = "速読英単語";
       else if (selectedBook.name === 'ドラゴンイングリッシュ') targetSheet = "ドラゴンイングリッシュ";
       else if (selectedBook.name === 'ユメタン') targetSheet = "ユメタン";
-      
       targetRange = `No.${startNo}～${endNo}`;
     } else if (isKobunMode) {
       targetSheet = "古文単語";
@@ -217,9 +211,7 @@ const hsFiles = [
       targetSheet = "英単語（不規則変化）";
       targetRange = "全範囲";
     }
-    // --- 入れ替えここまで ---
 
-    // 3. 送信用データの作成（resultData の中身などはそのまま）
     const resultData = { 
       action: "saveLog", 
       sheetName: targetSheet, 
@@ -232,7 +224,6 @@ const hsFiles = [
       history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ') 
     };
 
-    // 4. 送信処理（try-catch などの部分はそのまま）
     try { 
       await axios.post(LOG_GAS_URL, JSON.stringify(resultData), { headers: { 'Content-Type': 'text/plain' } }); 
     } catch (e) { 
@@ -272,6 +263,7 @@ const hsFiles = [
             <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => {
               if (kobunData.length === 0) return alert("データなし");
               setIsKobunMode(true); setIsFukisokuMode(false); setMode('en-ja');
+              setSelectedBook({ name: '', data: [] });
               setQuizItems([...kobunData].sort(() => 0.5 - Math.random()).slice(0, 20));
               setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setStep('quiz-main');
             }}>📚 古文単語（自習）</button>
@@ -492,7 +484,9 @@ const hsFiles = [
           <p>全範囲から20問ランダムに出題されます</p>
           <button className="nav-btn" onClick={() => {
             const sel = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT);
-            setQuizItems(sel); setQIndex(0); setQuizAnswers([]); setMode('ja-en'); setIsFukisokuMode(true); setIsKobunMode(false); setStep('quiz-main');
+            setQuizItems(sel); setQIndex(0); setQuizAnswers([]); setMode('ja-en'); setIsFukisokuMode(true); setIsKobunMode(false); 
+            setSelectedBook({ name: '', data: [] });
+            setStep('quiz-main');
           }}>スタート</button>
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
@@ -530,7 +524,7 @@ const hsFiles = [
             {quizAnswers.some(a => !a.ok) && (
               <button className="nav-btn" onClick={retryWrongQuestions} style={{backgroundColor: '#ffc107', color: '#000'}}>❌ 間違い直し</button>
             )}
-            <button className="secondary" onClick={() => setStep('menu')}>メニューへ戻る</button>
+            <button className="secondary" onClick={() => { setStep('menu'); setSelectedBook({ name: '', data: [] }); }}>メニューへ戻る</button>
           </div>
         </div>
       )}
