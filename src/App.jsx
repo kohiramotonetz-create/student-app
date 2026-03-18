@@ -277,16 +277,19 @@ function App() {
     const correctCount = finalAnswers.filter(a => a.ok).length;
     const totalCount = finalAnswers.length;
     
+    // --- モードによって「シート名」と「表示する範囲名」を切り替え ---
+    const sheetName = isFukisokuMode ? "英単語（不規則変化）" : "定期テスト英単語";
+    const testRange = isFukisokuMode ? "全範囲" : `${startUnit} ${startPart} ～ ${endUnit} ${endPart}`;
+
     const resultData = {
       action: "saveLog",
-      sheetName: "定期テスト英単語", // スプレッドシートのシート名
-      userName: userName, // ログイン時の名前
-      testRange: `${startUnit} ${startPart} ～ ${endUnit} ${endPart}`,
+      sheetName: sheetName, // ここで切り替わったシート名が入る
+      userName: userName,
+      testRange: testRange, // ここで切り替わった範囲名が入る
       mode: mode,
       score: correctCount,
       total: totalCount,
       percentage: Math.round((correctCount / totalCount) * 100) + "%",
-      // 履歴を「問題1(○), 問題2(×)...」という形式の文字列にする
       history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
     };
 
@@ -294,7 +297,7 @@ function App() {
       await axios.post(LOG_GAS_URL, JSON.stringify(resultData), {
         headers: { 'Content-Type': 'text/plain' }
       });
-      console.log("学習ログを送信しました");
+      console.log(`${sheetName} シートへ学習ログを送信しました`);
     } catch (e) {
       console.error("ログ送信エラー:", e);
     }
