@@ -209,37 +209,33 @@ function App() {
   const submitQuizAnswer = () => {
     const item = quizItems[qIndex];
     
-    // 1. 出題と正解の言語を決定
+    // 1. 出題と「生の正解」を取得
     const questionText = (mode === 'ja-en') ? item.ja : item.en;
-    const rawCorrectAnswer = (mode === 'ja-en') ? item.en : item.ja; // CSVに入っているそのままの正解
+    const rawCorrect = (mode === 'ja-en') ? item.en : item.ja;
 
-    // 2. ユーザーの入力をクリーンアップ（空白除去、小文字化）
-    const userInput = currentInput.trim().toLowerCase();
+    // 2. 比較用のクリーンアップ関数
+    // 全角・半角の記号を除去し、空白を詰め、小文字にする
+    const clean = (str) => {
+      if (!str) return "";
+      return str
+        .replace(/[…\.\.\.～~？?！!。、,]/g, "") // 記号類を徹底除去
+        .replace(/\s+/g, "")                    // 空白をすべて除去
+        .toLowerCase();
+    };
 
+    const userCleaned = clean(currentInput);
+    
     // 3. 判定ロジック
-    let isCorrect = false;
-
-    if (mode === 'ja-en') {
-      // 【英単語解答の場合】従来通り完全一致（空白・大文字小文字は無視）
-      isCorrect = userInput === rawCorrectAnswer.trim().toLowerCase();
-    } else {
-      // 【日本語解答の場合】柔軟な判定を実施
-      
-      // (A) 記号（... や ～ や ~）を消去する関数
-      const cleanText = (str) => str.replace(/[…\.\.\.～~]/g, "").trim();
-
-      // (B) スラッシュ「/」で区切って、どれか一つにでも一致すればOKとする
-      const possibleAnswers = rawCorrectAnswer.split('/');
-      
-      isCorrect = possibleAnswers.some(ans => {
-        return cleanText(userInput) === cleanText(ans);
-      });
-    }
+    // 「/」で分割し、その中のどれか一つでもユーザー入力と一致すれば正解
+    const possibleAnswers = rawCorrect.split('/');
+    const isCorrect = possibleAnswers.some(ans => {
+      return userCleaned === clean(ans);
+    });
 
     const record = { 
       q: questionText, 
       a: currentInput, 
-      correct: rawCorrectAnswer, 
+      correct: rawCorrect, 
       ok: isCorrect 
     };
 
