@@ -44,6 +44,10 @@ function App() {
 　const [fukisokuData, setFukisokuData] = useState([]);
   const [isFukisokuMode, setIsFukisokuMode] = useState(false);
 
+  // 1. 古文単語ステートの追加（他のuseStateが並んでいるところに）
+const [kobunData, setKobunData] = useState([]);
+const [isKobunMode, setIsKobunMode] = useState(false); // 古文モード判定用
+
   // --- 自動範囲補正ロジック ---
   useEffect(() => {
     const filtered = [...new Set(allData
@@ -71,7 +75,7 @@ function App() {
   // --- 共通ロジック：CSV読込 ---
   const loadCsv = async () => {
     try {
-      // --- 既存の wordlist.csv 読み込み ---
+      // 1. 既存の wordlist.csv 読み込み
       const res = await fetch('/wordlist.csv?v=' + new Date().getTime());
       const text = await res.text();
       Papa.parse(text, {
@@ -88,19 +92,33 @@ function App() {
         }
       });
 
-      // --- ★追加：不規則変化 wordlist-fukisoku.csv 読み込み ---
+      // 2. 不規則変化 wordlist-fukisoku.csv 読み込み
       const resF = await fetch('/wordlist-fukisoku.csv?v=' + new Date().getTime());
       const textF = await resF.text();
       Papa.parse(textF, {
-        header: true, // ヘッダーありに設定
-        skipEmptyLines: true,
+        header: true, skipEmptyLines: true,
         complete: (results) => {
           const data = results.data.map(d => ({
-            // CSVのヘッダー名（1行目）が「日本語」「英語」の場合
             ja: d["日本語"], 
             en: d["英語"]
           })).filter(d => d.en);
           setFukisokuData(data);
+        }
+      });
+
+      // --- ★追加：古文 wordlist-junior_high_school-kobun.csv 読み込み ---
+      const resK = await fetch('/wordlist-junior_high_school-kobun.csv?v=' + new Date().getTime());
+      const textK = await resK.text();
+      Papa.parse(textK, {
+        header: true, 
+        skipEmptyLines: true,
+        complete: (results) => {
+          const data = results.data.map(d => ({
+            // 古文CSVのヘッダー名に合わせて調整（とりあえず「古文」「現代語訳」と仮定）
+            en: d["古文"], 
+            ja: d["現代語訳"]
+          })).filter(d => d.en);
+          setKobunData(data);
         }
       });
 
@@ -396,8 +414,33 @@ function App() {
           <p>ようこそ {userName} 先生</p>
           <div className="button-grid">
             <button className="nav-btn" onClick={() => setStep('test-setup')}>📝 英単語テスト作成(紙)</button>
-            <button className="nav-btn" onClick={() => setStep('quiz-setup')}>🚀 1問ずつテスト(自習)</button>
-            <button className="nav-btn" onClick={() => setStep('fukisoku-setup')}>🔄 英単語（不規則変化）</button>
+            <button className="nav-btn" onClick={() => {
+              setIsFukisokuMode(false);
+              setIsKobunMode(false); // 古文モードOFF
+              setStep('quiz-setup');
+            }}>🚀 1問ずつテスト(自習)</button>
+            <button className="nav-btn" onClick={() => {
+              setIsFukisokuMode(true);
+              setIsKobunMode(false); // 古文モードOFF
+              setStep('fukisoku-setup');
+            }}>🔄 英単語（不規則変化）</button>
+            
+            {/* ★古文単語ボタンを追加 */}
+            <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => {
+              if (kobunData.length === 0) return alert("古文データが読み込まれていません。CSVを確認してください。");
+              
+              setIsKobunMode(true);      // 古文モードON
+              setIsFukisokuMode(false);  // 不規則モードOFF
+              setMode('en-ja');          // 古文(問題) → 現代語訳(解答) 固定
+
+              // 古文データからランダムに20問抽出
+              const shuffled = [...kobunData].sort(() => 0.5 - Math.random()).slice(0, 20);
+              setQuizItems(shuffled);
+              setQIndex(0);
+              setQuizAnswers([]);
+              setCurrentInput("");
+              setStep('quiz-main'); // セットアップ画面を飛ばして直接開始
+            }}>📚 古文単語（自習）</button>
           </div>
           <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
         </div>
