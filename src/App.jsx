@@ -174,6 +174,17 @@ function App() {
     }
   };
 
+　// 英語の読み上げ関数
+  const speakEn = (text) => {
+    // 実行中の音声をキャンセル（重なり防止）
+    window.speechSynthesis.cancel();
+    const uttr = new SpeechSynthesisUtterance(text);
+    uttr.lang = 'en-US'; // アメリカ英語
+    uttr.rate = 0.9;     // 0.9倍速（少し聞き取りやすく）
+    window.speechSynthesis.speak(uttr);
+  };
+
+
   // --- テスト生成・クイズロジック ---
   const generatePaperTest = () => {
     const sKey = startUnit + startPart;
@@ -473,12 +484,40 @@ function App() {
                 <tbody>
                   {testWords.length > 0 ? testWords.map((d, i) => (
                     <tr key={i}>
-                      <td style={{textAlign:'center'}}>{i+1}</td>
-                      <td>{mode==='en-ja'?d.en:d.ja}</td>
-                      <td>{showAnswer ? (mode==='en-ja'?d.ja:d.en) : ''}</td>
-                    </tr>
-                  )) : [...Array(20)].map((_, i) => <tr key={i}><td>{i+1}</td><td></td><td></td></tr>)}
-                </tbody>
+                      <td style={{ textAlign: 'center' }}>{i + 1}</td>
+
+                      {/* 1列目：モードによって英単語か日本語か切り替わる */}　
+                      <td style={{ position: 'relative', paddingLeft: '40px' }}>　
+                      {/* モードに関わらず、英単語(d.en)を読み上げるボタンを設置 */}　
+                      <button 
+                      　className="no-print"
+                      　onClick={() => speakEn(d.en)}
+                      　style={{
+                        position: 'absolute', left: '5px', top: '50%', transform: 'translateY(-50%)',
+                        width: '28px', height: '28px', padding: '0', fontSize: '16px',
+                        background: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer'
+                      }}
+        >
+          🔊
+          </button>
+          {mode === 'en-ja' ? d.en : d.ja}
+        </td>      
+        　{/* 2列目：解答（英単語が表示されている場合はここでも聴けるようにすると便利です） */}　
+        <td>
+          {showAnswer ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {mode === 'ja-en' && (
+              <button className="no-print" onClick={() => speakEn(d.en)} style={{ cursor: 'pointer' }}>🔊</button>
+            )}
+            {mode === 'en-ja' ? d.ja : d.en}
+          </div>
+        ) : ''}
+      </td>
+    </tr>
+  )) : (
+    [...Array(20)].map((_, i) => <tr key={i}><td>{i + 1}</td><td></td><td></td></tr>)
+  )}
+</tbody>
               </table>
             </div>
           </div>
