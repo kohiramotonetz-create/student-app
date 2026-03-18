@@ -84,8 +84,8 @@ function App() {
       }});
       // --- 高校生用データの読み込み ---
       const hsFiles = [
-        { name: 'target1900.csv', setter: setTarget1900Data },
-        { name: 'target1200.csv', setter: setTarget1200Data },
+        { name: 'target1900.csv', setter: setTargetData },
+        { name: 'target1200.csv', setter: setTargetminiData },
         { name: 'sokudoku.csv', setter: setSokudokuData },
         { name: 'dragon.csv', setter: setDragonData },
         { name: 'yumetann.csv', setter: setYumetannData },
