@@ -254,7 +254,7 @@ function App() {
     };
 
     try {
-      await axios.post(GAS_URL, JSON.stringify(resultData), {
+      await axios.post(LOG_GAS_URL, JSON.stringify(resultData), {
         headers: { 'Content-Type': 'text/plain' }
       });
       console.log("学習ログを送信しました");
