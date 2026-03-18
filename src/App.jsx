@@ -323,28 +323,68 @@ function App() {
         </div>
       )}
 
+      {/* クイズ実行画面の修正 */}
       {step === 'quiz-main' && quizItems[qIndex] && (
-        <div className="quiz-container">
-          <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
-          <div className="q-display-box">{mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}</div>
-          <input className="q-input" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} autoFocus />
-          {!quizReview.visible && <button onClick={submitQuizAnswer}>回答</button>}
+          <div className="quiz-container">
+             {/* ヘッダー：問題番号と単語 */}
+             <div className="q-header">
+              Q {qIndex + 1} / {quizItems.length}
+            </div>
+            
+            <div className="q-display-box">
+              {mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}
+            </div>
+            
+             {/* 入力エリア */}
+          <input 
+            className="q-input" 
+            value={currentInput}
+            onChange={(e) => setCurrentInput(e.target.value)} 
+            onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} 
+            autoFocus 
+            placeholder="答えを入力..."
+         />
+        
+        {!quizReview.visible && (
+          <button className="nav-btn" onClick={submitQuizAnswer}>回答する</button>
+          )}
+          {/* 答え合わせフィードバック */}
           {quizReview.visible && (
             <div className="review-box">
-              <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>{quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}</p>
-              {!quizReview.record.ok && !isKobunMode && <button onClick={() => speakEn(quizReview.record.en)}>🔊</button>}
-              {quizReview.record.ok ? (
-                <button onClick={() => { setQuizReview({ visible: false }); setCurrentInput(""); if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1); else setStep('quiz-result'); }}>次へ</button>
-              ) : (
-                <div className="practice-area">
-                  <input className="p-input" value={practice} onChange={(e) => setPractice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && finishPractice()} autoFocus />
-                  <button onClick={finishPractice}>確認</button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+              <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>
+                {quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}
+              </p>
+              
+          {!quizReview.record.ok && !isKobunMode && (
+            <button className="secondary" onClick={() => speakEn(quizReview.record.en)} style={{marginBottom: '10px'}}>
+            🔊 音声を聴く
+          </button>
+        )}
+
+        {quizReview.record.ok ? (
+          <button className="nav-btn" onClick={() => { 
+            setQuizReview({ visible: false }); 
+            setCurrentInput(""); 
+            if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1); 
+            else setStep('quiz-result'); 
+          }}>次へ進む</button>
+        ) : (
+          <div className="practice-area">
+            <p style={{fontSize: '12px', color: '#666', marginBottom: '5px'}}>練習（正解を入力して次へ）</p>
+            <input 
+              className="p-input" 
+              value={practice} 
+              onChange={(e) => setPractice(e.target.value)} 
+              onKeyDown={(e) => e.key === 'Enter' && finishPractice()} 
+              autoFocus 
+            />
+            <button className="nav-btn" onClick={finishPractice}>確認</button>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+)}
 
       {step === 'fukisoku-setup' && (
         <div className="login-box">
