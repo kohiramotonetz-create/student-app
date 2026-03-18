@@ -39,11 +39,13 @@ function App() {
 
   // --- 高校生用データのステートを追加 ---
   // ★修正：ステート名を hsFiles の setter と一致させます
-  const [targetData, setTargetData] = useState([]);
-  const [targetminiData, setTargetminiData] = useState([]);
-  const [sokudokuData, setSokudokuData] = useState([]);
-  const [dragonData, setDragonData] = useState([]);
-  const [yumetannData, setYumetannData] = useState([]);
+const hsFiles = [
+  { name: 'target1900.csv', setter: setTargetData },     // ←ここ
+  { name: 'target1200.csv', setter: setTargetminiData },
+  { name: 'sokudoku.csv', setter: setSokudokuData },
+  { name: 'dragon.csv', setter: setDragonData },
+  { name: 'yumetann.csv', setter: setYumetannData },
+];
 
   // --- 高校生用範囲設定のステート ---
   const [selectedBook, setSelectedBook] = useState({ name: '', data: [] });
@@ -193,10 +195,12 @@ function App() {
   };
 
   const sendQuizResultToGAS = async (finalAnswers) => {
+    // 1. まずデフォルト値を決める
     let targetSheet = "定期テスト英単語"; 
     let targetRange = `${startUnit}${startPart}～${endUnit}${endPart}`;
 
-    // --- 【重要】判定の優先順位を「高校生」を最優先に入れ替えます ---
+    // 2. ここからが送っていただいた「判定の優先順位」のコードです
+    // --- ここを入れ替え ---
     if (selectedBook && selectedBook.name && selectedBook.data.length > 0) {
       // 高校生用のシート名を確定
       if (selectedBook.name === 'ターゲット1900') targetSheet = "ターゲット1900";
@@ -213,7 +217,9 @@ function App() {
       targetSheet = "英単語（不規則変化）";
       targetRange = "全範囲";
     }
+    // --- 入れ替えここまで ---
 
+    // 3. 送信用データの作成（resultData の中身などはそのまま）
     const resultData = { 
       action: "saveLog", 
       sheetName: targetSheet, 
@@ -226,9 +232,8 @@ function App() {
       history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ') 
     };
 
+    // 4. 送信処理（try-catch などの部分はそのまま）
     try { 
-      // 送信直前にコンソールに「どこに送るか」を表示させて確認しやすくします
-      console.log("送信先シート名:", targetSheet);
       await axios.post(LOG_GAS_URL, JSON.stringify(resultData), { headers: { 'Content-Type': 'text/plain' } }); 
     } catch (e) { 
       console.error("送信エラー:", e); 
