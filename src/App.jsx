@@ -38,8 +38,9 @@ function App() {
   const [isKobunMode, setIsKobunMode] = useState(false); 
 
   // --- 高校生用データのステートを追加 ---
-  const [target1900Data, setTarget1900Data] = useState([]);
-  const [target1200Data, setTarget1200Data] = useState([]);
+  // ★修正：ステート名を hsFiles の setter と一致させます
+  const [targetData, setTargetData] = useState([]);
+  const [targetminiData, setTargetminiData] = useState([]);
   const [sokudokuData, setSokudokuData] = useState([]);
   const [dragonData, setDragonData] = useState([]);
   const [yumetannData, setYumetannData] = useState([]);
@@ -84,8 +85,8 @@ function App() {
       }});
       // --- 高校生用データの読み込み ---
       const hsFiles = [
-        { name: 'target1900.csv', setter: setTarget1900Data },
-        { name: 'target1200.csv', setter: setTarget1200Data },
+        { name: 'target1900.csv', setter: setTargetData },
+        { name: 'target1200.csv', setter: setTargetminiData },
         { name: 'sokudoku.csv', setter: setSokudokuData },
         { name: 'dragon.csv', setter: setDragonData },
         { name: 'yumetann.csv', setter: setYumetannData },
@@ -96,11 +97,11 @@ function App() {
         const text = await res.text();
         Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => {
           const data = results.data.map(d => ({ 
-            no: parseInt(d["No"]), // "No" 列から数値を取得
-            en: d["英語"],         // "英語" 列を取得
-            ja: d["日本語"],       // "日本語" 列を取得
-            unit: d["単元"]        // "単元" 列を取得（将来的に範囲指定で使う用）
-          })).filter(d => d.en);   // 英語が入っていない行は除外
+            no: parseInt(d["No"]), 
+            en: d["英語"], 
+            ja: d["日本語"], 
+            unit: d["単元"] 
+          })).filter(d => d.en); 
           file.setter(data);
         }});
       }
@@ -202,7 +203,7 @@ function App() {
       targetSheet = "英単語（不規則変化）";
       targetRange = "全範囲";
     } else if (selectedBook && selectedBook.name) {
-      // --- 【修正ポイント】selectedBook.name の値に合わせる ---
+      // ★修正：メニューのボタン名（ターゲット1900）に完全に合わせます
       if (selectedBook.name === 'ターゲット1900') targetSheet = "ターゲット1900";
       else if (selectedBook.name === 'ターゲット1200') targetSheet = "ターゲット1200";
       else if (selectedBook.name === '速読英単語') targetSheet = "速読英単語";
@@ -278,8 +279,8 @@ function App() {
           <p>単語帳を選択してください</p>
           <div className="button-grid">
             {[
-              { name: 'ターゲット1900', data: target1900Data },
-              { name: 'ターゲット1200', data: target1200Data },
+              { name: 'ターゲット1900', data: targetData },
+              { name: 'ターゲット1200', data: targetminiData },
               { name: '速読英単語', data: sokudokuData },
               { name: 'ドラゴンイングリッシュ', data: dragonData },
               { name: 'ユメタン', data: yumetannData },
