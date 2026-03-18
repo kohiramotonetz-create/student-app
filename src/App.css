@@ -1,180 +1,52 @@
-/* 全体のレイアウト設定 */
+/* --- 全体レイアウト --- */
 #root { width: 100%; margin: 0; padding: 0; }
-.container { display: flex; justify-content: center; min-height: 100vh; background-color: #f0f2f5; font-family: sans-serif; width: 100vw; }
+.container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f0f2f5; font-family: sans-serif; width: 100vw; }
 
-.login-box, .menu-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); text-align: center; width: 100%; max-width: 400px; margin: auto; }
+/* --- カード形式のコンテナ --- */
+.login-box, .menu-box, .quiz-container { 
+  background: white; 
+  padding: 40px; 
+  border-radius: 12px; 
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12); 
+  text-align: center; 
+  width: 100%; 
+  max-width: 450px; 
+  margin: auto; 
+}
 
-/* ボタン・入力欄 */
+/* --- クイズ実行画面パーツ --- */
+.q-header { font-size: 14px; color: #666; margin-bottom: 10px; }
+.q-display-box { font-size: 28px; font-weight: bold; margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 10px; border: 1px solid #eee; }
+.review-box { margin-top: 20px; padding-top: 20px; border-top: 2px dashed #eee; }
+.txt-ok { color: #28a745; font-weight: bold; font-size: 20px; }
+.txt-ng { color: #dc3545; font-weight: bold; font-size: 20px; }
+.practice-area { background: #fff9f9; padding: 15px; border-radius: 10px; border: 1px solid #ffebeb; margin-top: 10px; }
+
+/* --- 汎用ボタン・入力欄 --- */
 input, select { display: block; width: 100%; box-sizing: border-box; margin: 12px 0; padding: 12px; border: 1px solid #dadce0; border-radius: 8px; font-size: 16px; }
-button { background-color: #1a73e8; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 8px; }
-.secondary { background: transparent; color: #5f6368; border: 1px solid #dadce0; }
+button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 8px; }
+.secondary { background: transparent; color: #5f6368; border: 1px solid #dadce0; padding: 10px; width: 100%; cursor: pointer; margin-top: 10px; border-radius: 8px; }
 
-/* 紙テストビルダー */
+/* --- 学年ボタン --- */
+.grade-selector { display: flex; gap: 5px; margin: 10px 0; }
+.grade-btn { flex: 1; padding: 10px 5px; border: 1px solid #ddd; background-color: #f0f0f0; color: #333; border-radius: 5px; cursor: pointer; font-size: 14px; }
+.grade-btn.active { background-color: #1a73e8 !important; color: white !important; border-color: #0056b3; font-weight: bold; }
+
+/* --- 紙テストビルダー (A4) --- */
 .test-builder-layout { display: flex; height: 100vh; background: #525659; width: 100%; }
-.settings-panel { width: 320px; background: #fff; padding: 20px; border-right: 1px solid #ccc; overflow-y: auto; }
+.settings-panel { width: 320px; background: #fff; padding: 20px; border-right: 1px solid #ccc; overflow-y: auto; text-align: left; }
 .preview-panel { flex: 1; display: flex; justify-content: center; padding: 20px; overflow-y: auto; }
-.test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); box-sizing: border-box; }
-
-/* プレビュー内のテーブル設定（ここが重要） */
+.test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 10mm 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); box-sizing: border-box; }
 .paper-table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse; margin-top: 10px; }
-.paper-table th, .paper-table td { border: 1px solid #000; height: 12mm; vertical-align: middle; }
-
-/* 列幅の指定 */
+.paper-table th, .paper-table td { border: 1px solid #000; height: 11.5mm !important; vertical-align: middle; }
 .col-no { width: 50px !important; text-align: center; }
-.col-q { width: auto; position: relative; padding-left: 45px !important; text-align: left; }
-.col-a { width: auto; padding-left: 10px; }
+.q-cell { position: relative; padding-left: 45px !important; text-align: left; }
+.no-print-speaker { position: absolute !important; left: 5px !important; top: 30% !important; transform: translateY(-50%) !important; width: 30px !important; height: 30px !important; background: white !important; border: 1px solid #ccc !important; border-radius: 4px !important; display: flex; align-items: center; justify-content: center; padding: 0 !important; }
 
-/* 音声ボタンを左端に固定 */
-.no-print-speaker {
-  position: absolute !important;
-  left: 5px !important;
-  top: 50% !important;
-  transform: translateY(-50%) !important;
-  width: 32px !important;
-  height: 32px !important;
-  padding: 0 !important;
-  background: #fff !important;
-  border: 1px solid #ccc !important;
-  border-radius: 4px !important;
-  cursor: pointer !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ヘッダー */
-.header-area {
-  display: flex;
-  justify-content: border-box;
-  align-items: center; /* 上下中央を合わせる */
-  border-bottom: 2px solid #000;
-  margin-bottom: 10px;
-  padding-bottom: 5px;
-  position: relative;
-}
-
-/* 左右の要素を同じ比率で広げることで、真ん中を中央に寄せる */
-.header-left, .header-right {
-  flex: 1; 
-  font-size: 14px;
-}
-
-.header-left {
-  text-align: left;
-}
-
-.header-right {
-  text-align: right;
-  font-weight: bold;
-}
-
-/* タイトルを中央固定 */
-.test-title {
-  flex: 0 0 auto; /* 勝手に伸び縮みさせない */
-  text-align: center;
-  margin: 0 20px !important; /* 左右に少し余白を作る */
-  font-size: 24px !important;
-  color: #1a73e8 !important;
-  white-space: nowrap; /* 改行させない */
-}
+/* --- ヘッダー --- */
+.header-area { display: flex; align-items: center; border-bottom: 2px solid #000; margin-bottom: 10px; padding-bottom: 5px; position: relative; }
+.header-left, .header-right { flex: 1; font-size: 14px; }
+.header-right { text-align: right; font-weight: bold; }
+.test-title { flex: 0 0 auto; text-align: center; margin: 0 20px !important; font-size: 24px !important; color: #1a73e8 !important; white-space: nowrap; }
 
 @media print { .no-print { display: none !important; } .test-paper { box-shadow: none; margin: 0; } }
-
-/* --- 1. 学年ボタン：未選択はグレー、選択時のみ青 --- */
-.grade-btn {
-  flex: 1;
-  padding: 10px 5px;
-  border: 1px solid #ddd;
-  background-color: #f0f0f0; /* 初期値：薄いグレー */
-  color: #333;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.grade-btn.active {
-  background-color: #1a73e8 !important; /* 選択時：青 */
-  color: white !important;
-  border-color: #0056b3;
-  font-weight: bold;
-}
-
-/* --- 2. 20問目を1枚に収めるための調整 --- */
-.test-paper {
-  width: 210mm;
-  min-height: 297mm;
-  background: #fff;
-  padding: 10mm 15mm !important; /* 上下余白を少し削る */
-  box-shadow: 0 0 10px rgba(0,0,0,0.5);
-  box-sizing: border-box;
-}
-
-.paper-table {
-  width: 100% !important;
-  table-layout: fixed !important;
-  border-collapse: collapse;
-}
-
-.paper-table th, .paper-table td {
-  border: 1px solid #000;
-  /* 1ページに収めるため高さを 11.5mm に固定 */
-  height: 11.5mm !important; 
-  padding: 0;
-  vertical-align: middle;
-}
-
-/* --- 3. 音声ボタンと列幅の固定（前回の修正維持） --- */
-.col-no {
-  width: 50px !important;
-  text-align: center;
-}
-
-.q-cell {
-  position: relative;
-  padding-left: 45px !important; /* ボタンのスペースを確保 */
-  text-align: left;
-}
-
-.no-print-speaker {
-  position: absolute !important;
-  left: 5px !important;
-  top: 30% !important;
-  transform: translateY(-50%) !important;
-  width: 30px !important;
-  height: 30px !important;
-  background: white !important;
-  border: 1px solid #ccc !important;
-  border-radius: 4px !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 !important;
-}
-
-/* クイズ画面のカードデザイン */
-.quiz-container {
-  background: white;
-  padding: 30px;
-  border-radius: 20px;
-  text-align: center;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-  width: 100%;
-  max-width: 500px;
-  margin: auto; /* 中央寄せ */
-}
-
-.q-header {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 10px;
-}
-
-.q-display-box {
-  font-size: 28px;
-  font-weight: bold;
-  margin: 20px 0;
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 10px;
-}

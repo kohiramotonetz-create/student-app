@@ -245,10 +245,10 @@ function App() {
                 </select>
               </div>
             </div>
-            <button className="btn-main" onClick={generatePaperTest}>🔄 生成</button>
-            <button className="btn-sub" onClick={() => setShowAnswer(!showAnswer)}>👁 {showAnswer ? '隠す' : '解答表示'}</button>
-            <button className="btn-print" onClick={() => window.print()}>🖨 印刷</button>
-            <button className="btn-back" onClick={() => setStep('menu')}>戻る</button>
+            <button className="nav-btn" onClick={generatePaperTest}>🔄 生成</button>
+            <button className="secondary" onClick={() => setShowAnswer(!showAnswer)}>👁 {showAnswer ? '隠す' : '解答表示'}</button>
+            <button className="nav-btn" style={{backgroundColor: '#28a745'}} onClick={() => window.print()}>🖨 印刷</button>
+            <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
           </div>
           <div className="preview-panel">
             <div className="test-paper">
@@ -264,11 +264,11 @@ function App() {
                   {testWords.map((d, i) => (
                     <tr key={i}>
                       <td className="col-no">{i + 1}</td>
-                      <td className="col-q">
+                      <td className="q-cell">
                         {!isKobunMode && <button className="no-print-speaker no-print" onClick={() => speakEn(d.en)}>🔊</button>}
-                        {mode === 'en-ja' ? d.en : d.ja}
+                        <span className="q-text">{mode === 'en-ja' ? d.en : d.ja}</span>
                       </td>
-                      <td className="col-a">{showAnswer ? (mode === 'en-ja' ? d.ja : d.en) : ''}</td>
+                      <td className="a-cell">{showAnswer ? (mode === 'en-ja' ? d.ja : d.en) : ''}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -278,9 +278,8 @@ function App() {
         </div>
       )}
 
-      {/* --- 自習クイズ設定の修正箇所 --- */}
       {step === 'quiz-setup' && (
-        <div className="login-box" style={{maxWidth: '450px'}}>
+        <div className="quiz-container">
           <h2>🚀 クイズ設定</h2>
           <div className="config-group" style={{textAlign: 'left'}}>
             <label>学年:</label>
@@ -289,13 +288,11 @@ function App() {
                 <button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>
               ))}
             </div>
-
             <label style={{marginTop: '15px'}}>出題モード:</label>
             <select value={mode} onChange={(e) => setMode(e.target.value)}>
               <option value="ja-en">日本語 → 英語</option>
               <option value="en-ja">英語 → 日本語</option>
             </select>
-
             <label style={{marginTop: '15px'}}>▼ 開始範囲 ({selectedGrade})</label>
             <div style={{display:'flex', gap:'5px', marginBottom:'5px'}}>
               <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
@@ -305,7 +302,6 @@ function App() {
                 {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
-
             <label style={{marginTop: '10px'}}>▼ 終了範囲 ({selectedGrade})</label>
             <div style={{display:'flex', gap:'5px'}}>
               <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
@@ -316,80 +312,40 @@ function App() {
               </select>
             </div>
           </div>
-          <div className="button-grid" style={{marginTop: '20px'}}>
-            <button className="nav-btn" onClick={startQuiz}>スタート！</button>
-            <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
-          </div>
+          <button className="nav-btn" onClick={startQuiz}>スタート！</button>
+          <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
       )}
 
-      {/* クイズ実行画面の修正 */}
       {step === 'quiz-main' && quizItems[qIndex] && (
-          <div className="quiz-container">
-             {/* ヘッダー：問題番号と単語 */}
-             <div className="q-header">
-              Q {qIndex + 1} / {quizItems.length}
-            </div>
-            
-            <div className="q-display-box">
-              {mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}
-            </div>
-            
-             {/* 入力エリア */}
-          <input 
-            className="q-input" 
-            value={currentInput}
-            onChange={(e) => setCurrentInput(e.target.value)} 
-            onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} 
-            autoFocus 
-            placeholder="答えを入力..."
-         />
-        
-        {!quizReview.visible && (
-          <button className="nav-btn" onClick={submitQuizAnswer}>回答する</button>
-          )}
-          {/* 答え合わせフィードバック */}
+        <div className="quiz-container">
+          <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
+          <div className="q-display-box">{mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}</div>
+          <input className="q-input" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} autoFocus placeholder="答えを入力..." />
+          {!quizReview.visible && <button className="nav-btn" onClick={submitQuizAnswer}>回答する</button>}
           {quizReview.visible && (
             <div className="review-box">
-              <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>
-                {quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}
-              </p>
-              
-          {!quizReview.record.ok && !isKobunMode && (
-            <button className="secondary" onClick={() => speakEn(quizReview.record.en)} style={{marginBottom: '10px'}}>
-            🔊 音声を聴く
-          </button>
-        )}
-
-        {quizReview.record.ok ? (
-          <button className="nav-btn" onClick={() => { 
-            setQuizReview({ visible: false }); 
-            setCurrentInput(""); 
-            if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1); 
-            else setStep('quiz-result'); 
-          }}>次へ進む</button>
-        ) : (
-          <div className="practice-area">
-            <p style={{fontSize: '12px', color: '#666', marginBottom: '5px'}}>練習（正解を入力して次へ）</p>
-            <input 
-              className="p-input" 
-              value={practice} 
-              onChange={(e) => setPractice(e.target.value)} 
-              onKeyDown={(e) => e.key === 'Enter' && finishPractice()} 
-              autoFocus 
-            />
-            <button className="nav-btn" onClick={finishPractice}>確認</button>
-          </div>
-        )}
-      </div>
-    )}
-  </div>
-)}
+              <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>{quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}</p>
+              {!quizReview.record.ok && !isKobunMode && <button className="secondary" onClick={() => speakEn(quizReview.record.en)} style={{marginBottom: '10px'}}>🔊 音声を聴く</button>}
+              {quizReview.record.ok ? (
+                <button className="nav-btn" onClick={() => { setQuizReview({ visible: false }); setCurrentInput(""); if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1); else setStep('quiz-result'); }}>次へ進む</button>
+              ) : (
+                <div className="practice-area">
+                  <p style={{fontSize: '12px', color: '#666', marginBottom: '5px'}}>練習（正解を入力して次へ）</p>
+                  <input className="p-input" value={practice} onChange={(e) => setPractice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && finishPractice()} autoFocus />
+                  <button className="nav-btn" onClick={finishPractice}>確認</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {step === 'fukisoku-setup' && (
-        <div className="login-box">
+        <div className="quiz-container">
           <h2>🔄 不規則変化</h2>
-          <button onClick={() => {
+          <p>全範囲から20問ランダムに出題されます</p>
+          <button className="nav-btn" onClick={() => {
             const sel = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, 20);
             setQuizItems(sel); setQIndex(0); setQuizAnswers([]); setMode('ja-en'); setIsFukisokuMode(true); setIsKobunMode(false); setStep('quiz-main');
           }}>スタート</button>
@@ -398,9 +354,10 @@ function App() {
       )}
 
       {step === 'quiz-result' && (
-        <div className="login-box">
+        <div className="quiz-container">
           <h2>結果発表</h2>
-          <div style={{ fontSize: '32px' }}>{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length}</div>
+          <div style={{ fontSize: '32px', margin: '20px 0' }}>{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length}</div>
+          <button className="nav-btn" onClick={retryWrongQuestions}>❌ 間違い直し</button>
           <button className="secondary" onClick={() => setStep('menu')}>メニューへ</button>
         </div>
       )}
