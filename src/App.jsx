@@ -37,6 +37,9 @@ function App() {
   const [kobunData, setKobunData] = useState([]);
   const [isKobunMode, setIsKobunMode] = useState(false); 
 
+  // --- 送信先シート名を予約するステート ---
+  const [targetSheetName, setTargetSheetName] = useState("定期テスト英単語");
+
   // --- 高校生用データのステート ---
   const [targetData, setTargetData] = useState([]);
   const [targetminiData, setTargetminiData] = useState([]);
@@ -83,7 +86,6 @@ function App() {
         setKobunData(data);
       }});
 
-      // --- 高校生用データの読み込み ---
       const hsFiles = [
         { name: 'target1900.csv', setter: setTargetData },
         { name: 'target1200.csv', setter: setTargetminiData },
@@ -153,6 +155,7 @@ function App() {
     setRangeText(`範囲: ${sKey} ～ ${eKey}`);
   };
 
+  // --- 中学生用スタート ---
   const startQuiz = () => {
     const sKey = startUnit + startPart; const eKey = endUnit + endPart;
     const startIndex = allData.findIndex(d => d.key === sKey);
@@ -160,12 +163,10 @@ function App() {
     if (startIndex === -1 || endIndex === -1) return alert("範囲エラー");
     const range = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
 
-　　// ★ここが重要！高校生の選択をリセットする
+    setTargetSheetName("定期テスト英単語"); // 送信先を予約
     setSelectedBook({ name: '', data: [] });
-
     setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT));
     setQIndex(0); setQuizAnswers([]); setIsFukisokuMode(false); setIsKobunMode(false);
-    setSelectedBook({ name: '', data: [] });
     setStep('quiz-main');
   };
 
@@ -175,7 +176,7 @@ function App() {
     const rawCorrect = (mode === 'ja-en') ? item.en : item.ja;
     const clean = (str) => str ? str.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
     const isCorrect = rawCorrect.split('/').some(ans => clean(currentInput) === clean(ans));
-    const record = { q: questionText, a: currentInput, correct: rawCorrect, en: isKobunMode ? "" : item.en, ok: isCorrect, rawItem: item };
+    const record = { q: questionText, a: currentInput, correct: rawCorrect, ok: isCorrect, rawItem: item };
     setQuizAnswers(prev => [...prev, record]);
     setQuizReview({ visible: true, record });
   };
@@ -198,37 +199,12 @@ function App() {
   };
 
   const sendQuizResultToGAS = async (finalAnswers) => {
-    let targetSheet = "定期テスト英単語"; 
-    let targetRange = `${startUnit}${startPart}～${endUnit}${endPart}`;
-
-    // 判定の優先順位を整理
-    // 1. 高校生モード（名前が入っていて、かつデータが存在する場合のみ）
-    if (selectedBook && selectedBook.name && selectedBook.data && selectedBook.data.length > 0) {
-      if (selectedBook.name === 'ターゲット1900') targetSheet = "ターゲット1900";
-      else if (selectedBook.name === 'ターゲット1200') targetSheet = "ターゲット1200";
-      else if (selectedBook.name === '速読英単語') targetSheet = "速読英単語";
-      else if (selectedBook.name === 'ドラゴンイングリッシュ') targetSheet = "ドラゴンイングリッシュ";
-      else if (selectedBook.name === 'ユメタン') targetSheet = "ユメタン";
-      
-      targetRange = `No.${startNo}～${endNo}`;
-    } 
-    // 2. 古文モード
-    else if (isKobunMode) {
-      targetSheet = "古文単語";
-      targetRange = "古文単語（全範囲）";
-    } 
-    // 3. 不規則変化モード
-    else if (isFukisokuMode) {
-      targetSheet = "英単語（不規則変化）";
-      targetRange = "全範囲";
-    }
-    // ※ 1〜3に当てはまらない場合は、最初のリセット値（定期テスト英単語）のまま送信される
-
+    // クイズ開始時にセットされた targetSheetName をそのまま使う
     const resultData = { 
       action: "saveLog", 
-      sheetName: targetSheet, 
+      sheetName: targetSheetName, 
       userName, 
-      testRange: targetRange, 
+      testRange: (selectedBook && selectedBook.name) ? `No.${startNo}～${endNo}` : (isKobunMode ? "古文（全範囲）" : (isFukisokuMode ? "不規則（全範囲）" : `${startUnit}${startPart}～${endUnit}${endPart}`)), 
       mode, 
       score: finalAnswers.filter(a => a.ok).length, 
       total: finalAnswers.length, 
@@ -237,7 +213,7 @@ function App() {
     };
 
     try { 
-      console.log("実際に送信するシート:", targetSheet); // 確認用
+      console.log("送信予約シート:", targetSheetName);
       await axios.post(LOG_GAS_URL, JSON.stringify(resultData), { headers: { 'Content-Type': 'text/plain' } }); 
     } catch (e) { 
       console.error("送信エラー:", e); 
@@ -275,6 +251,7 @@ function App() {
             <button className="nav-btn" onClick={() => { setIsFukisokuMode(true); setIsKobunMode(false); setStep('fukisoku-setup'); }}>🔄 英単語（不規則変化）</button>
             <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => {
               if (kobunData.length === 0) return alert("データなし");
+              setTargetSheetName("古文単語"); // 送信先予約
               setIsKobunMode(true); setIsFukisokuMode(false); setMode('en-ja');
               setSelectedBook({ name: '', data: [] });
               setQuizItems([...kobunData].sort(() => 0.5 - Math.random()).slice(0, 20));
@@ -332,6 +309,7 @@ function App() {
             <button className="nav-btn" style={{marginTop:'20px'}} onClick={() => {
               const range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo);
               if (range.length === 0) return alert("範囲内に単語がありません");
+              setTargetSheetName(selectedBook.name); // 送信先予約
               setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, 20));
               setQIndex(0); setQuizAnswers([]); setCurrentInput("");
               setIsKobunMode(false); setIsFukisokuMode(false);
@@ -342,6 +320,7 @@ function App() {
             <div style={{margin: '30px 0', borderTop: '1px solid #ccc', paddingTop: '20px'}}>
               <label>▼ もしくは</label>
               <button className="nav-btn" style={{backgroundColor: '#6c757d'}} onClick={() => {
+                setTargetSheetName(selectedBook.name); // 送信先予約
                 setQuizItems([...selectedBook.data].sort(() => 0.5 - Math.random()).slice(0, 20));
                 setQIndex(0); setQuizAnswers([]); setCurrentInput("");
                 setIsKobunMode(false); setIsFukisokuMode(false);
@@ -497,6 +476,7 @@ function App() {
           <p>全範囲から20問ランダムに出題されます</p>
           <button className="nav-btn" onClick={() => {
             const sel = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT);
+            setTargetSheetName("英単語（不規則変化）"); // 送信先予約
             setQuizItems(sel); setQIndex(0); setQuizAnswers([]); setMode('ja-en'); setIsFukisokuMode(true); setIsKobunMode(false); 
             setSelectedBook({ name: '', data: [] });
             setStep('quiz-main');
