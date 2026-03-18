@@ -264,11 +264,11 @@ function App() {
       )}
 
       {/* --- 高校生英単語 子メニュー (修正版) --- */}
-{step === 'highschool-menu' && (
-  <div className="quiz-container"> {/* menu-box ではなく quiz-container を使うと安定します */}
-    <h1>高校生英単語</h1>
-    <p>単語帳を選択してください</p>
-    <div className="button-grid">
+      {step === 'highschool-menu' && (
+        <div className="quiz-container">
+          <h1>高校生英単語</h1>
+          <p>単語帳を選択してください</p>
+          <div className="button-grid">
       {[
         { name: 'ターゲット1900', data: target1900Data },
         { name: 'ターゲット1200', data: target1200Data },
@@ -290,6 +290,7 @@ function App() {
     <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
   </div>
 )}
+
 
       {step === 'test-setup' && (
         <div className="test-builder-layout">
