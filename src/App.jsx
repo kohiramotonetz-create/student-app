@@ -203,8 +203,8 @@ function App() {
       targetRange = "全範囲";
     } else if (selectedBook && selectedBook.name) {
       // --- 【修正ポイント】selectedBook.name の値に合わせる ---
-      if (selectedBook.name === 'ターゲット') targetSheet = "ターゲット1900";
-      else if (selectedBook.name === 'ターゲットmini') targetSheet = "ターゲット1200";
+      if (selectedBook.name === 'ターゲット') targetSheet = "ターゲット";
+      else if (selectedBook.name === 'ターゲットmini') targetSheet = "ターゲットmini";
       else if (selectedBook.name === '速読英単語') targetSheet = "速読英単語";
       else if (selectedBook.name === 'ドラゴンイングリッシュ') targetSheet = "ドラゴンイングリッシュ";
       else if (selectedBook.name === 'ユメタン') targetSheet = "ユメタン";
