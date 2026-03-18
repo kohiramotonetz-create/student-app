@@ -151,3 +151,30 @@ button { background-color: #1a73e8; color: white; padding: 12px 24px; border: no
   justify-content: center;
   padding: 0 !important;
 }
+
+/* クイズ画面のカードデザイン */
+.quiz-container {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 500px;
+  margin: auto; /* 中央寄せ */
+}
+
+.q-header {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.q-display-box {
+  font-size: 28px;
+  font-weight: bold;
+  margin: 20px 0;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+}
