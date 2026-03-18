@@ -208,17 +208,41 @@ function App() {
 
   const submitQuizAnswer = () => {
     const item = quizItems[qIndex];
-    // モードによって正解と言語を切り替え
-    const correctAnswer = (mode === 'ja-en') ? item.en : item.ja;
-    const questionText = (mode === 'ja-en') ? item.ja : item.en;
     
-    const isCorrect = currentInput.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+    // 1. 出題と正解の言語を決定
+    const questionText = (mode === 'ja-en') ? item.ja : item.en;
+    const rawCorrectAnswer = (mode === 'ja-en') ? item.en : item.ja; // CSVに入っているそのままの正解
+
+    // 2. ユーザーの入力をクリーンアップ（空白除去、小文字化）
+    const userInput = currentInput.trim().toLowerCase();
+
+    // 3. 判定ロジック
+    let isCorrect = false;
+
+    if (mode === 'ja-en') {
+      // 【英単語解答の場合】従来通り完全一致（空白・大文字小文字は無視）
+      isCorrect = userInput === rawCorrectAnswer.trim().toLowerCase();
+    } else {
+      // 【日本語解答の場合】柔軟な判定を実施
+      
+      // (A) 記号（... や ～ や ~）を消去する関数
+      const cleanText = (str) => str.replace(/[…\.\.\.～~]/g, "").trim();
+
+      // (B) スラッシュ「/」で区切って、どれか一つにでも一致すればOKとする
+      const possibleAnswers = rawCorrectAnswer.split('/');
+      
+      isCorrect = possibleAnswers.some(ans => {
+        return cleanText(userInput) === cleanText(ans);
+      });
+    }
+
     const record = { 
       q: questionText, 
       a: currentInput, 
-      correct: correctAnswer, 
+      correct: rawCorrectAnswer, 
       ok: isCorrect 
     };
+
     setQuizAnswers(prev => [...prev, record]);
     setQuizReview({ visible: true, record });
   };
