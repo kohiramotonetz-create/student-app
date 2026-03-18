@@ -246,7 +246,8 @@ function App() {
     const record = { 
       q: questionText, 
       a: currentInput, 
-      correct: rawCorrect, 
+      correct: rawCorrect,
+      en: item.en, // ★ここを追加！常に英単語のスペルを保存
       ok: isCorrect 
     };
 
@@ -603,28 +604,50 @@ function App() {
               <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>
                 {quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}
               </p>
+
+              {/* ★不正解の時だけスピーカーボタンを表示 */}
+              {!quizReview.record.ok && (
+                <div style={{ marginBottom: '10px', textAlign: 'center' }}>
+                  <button
+                    onClick={() => speakEn(quizReview.record.en)}
+                    style={{
+                      padding: '8px 15px',
+                      fontSize: '14px',
+                      cursor: 'pointer', // ←ここにカンマが必要でした
+                      backgroundColor: '#007bff',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px'
+                    }}
+                  >
+                    🔊 発音を聴く
+                  </button>
+                </div>
+              )}
+
               {quizReview.record.ok ? (
+                /* 正解した時のボタン */
                 <button className="next-btn" onClick={() => {
                   setQuizReview({ visible: false });
                   setCurrentInput("");
                   if (qIndex + 1 < quizItems.length) {
                     setQIndex(qIndex + 1);
                   } else {
-                 // 20問目に正解して終わる時もデータを送信する
-                 　const finalAnswers = [...quizAnswers];
-                 　setStep('quiz-result');
-                 　sendQuizResultToGAS(finalAnswers);
-                }
-              }}>次へ</button>
-            ) : (
+                    const finalAnswers = [...quizAnswers];
+                    setStep('quiz-result');
+                    sendQuizResultToGAS(finalAnswers);
+                  }
+                }}>次へ</button>
+              ) : (
+                /* 不正解の時の練習エリア */
                 <div className="practice-area">
-                  <p style={{fontSize: '12px', marginBottom: '5px'}}>正解をタイプして次へ：</p>
-                  <input 
-                    className="p-input" 
-                    value={practice} 
-                    onChange={(e) => setPractice(e.target.value)} 
-                    onKeyDown={(e) => e.key === 'Enter' && finishPractice()} 
-                    autoFocus 
+                  <p style={{ fontSize: '12px', marginBottom: '5px' }}>正解をタイプして次へ：</p>
+                  <input
+                    className="p-input"
+                    value={practice}
+                    onChange={(e) => setPractice(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && finishPractice()}
+                    autoFocus
                   />
                   <button className="next-btn" onClick={finishPractice}>確認</button>
                 </div>
