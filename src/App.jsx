@@ -96,10 +96,11 @@ function App() {
         const text = await res.text();
         Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => {
           const data = results.data.map(d => ({ 
-            no: parseInt(Object.values(d)[0]), // A列（No.）を取得
-            en: d["英語"], 
-            ja: d["日本語"] 
-          })).filter(d => d.en);
+            no: parseInt(d["No"]), // "No" 列から数値を取得
+            en: d["英語"],         // "英語" 列を取得
+            ja: d["日本語"],       // "日本語" 列を取得
+            unit: d["単元"]        // "単元" 列を取得（将来的に範囲指定で使う用）
+          })).filter(d => d.en);   // 英語が入っていない行は除外
           file.setter(data);
         }});
       }
