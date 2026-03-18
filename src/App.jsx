@@ -195,9 +195,14 @@ function App() {
     if (startIndex === -1 || endIndex === -1) return alert("範囲エラー");
     const range = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
     const selected = [...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT);
+    
     setQuizItems(selected);
     setQIndex(0);
     setQuizAnswers([]);
+    
+    // ★重要：不規則モードではないことを明示
+    setIsFukisokuMode(false); 
+    
     setStep('quiz-main');
   };
 
@@ -220,15 +225,19 @@ function App() {
 
   const startFukisokuQuiz = () => {
     if (fukisokuData.length === 0) return alert("データが読み込めていません");
-    // 不規則変化データからランダムに20問抽出
+    
     const selected = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, 20);
+    
     setQuizItems(selected);
     setQIndex(0);
     setQuizAnswers([]);
-    setMode('ja-en');         // 日本語→英語に固定
-    setIsFukisokuMode(true);  // ★不規則モードをONにする
+    setMode('ja-en');
+    
+    // ★重要：不規則モードであることを明示
+    setIsFukisokuMode(true); 
+    
     setStep('quiz-main');
-};
+  };
 
   const finishPractice = () => {
     const correctAnswer = quizReview.record.correct;
@@ -277,15 +286,15 @@ function App() {
     const correctCount = finalAnswers.filter(a => a.ok).length;
     const totalCount = finalAnswers.length;
     
-    // --- モードによって「シート名」と「表示する範囲名」を切り替え ---
-    const sheetName = isFukisokuMode ? "英単語（不規則変化）" : "定期テスト英単語";
-    const testRange = isFukisokuMode ? "全範囲" : `${startUnit} ${startPart} ～ ${endUnit} ${endPart}`;
+    // 変数に格納して、確実に振り分ける
+    const targetSheet = isFukisokuMode ? "英単語（不規則変化）" : "定期テスト英単語";
+    const targetRange = isFukisokuMode ? "全範囲" : `${startUnit} ${startPart} ～ ${endUnit} ${endPart}`;
 
     const resultData = {
       action: "saveLog",
-      sheetName: sheetName, // ここで切り替わったシート名が入る
+      sheetName: targetSheet,
       userName: userName,
-      testRange: testRange, // ここで切り替わった範囲名が入る
+      testRange: targetRange,
       mode: mode,
       score: correctCount,
       total: totalCount,
@@ -297,7 +306,7 @@ function App() {
       await axios.post(LOG_GAS_URL, JSON.stringify(resultData), {
         headers: { 'Content-Type': 'text/plain' }
       });
-      console.log(`${sheetName} シートへ学習ログを送信しました`);
+      console.log(`${targetSheet} シートへ保存完了しました`);
     } catch (e) {
       console.error("ログ送信エラー:", e);
     }
