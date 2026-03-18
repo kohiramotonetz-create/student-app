@@ -260,45 +260,61 @@ function App() {
   };
 
   const finishPractice = () => {
-    const correctAnswer = quizReview.record.correct;
-    if (practice.trim().toLowerCase() === correctAnswer.trim().toLowerCase()) {
+    const rawCorrect = quizReview.record.correct;
+
+    // 判定用のクリーンアップ関数（submitQuizAnswerと同じもの）
+    const clean = (str) => {
+      if (!str) return "";
+      return str
+        .replace(/[…\.\.\.～~？?！!。、,]/g, "") 
+        .replace(/\s+/g, "")                    
+        .toLowerCase();
+    };
+
+    const userCleaned = clean(practice);
+    
+    // 「/」で分割してどれか一つに一致すればOK
+    const possibleAnswers = rawCorrect.split('/');
+    const isOk = possibleAnswers.some(ans => clean(ans) === userCleaned);
+
+    if (isOk) {
       setPractice("");
       setQuizReview({ visible: false, record: null });
       setCurrentInput("");
       if (qIndex + 1 < quizItems.length) {
         setQIndex(qIndex + 1);
       } else {
-        // 最後の問題を解き終わったタイミングで送信
         const finalAnswers = [...quizAnswers]; 
         setStep('quiz-result');
-        sendQuizResultToGAS(finalAnswers); // ここで呼び出す
+        sendQuizResultToGAS(finalAnswers);
       }
     } else { 
-      alert("正解を正しく入力してください"); 
+      alert("正解を正しく入力してください（複数の意味がある場合はどれか一つでOK）"); 
     }
   };
 
   // --- 1. 間違えた問題のみ再トライするロジック ---
   const retryWrongQuestions = () => {
-    // quizAnswersから「okがfalse」のものだけを取り出し、元の問題データ形式(en, jaなど)を復元
+    // ★追加：不規則モードなら不規則データを、通常ならallDataを参照先に指定
+    const currentSource = isFukisokuMode ? fukisokuData : allData;
+
     const wrongItems = quizAnswers
       .filter(a => !a.ok)
       .map(ans => {
-        // allDataから、問題文(ans.q)が一致するものを探す
-        return allData.find(d => (mode === 'ja-en' ? d.ja : d.en) === ans.q);
+        // 参照先（currentSource）から問題文(ans.q)が一致するものを探す
+        return currentSource.find(d => (mode === 'ja-en' ? d.ja : d.en) === ans.q);
       })
-      .filter(Boolean); // 見つからないものを除外
+      .filter(Boolean);
 
     if (wrongItems.length === 0) return alert("間違えた問題はありません！");
 
-    // ランダムに並び替え
     const shuffled = [...wrongItems].sort(() => 0.5 - Math.random());
     
     setQuizItems(shuffled);
     setQIndex(0);
     setQuizAnswers([]);
     setCurrentInput("");
-    setStep('quiz-main'); // クイズ画面へ戻る
+    setStep('quiz-main');
   };
 
   // --- 2. Googleスプレッドシートへ履歴を送信するロジック ---
