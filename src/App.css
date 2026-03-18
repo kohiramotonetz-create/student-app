@@ -303,3 +303,49 @@ th, td {
   padding-bottom: 5px;
   min-height: 40px; /* 高さを確保 */
 }
+
+/* 1. テーブル全体のレイアウトを固定 */
+.test-paper table {
+  width: 100%;
+  table-layout: fixed; /* これで列の幅指定が正確に効くようになります */
+  border-collapse: collapse;
+}
+
+/* 2. 各列の幅を指定（No.を細く、他を広く） */
+.test-paper th:nth-child(1), 
+.test-paper td:nth-child(1) {
+  width: 40px; /* 問題番号の幅 */
+  text-align: center;
+}
+
+.test-paper th:nth-child(2), 
+.test-paper td:nth-child(2),
+.test-paper th:nth-child(3), 
+.test-paper td:nth-child(3) {
+  width: auto; /* 残りの幅を等分 */
+}
+
+/* 3. 問題欄のセルの設定（音声ボタンの土台） */
+.test-paper td:nth-child(2) {
+  position: relative;   /* ボタンを絶対配置するための基準 */
+  padding-left: 45px !important; /* ボタンの分だけ文字を右に寄せる */
+  text-align: left;
+  height: 60px;         /* セルの高さを確保 */
+}
+
+/* 4. 音声ボタンを左端に固定 */
+.test-paper .no-print-speaker {
+  position: absolute;
+  left: 5px;           /* 枠の左端から5pxの位置 */
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

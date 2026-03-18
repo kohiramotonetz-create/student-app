@@ -297,12 +297,23 @@ function App() {
                     <tr key={i}>
                       <td style={{textAlign:'center', width:'40px'}}>{i + 1}</td>
                       {/* 音声ボタンを左端に復元 */}
-                      <td style={{position:'relative', paddingLeft:'40px'}}>
-                        {!isKobunMode && (
-                          <button className="no-print" onClick={() => speakEn(d.en)} style={{position:'absolute', left:'5px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', fontSize:'16px', padding:0}}>🔊</button>
-                        )}
-                        {mode === 'en-ja' ? d.en : d.ja}
-                      </td>
+                      <td style={{ textAlign: 'center' }}>{i + 1}</td>
+                      <td className="question-cell">
+                          {!isKobunMode && (
+                      <button 
+                      　className="no-print-speaker no-print"
+                      　onClick={() => speakEn(d.en)}
+                      >
+                       🔊
+                    　</button>
+                  )}
+                  <span className="question-text">
+                    {mode === 'en-ja' ? d.en : d.ja}
+                    </span>
+                  </td>
+                  <td>
+                    {showAnswer ? (mode === 'en-ja' ? d.ja : d.en) : ''}
+                　</td>
                       <td>{showAnswer ? (mode === 'en-ja' ? d.ja : d.en) : ''}</td>
                     </tr>
                   ))}
