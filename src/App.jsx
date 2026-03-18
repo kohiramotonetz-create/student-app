@@ -192,13 +192,16 @@ function App() {
   };
 
   const sendQuizResultToGAS = async (finalAnswers) => {
-    let targetSheet = isKobunMode ? "古文単語" : (isFukisokuMode ? "英単語（不規則変化）" : "定期テスト英単語");
-    let targetRange = isKobunMode ? "古文単語（全範囲）" : (isFukisokuMode ? "全範囲" : `${startUnit}${startPart}～${endUnit}${endPart}`);
+    // 1. デフォルト（中学生用）のシート名と範囲を設定
+    let targetSheet = isKobunMode ? "古文単語" : (isFukisokuMode ? "英単語（不規則変化）" : "定期テスト英単語");
+    let targetRange = isKobunMode ? "古文単語（全範囲）" : (isFukisokuMode ? "全範囲" : `${startUnit}${startPart}～${endUnit}${endPart}`);
 
-    if (selectedBook.name && (step === 'highschool-setup' || step === 'quiz-result')) {
-      targetSheet = selectedBook.name; 
-      targetRange = `No.${startNo}～${endNo}`;
-    }
+    // 2. 【修正箇所】高校生モード（selectedBookが選択されている場合）の判定を強化
+    // stepが quiz-result（結果画面）のとき、もし高校生用の本が選ばれていればそちらを優先する
+    if (selectedBook && selectedBook.name) {
+      targetSheet = selectedBook.name; 
+      targetRange = `No.${startNo}～${endNo}`;
+    }
 
     const resultData = { 
       action: "saveLog", 
