@@ -38,8 +38,8 @@ function App() {
   const [isKobunMode, setIsKobunMode] = useState(false); 
 
   // --- 高校生用データのステートを追加 ---
-  const [target1900Data, setTarget1900Data] = useState([]);
-  const [target1200Data, setTarget1200Data] = useState([]);
+  const [targetData, setTargetData] = useState([]);
+  const [targetminiData, setTargetminiData] = useState([]);
   const [sokudokuData, setSokudokuData] = useState([]);
   const [dragonData, setDragonData] = useState([]);
   const [yumetannData, setYumetannData] = useState([]);
