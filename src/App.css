@@ -1,351 +1,49 @@
 /* 全体のレイアウト設定 */
-#root {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
+#root { width: 100%; margin: 0; padding: 0; }
+.container { display: flex; justify-content: center; min-height: 100vh; background-color: #f0f2f5; font-family: sans-serif; width: 100vw; }
 
-.container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background-color: #f0f2f5; /* 少しグレーの背景でアプリっぽく */
-  font-family: 'Helvetica Neue', Arial, sans-serif;
-  width: 100vw;
-}
+.login-box, .menu-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); text-align: center; width: 100%; max-width: 400px; margin: auto; }
 
-/* 各種カード（ログイン、メニュー、テスト）の共通スタイル */
-.login-box, .menu-box, .test-box {
-  background: white;
-  padding: 40px;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-  text-align: center;
-  width: 100%;
-  max-width: 400px; /* スマホやiPadで見やすい幅 */
-}
+/* ボタン・入力欄 */
+input, select { display: block; width: 100%; box-sizing: border-box; margin: 12px 0; padding: 12px; border: 1px solid #dadce0; border-radius: 8px; font-size: 16px; }
+button { background-color: #1a73e8; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 8px; }
+.secondary { background: transparent; color: #5f6368; border: 1px solid #dadce0; }
 
-h1 {
-  color: #1a73e8;
-  margin-bottom: 24px;
-  font-size: 24px;
-}
+/* 紙テストビルダー */
+.test-builder-layout { display: flex; height: 100vh; background: #525659; width: 100%; }
+.settings-panel { width: 320px; background: #fff; padding: 20px; border-right: 1px solid #ccc; overflow-y: auto; }
+.preview-panel { flex: 1; display: flex; justify-content: center; padding: 20px; overflow-y: auto; }
+.test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); box-sizing: border-box; }
 
-h2 {
-  color: #333;
-  margin-bottom: 16px;
-}
+/* プレビュー内のテーブル設定（ここが重要） */
+.paper-table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse; margin-top: 10px; }
+.paper-table th, .paper-table td { border: 1px solid #000; height: 12mm; vertical-align: middle; }
 
-/* 入力フォームのスタイル */
-input {
-  display: block;
-  width: 100%;
-  box-sizing: border-box; /* パディングを含めた幅計算 */
-  margin: 12px 0;
-  padding: 12px;
-  border: 1px solid #dadce0;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 0.2s;
-}
+/* 列幅の指定 */
+.col-no { width: 50px !important; text-align: center; }
+.col-q { width: auto; position: relative; padding-left: 45px !important; text-align: left; }
+.col-a { width: auto; padding-left: 10px; }
 
-input:focus {
-  outline: none;
-  border-color: #1a73e8;
-  box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
-}
-
-/* ボタンのスタイル */
-button {
-  background-color: #1a73e8;
-  color: white;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  width: 100%;
-  margin-top: 8px;
-  transition: background-color 0.2s;
-}
-
-button:hover {
-  background-color: #1557b0;
-}
-
-button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-
-/* サブボタン（ログアウトなど） */
-.secondary {
-  background-color: transparent;
-  color: #5f6368;
-  border: 1px solid #dadce0;
-  margin-top: 16px;
-}
-
-.secondary:hover {
-  background-color: #f8f9fa;
-  color: #202124;
-}
-
-/* 通信中（ローディング）のオーバーレイ */
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(4px); /* 背景をぼかすとおしゃれ */
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  font-size: 18px;
-  font-weight: bold;
-  color: #1a73e8;
-  z-index: 9999;
-}
-
-/* ボタンを横並びにしたい時のグリッド */
-.button-grid {
-  display: grid;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-/* レイアウト */
-.test-builder-layout {
-  display: flex;
-  height: 100vh;
-  background: #525659;
-}
-
-.settings-panel {
-  width: 320px;
-  background: #fff;
-  padding: 20px;
-  border-right: 1px solid #ccc;
-  overflow-y: auto;
-  z-index: 10;
-}
-
-.preview-panel {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  padding: 20px;
-  overflow-y: auto;
-}
-
-/* テスト用紙 (A4) */
-.test-paper {
-  width: 210mm;
-  min-height: 297mm;
-  background: #fff;
-  padding: 15mm;
-  box-shadow: 0 0 10px rgba(0,0,0,0.5);
-  box-sizing: border-box;
-}
-
-.header-area {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  border-bottom: 2px solid #000;
-  margin-bottom: 10px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  border: 1px solid #000;
-  height: 11.5mm; /* 20問収まる高さ */
-  padding: 0 10px;
-}
-
-.col-no { width: 40px; text-align: center; }
-
-/* 印刷設定 */
-@media print {
-  .no-print { display: none !important; }
-  .preview-panel { padding: 0; background: none; }
-  .test-paper { box-shadow: none; margin: 0; }
-  body { background: white; }
-}
-
-/* ボタン装飾 */
-.btn-main { background: #007bff; color: white; margin-top: 10px; }
-.btn-sub { background: #6c757d; color: white; }
-.btn-print { background: #28a745; color: white; }
-.config-group { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-.config-group label { display: block; font-size: 12px; color: #666; }
-
-.quiz-container {
-  width: min(500px, 90vw);
-  margin: 50px auto;
-  background: white;
-  padding: 30px;
-  border-radius: 20px;
-  text-align: center;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-}
-.q-display-box {
-  font-size: 28px;
-  font-weight: bold;
-  margin: 20px 0;
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 10px;
-}
-.q-input, .p-input {
-  width: 100%;
-  padding: 12px;
-  font-size: 18px;
-  border-radius: 8px;
-  border: 2px solid #ddd;
-  margin-bottom: 20px;
-  box-sizing: border-box;
-}
-.review-box {
-  margin-top: 20px;
-  padding: 20px;
-  border-top: 2px dashed #eee;
-}
-.txt-ok { color: #28a745; font-weight: bold; font-size: 20px; }
-.txt-ng { color: #dc3545; font-weight: bold; font-size: 20px; }
-.button-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 15px;
-  margin: 20px 0;
-}
-.nav-btn {
-  padding: 20px;
-  font-size: 18px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-.grade-selector {
-  display: flex;
-  gap: 5px;
-  margin: 10px 0;
-}
-.grade-btn {
-  flex: 1;
-  padding: 10px 5px;
-  border: 1px solid #ddd;
-  background: #f0f0f0;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
-}
-.grade-btn.active {
-  background: #007bff;
-  color: white;
-  border-color: #0056b3;
-  font-weight: bold;
-}
-
-　/* --- 追記分：部品の統一感とレイアウトの安定化 --- */
-
-　/* セレクトボックスの見た目を入力欄（input）と統一 */
-　select {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  margin: 12px 0;
-  padding: 12px;
-  border: 1px solid #dadce0;
-  border-radius: 8px;
-  font-size: 16px;
-  background-color: white;
-  cursor: pointer;
-}
-
-　select:focus {
-  outline: none;
-  border-color: #1a73e8;
-  box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
-}
-
-/* テスト用紙内のテーブルが枠からはみ出さないように固定 */
-.test-paper table {
-  table-layout: fixed; 
-  width: 100%;
-}
-
-.test-paper td {
-  word-break: break-all; 
-  /* 英単語が長すぎても枠を突き抜けないように */
-  vertical-align: middle;
-}
-
-　/* 名前欄の消失を防ぐためのヘッダー微調整 */
-.header-area {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  border-bottom: 2px solid #000;
-  margin-bottom: 10px;
-  padding-bottom: 5px;
-  min-height: 40px; /* 高さを確保 */
-}
-
-/* 1. テーブル全体のレイアウトを固定 */
-.test-paper table {
-  width: 100%;
-  table-layout: fixed; /* これで列の幅指定が正確に効くようになります */
-  border-collapse: collapse;
-}
-
-/* 2. 各列の幅を指定（No.を細く、他を広く） */
-.test-paper th:nth-child(1), 
-.test-paper td:nth-child(1) {
-  width: 40px; /* 問題番号の幅 */
-  text-align: center;
-}
-
-.test-paper th:nth-child(2), 
-.test-paper td:nth-child(2),
-.test-paper th:nth-child(3), 
-.test-paper td:nth-child(3) {
-  width: auto; /* 残りの幅を等分 */
-}
-
-/* 3. 問題欄のセルの設定（音声ボタンの土台） */
-.test-paper td:nth-child(2) {
-  position: relative;   /* ボタンを絶対配置するための基準 */
-  padding-left: 45px !important; /* ボタンの分だけ文字を右に寄せる */
-  text-align: left;
-  height: 60px;         /* セルの高さを確保 */
-}
-
-/* 4. 音声ボタンを左端に固定 */
-.test-paper .no-print-speaker {
-  position: absolute;
-  left: 5px;           /* 枠の左端から5pxの位置 */
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  width: 30px;
-  height: 30px;
-  cursor: pointer;
+/* 音声ボタンを左端に固定 */
+.no-print-speaker {
+  position: absolute !important;
+  left: 5px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  background: #fff !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
+/* ヘッダー */
+.header-area { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; margin-bottom: 10px; padding-bottom: 5px; }
+.test-title { color: #1a73e8; font-size: 22px; margin: 0; }
+
+@media print { .no-print { display: none !important; } .test-paper { box-shadow: none; margin: 0; } }
