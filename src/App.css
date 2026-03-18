@@ -43,8 +43,40 @@ button { background-color: #1a73e8; color: white; padding: 12px 24px; border: no
 }
 
 /* ヘッダー */
-.header-area { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; margin-bottom: 10px; padding-bottom: 5px; }
-.test-title { color: #1a73e8; font-size: 22px; margin: 0; }
+.header-area {
+  display: flex;
+  justify-content: border-box;
+  align-items: center; /* 上下中央を合わせる */
+  border-bottom: 2px solid #000;
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  position: relative;
+}
+
+/* 左右の要素を同じ比率で広げることで、真ん中を中央に寄せる */
+.header-left, .header-right {
+  flex: 1; 
+  font-size: 14px;
+}
+
+.header-left {
+  text-align: left;
+}
+
+.header-right {
+  text-align: right;
+  font-weight: bold;
+}
+
+/* タイトルを中央固定 */
+.test-title {
+  flex: 0 0 auto; /* 勝手に伸び縮みさせない */
+  text-align: center;
+  margin: 0 20px !important; /* 左右に少し余白を作る */
+  font-size: 24px !important;
+  color: #1a73e8 !important;
+  white-space: nowrap; /* 改行させない */
+}
 
 @media print { .no-print { display: none !important; } .test-paper { box-shadow: none; margin: 0; } }
 
