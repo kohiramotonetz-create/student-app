@@ -199,10 +199,27 @@ function App() {
               setQuizItems([...kobunData].sort(() => 0.5 - Math.random()).slice(0, 20));
               setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setStep('quiz-main');
             }}>📚 古文単語（自習）</button>
+            <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生英単語</button>
           </div>
           <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
         </div>
       )}
+
+      {/* 高校生英単語 子メニュー */}
+      {step === 'highschool-menu' && (
+        <div className="menu-box">
+          <h1>高校生英単語</h1>
+          <p>単語帳を選択してください</p>
+          <div className="button-grid">
+            <button className="nav-btn" onClick={() => alert('準備中')}>ターゲット1900</button>
+            <button className="nav-btn" onClick={() => alert('準備中')}>ターゲット1200</button>
+            <button className="nav-btn" onClick={() => alert('準備中')}>速読英単語</button>
+            <button className="nav-btn" onClick={() => alert('準備中')}>ドラゴンイングリッシュ</button>
+            <button className="nav-btn" onClick={() => alert('準備中')}>ユメタン</button>
+            </div>
+            <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
+          </div>
+        )}
 
       {step === 'test-setup' && (
         <div className="test-builder-layout">
