@@ -192,10 +192,9 @@ function App() {
   };
 
   const sendQuizResultToGAS = async (finalAnswers) => {
-    let targetSheet = "定期テスト英単語"; // デフォルト
+    let targetSheet = "定期テスト英単語"; 
     let targetRange = `${startUnit}${startPart}～${endUnit}${endPart}`;
 
-    // --- シート名の直接指定ロジック ---
     if (isKobunMode) {
       targetSheet = "古文単語";
       targetRange = "古文単語（全範囲）";
@@ -203,16 +202,15 @@ function App() {
       targetSheet = "英単語（不規則変化）";
       targetRange = "全範囲";
     } else if (selectedBook && selectedBook.name) {
-      // 高校生用のシート名をここで直接指定
-      if (selectedBook.name === 'ターゲット') targetSheet = "ターゲット";
-      else if (selectedBook.name === 'ターゲットmini') targetSheet = "ターゲットmini";
+      // --- 【修正ポイント】selectedBook.name の値に合わせる ---
+      if (selectedBook.name === 'ターゲット') targetSheet = "ターゲット1900";
+      else if (selectedBook.name === 'ターゲットmini') targetSheet = "ターゲット1200";
       else if (selectedBook.name === '速読英単語') targetSheet = "速読英単語";
       else if (selectedBook.name === 'ドラゴンイングリッシュ') targetSheet = "ドラゴンイングリッシュ";
       else if (selectedBook.name === 'ユメタン') targetSheet = "ユメタン";
       
       targetRange = `No.${startNo}～${endNo}`;
     }
-    // -------------------------------
 
     const resultData = { 
       action: "saveLog", 
