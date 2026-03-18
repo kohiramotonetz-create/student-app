@@ -253,10 +253,17 @@ function App() {
           <div className="preview-panel">
             <div className="test-paper">
               <div className="header-area">
-                <div>氏名 ____________________</div>
-                <h1 className="test-title">英単語テスト</h1>
-                <div>{school === 'custom' ? customSchool : school}</div>
+                 {/* 左：名前欄（幅を固定） */}
+              <div className="header-left">
+                  氏名 ____________________
+             </div>
+              {/* 中央：タイトル（絶対中央） */}
+            　<h1 className="test-title">英単語テスト</h1>
+            　{/* 右：学校名（幅を固定） */}
+            <div className="header-right">
+              {school === 'custom' ? customSchool : school}
               </div>
+            </div>
               <p style={{fontSize:'12px', textAlign:'center'}}>{rangeText}</p>
               <table className="paper-table">
                 <thead><tr><th className="col-no">No.</th><th>問題</th><th>解答欄</th></tr></thead>
