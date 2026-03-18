@@ -218,17 +218,38 @@ function App() {
         </div>
       )}
 
-      {/* 紙テスト作成設定（範囲指定を復元） */}
+      {/* 紙テスト作成設定（レイアウトと順番、プレビュー形式を復元） */}
       {step === 'test-setup' && (
         <div className="test-builder-layout">
           <div className="settings-panel no-print">
             <h3>📝 テスト作成設定</h3>
+            
             <div className="config-group">
-              <label>学年:</label>
-              <select value={selectedGrade} onChange={(e) => setSelectedGrade(e.target.value)}>
-                {gradeList.map(g => <option key={g} value={g}>{g}</option>)}
+              {/* 1. 学校名 */}
+              <label>学校名:</label>
+              <select value={school} onChange={(e) => setSchool(e.target.value)}>
+                <option value="木太中">木太中</option><option value="玉藻中">玉藻中</option><option value="桜町中">桜町中</option><option value="附属中">附属中</option><option value="custom">-- 直接入力 --</option>
               </select>
-              <label>開始:</label>
+              {school === 'custom' && <input type="text" value={customSchool} onChange={(e) => setCustomSchool(e.target.value)} placeholder="学校名を入力" style={{marginTop:'5px'}} />}
+
+              {/* 2. 学年（ボタン選択式） */}
+              <label style={{marginTop:'10px'}}>学年:</label>
+              <div className="grade-selector" style={{display:'flex', gap:'5px'}}>
+                {gradeList.map(g => (
+                  <button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)} style={{flex:1, padding:'5px'}}>{g}</button>
+                ))}
+              </div>
+
+              {/* 3. 出題モード */}
+              <label style={{marginTop:'10px'}}>出題モード:</label>
+              <select value={mode} onChange={(e) => setMode(e.target.value)}>
+                <option value="en-ja">英語 → 日本語</option><option value="ja-en">日本語 → 英語</option>
+              </select>
+            </div>
+
+            {/* 4. 開始範囲と終了範囲 */}
+            <div className="config-group" style={{marginTop:'15px'}}>
+              <label>▼ 開始範囲 ({selectedGrade})</label>
               <div style={{display:'flex', gap:'5px'}}>
                 <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
                   {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
@@ -237,7 +258,7 @@ function App() {
                   {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
-              <label>終了:</label>
+              <label style={{marginTop:'10px'}}>▼ 終了範囲 ({selectedGrade})</label>
               <div style={{display:'flex', gap:'5px'}}>
                 <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
                   {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
@@ -247,39 +268,41 @@ function App() {
                 </select>
               </div>
             </div>
-            <div className="config-group" style={{marginTop:'10px'}}>
-              <label>学校名:</label>
-              <select value={school} onChange={(e) => setSchool(e.target.value)}>
-                <option value="木太中">木太中</option><option value="玉藻中">玉藻中</option><option value="custom">-- 直接入力 --</option>
-              </select>
-              {school === 'custom' && <input type="text" value={customSchool} onChange={(e) => setCustomSchool(e.target.value)} />}
-              <label>出題モード:</label>
-              <select value={mode} onChange={(e) => setMode(e.target.value)}>
-                <option value="en-ja">英語 → 日本語</option><option value="ja-en">日本語 → 英語</option>
-              </select>
+
+            <div className="action-buttons" style={{marginTop:'20px', display:'flex', flexDirection:'column', gap:'10px'}}>
+              <button className="btn-main" onClick={generatePaperTest} style={{width:'100%'}}>🔄 問題を生成</button>
+              <button className="btn-sub" onClick={() => setShowAnswer(!showAnswer)} style={{width:'100%'}}>👁 解答表示：{showAnswer ? 'OFF' : 'ON'}</button>
+              <button className="btn-print" onClick={() => window.print()} style={{width:'100%', backgroundColor:'#28a745', color:'white'}}>🖨 印刷 / PDF保存</button>
+              <button className="btn-back" onClick={() => setStep('menu')} style={{width:'100%', backgroundColor:'#6c757d', color:'white'}}>戻る</button>
             </div>
-            <button className="btn-main" onClick={generatePaperTest}>🔄 問題を生成</button>
-            <button className="btn-sub" onClick={() => setShowAnswer(!showAnswer)}>👁 解答表示：{showAnswer ? 'OFF' : 'ON'}</button>
-            <button className="btn-print" onClick={() => window.print()}>🖨 印刷 / PDF保存</button>
-            <button className="btn-back" onClick={() => setStep('menu')}>戻る</button>
           </div>
+
           <div className="preview-panel">
-            <div className="test-paper">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <div className="test-paper" id="paper">
+              {/* プレビューヘッダーを復元 */}
+              <div className="header-area" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                 <div style={{ fontSize: '14px' }}>氏名 ____________________</div>
-                <h1 style={{ fontSize: '20px', margin: 0 }}>英単語テスト</h1>
+                <h1 style={{ fontSize: '22px', margin: 0, color: '#007bff' }}>英単語テスト</h1>
                 <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{school === 'custom' ? customSchool : school}</div>
               </div>
-              <p style={{fontSize: '12px', color: '#666'}}>{rangeText}</p>
+              <p className="range-text" style={{fontSize: '12px', color: '#666', margin:'0 0 10px 0', textAlign:'center'}}>{rangeText}</p>
+              
               <table>
                 <thead>
+                  {/* テーブルヘッダーの項目名を復元 */}
                   <tr><th>No.</th><th>問題</th><th>解答欄</th></tr>
                 </thead>
                 <tbody>
                   {testWords.map((d, i) => (
                     <tr key={i}>
-                      <td style={{textAlign:'center'}}>{i + 1}</td>
-                      <td>{!isKobunMode && <button className="no-print" onClick={() => speakEn(d.en)}>🔊</button>}{mode === 'en-ja' ? d.en : d.ja}</td>
+                      <td style={{textAlign:'center', width:'40px'}}>{i + 1}</td>
+                      {/* 音声ボタンを左端に復元 */}
+                      <td style={{position:'relative', paddingLeft:'40px'}}>
+                        {!isKobunMode && (
+                          <button className="no-print" onClick={() => speakEn(d.en)} style={{position:'absolute', left:'5px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', fontSize:'16px', padding:0}}>🔊</button>
+                        )}
+                        {mode === 'en-ja' ? d.en : d.ja}
+                      </td>
                       <td>{showAnswer ? (mode === 'en-ja' ? d.ja : d.en) : ''}</td>
                     </tr>
                   ))}
