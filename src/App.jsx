@@ -18,6 +18,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [allData, setAllData] = useState([]); 
   const [selectedGrade, setSelectedGrade] = useState('中1');
+  
 
   // --- 2：紙テスト用ステート ---
   const [startUnit, setStartUnit] = useState('');
@@ -38,6 +39,10 @@ function App() {
   const [currentInput, setCurrentInput] = useState("");
   const [quizReview, setQuizReview] = useState({ visible: false, record: null });
   const [practice, setPractice] = useState("");
+
+  // --- 1：共通ステート付近に追加 ---
+　const [fukisokuData, setFukisokuData] = useState([]);
+  const [isFukisokuMode, setIsFukisokuMode] = useState(false);
 
   // --- 自動範囲補正ロジック ---
   useEffect(() => {
@@ -66,6 +71,7 @@ function App() {
   // --- 共通ロジック：CSV読込 ---
   const loadCsv = async () => {
     try {
+      // --- 既存の wordlist.csv 読み込み ---
       const res = await fetch('/wordlist.csv?v=' + new Date().getTime());
       const text = await res.text();
       Papa.parse(text, {
@@ -81,7 +87,26 @@ function App() {
           setAllData(data);
         }
       });
-    } catch (e) { console.error("CSV load error"); }
+
+      // --- ★追加：不規則変化 wordlist-fukisoku.csv 読み込み ---
+      const resF = await fetch('/wordlist-fukisoku.csv?v=' + new Date().getTime());
+      const textF = await resF.text();
+      Papa.parse(textF, {
+        header: true, // ヘッダーありに設定
+        skipEmptyLines: true,
+        complete: (results) => {
+          const data = results.data.map(d => ({
+            // CSVのヘッダー名（1行目）が「日本語」「英語」の場合
+            ja: d["日本語"], 
+            en: d["英語"]
+          })).filter(d => d.en);
+          setFukisokuData(data);
+        }
+      });
+
+    } catch (e) { 
+      console.error("CSV load error:", e); 
+    }
   };
 
   const gradeList = useMemo(() => {
@@ -193,6 +218,18 @@ function App() {
     setQuizReview({ visible: true, record });
   };
 
+  const startFukisokuQuiz = () => {
+    if (fukisokuData.length === 0) return alert("データが読み込めていません");
+    // 不規則変化データからランダムに20問抽出
+    const selected = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, 20);
+    setQuizItems(selected);
+    setQIndex(0);
+    setQuizAnswers([]);
+    setMode('ja-en');         // 日本語→英語に固定
+    setIsFukisokuMode(true);  // ★不規則モードをONにする
+    setStep('quiz-main');
+};
+
   const finishPractice = () => {
     const correctAnswer = quizReview.record.correct;
     if (practice.trim().toLowerCase() === correctAnswer.trim().toLowerCase()) {
@@ -300,6 +337,7 @@ function App() {
           <div className="button-grid">
             <button className="nav-btn" onClick={() => setStep('test-setup')}>📝 英単語テスト作成(紙)</button>
             <button className="nav-btn" onClick={() => setStep('quiz-setup')}>🚀 1問ずつテスト(自習)</button>
+            <button className="nav-btn" onClick={() => setStep('fukisoku-setup')}>🔄 英単語（不規則変化）</button>
           </div>
           <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
         </div>
@@ -506,6 +544,38 @@ function App() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+        // 不規則変化専用：スタート画面 //
+      {step === 'fukisoku-setup' && (
+        <div className="login-box">
+          <h2>🔄 英単語（不規則変化）</h2>
+          <div style={{ 
+            textAlign: 'left', 
+            background: '#f8f9fa', 
+            padding: '20px', 
+            borderRadius: '12px', 
+            marginBottom: '24px', 
+            fontSize: '14px',
+            lineHeight: '1.6',
+            color: '#555',
+            border: '1px solid #eef0f2'
+          }}>
+            <p style={{ fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>【今回の出題設定】</p>
+            <p>・範囲：不規則変化リスト 全体</p>
+            <p>・問題：ランダムに 20 問抽出</p>
+            <p>・形式：日本語 → 英語</p>
+            <p style={{ marginTop: '8px', fontSize: '12px', color: '#1a73e8' }}>※結果は「英単語（不規則変化）」シートに保存されます</p>
+          </div>
+          
+          <button className="primary-btn" onClick={startFukisokuQuiz}>
+            スタート！
+          </button>
+          
+          <button className="secondary" onClick={() => setStep('menu')}>
+            戻る
+          </button>
         </div>
       )}
 
