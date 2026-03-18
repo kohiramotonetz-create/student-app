@@ -192,7 +192,7 @@ function App() {
           <p>ようこそ {userName} 先生</p>
           <div className="button-grid">
             <button className="nav-btn" onClick={() => { setIsKobunMode(false); setSelectedGrade(''); setStep('test-setup'); }}>📝 英単語テスト作成(紙)</button>
-            <button className="nav-btn" onClick={() => { setIsFukisokuMode(false); setIsKobunMode(false); setStep('quiz-setup'); }}>🚀 1問ずつテスト(自習)</button>
+            <button className="nav-btn" onClick={() => { setIsFukisokuMode(false); setIsKobunMode(false); setSelectedGrade(''); setStep('quiz-setup'); }}>🚀 1問ずつテスト(自習)</button>
             <button className="nav-btn" onClick={() => { setIsFukisokuMode(true); setIsKobunMode(false); setStep('fukisoku-setup'); }}>🔄 英単語（不規則変化）</button>
             <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => {
               if (kobunData.length === 0) return alert("データなし");
@@ -253,17 +253,10 @@ function App() {
           <div className="preview-panel">
             <div className="test-paper">
               <div className="header-area">
-                 {/* 左：名前欄（幅を固定） */}
-              <div className="header-left">
-                  氏名 ____________________
-             </div>
-              {/* 中央：タイトル（絶対中央） */}
-            　<h1 className="test-title">英単語テスト</h1>
-            　{/* 右：学校名（幅を固定） */}
-            <div className="header-right">
-              {school === 'custom' ? customSchool : school}
+                <div className="header-left">氏名 ____________________</div>
+                <h1 className="test-title">英単語テスト</h1>
+                <div className="header-right">{school === 'custom' ? customSchool : school}</div>
               </div>
-            </div>
               <p style={{fontSize:'12px', textAlign:'center'}}>{rangeText}</p>
               <table className="paper-table">
                 <thead><tr><th className="col-no">No.</th><th>問題</th><th>解答欄</th></tr></thead>
@@ -285,13 +278,25 @@ function App() {
         </div>
       )}
 
+      {/* --- 自習クイズ設定の修正箇所 --- */}
       {step === 'quiz-setup' && (
-        <div className="login-box">
+        <div className="login-box" style={{maxWidth: '450px'}}>
           <h2>🚀 クイズ設定</h2>
-          <div className="config-group">
-            <select value={selectedGrade} onChange={(e) => setSelectedGrade(e.target.value)}>
-              {gradeList.map(g => <option key={g} value={g}>{g}</option>)}
+          <div className="config-group" style={{textAlign: 'left'}}>
+            <label>学年:</label>
+            <div className="grade-selector">
+              {gradeList.map(g => (
+                <button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>
+              ))}
+            </div>
+
+            <label style={{marginTop: '15px'}}>出題モード:</label>
+            <select value={mode} onChange={(e) => setMode(e.target.value)}>
+              <option value="ja-en">日本語 → 英語</option>
+              <option value="en-ja">英語 → 日本語</option>
             </select>
+
+            <label style={{marginTop: '15px'}}>▼ 開始範囲 ({selectedGrade})</label>
             <div style={{display:'flex', gap:'5px', marginBottom:'5px'}}>
               <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>
                 {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
@@ -300,12 +305,21 @@ function App() {
                 {[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
-            <select value={mode} onChange={(e) => setMode(e.target.value)}>
-              <option value="ja-en">日 → 英</option><option value="en-ja">英 → 日</option>
-            </select>
+
+            <label style={{marginTop: '10px'}}>▼ 終了範囲 ({selectedGrade})</label>
+            <div style={{display:'flex', gap:'5px'}}>
+              <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>
+                {filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>
+                {[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
           </div>
-          <button onClick={startQuiz}>スタート！</button>
-          <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
+          <div className="button-grid" style={{marginTop: '20px'}}>
+            <button className="nav-btn" onClick={startQuiz}>スタート！</button>
+            <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
+          </div>
         </div>
       )}
 
