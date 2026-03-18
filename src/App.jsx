@@ -99,8 +99,8 @@ function App() {
             no: parseInt(Object.values(d)[0]), // A列（No.）を取得
             en: d["英語"], 
             ja: d["日本語"] 
-         })).filter(d => d.en);
-         file.setter(data);
+          })).filter(d => d.en);
+          file.setter(data);
         }});
       }
     } catch (e) { console.error(e); }
@@ -191,17 +191,14 @@ function App() {
   };
 
   const sendQuizResultToGAS = async (finalAnswers) => {
-    // 1. デフォルト（中学生用）のシート名と範囲を設定
     let targetSheet = isKobunMode ? "古文単語" : (isFukisokuMode ? "英単語（不規則変化）" : "定期テスト英単語");
     let targetRange = isKobunMode ? "古文単語（全範囲）" : (isFukisokuMode ? "全範囲" : `${startUnit}${startPart}～${endUnit}${endPart}`);
 
-    // 2. 高校生モードの場合、選択された単語帳名とNo.範囲で上書き
     if (selectedBook.name && (step === 'highschool-setup' || step === 'quiz-result')) {
-      targetSheet = selectedBook.name; // 「ターゲット1900」などがそのままシート名になる
+      targetSheet = selectedBook.name; 
       targetRange = `No.${startNo}～${endNo}`;
     }
 
-    // 3. 送信用データの作成
     const resultData = { 
       action: "saveLog", 
       sheetName: targetSheet, 
@@ -214,7 +211,6 @@ function App() {
       history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ') 
     };
 
-    // 4. GASへ送信
     try { 
       await axios.post(LOG_GAS_URL, JSON.stringify(resultData), { headers: { 'Content-Type': 'text/plain' } }); 
     } catch (e) { 
@@ -263,34 +259,74 @@ function App() {
         </div>
       )}
 
-      {/* --- 高校生英単語 子メニュー (修正版) --- */}
       {step === 'highschool-menu' && (
-        <div className="quiz-container">
+        <div className="menu-box">
           <h1>高校生英単語</h1>
           <p>単語帳を選択してください</p>
           <div className="button-grid">
-      {[
-        { name: 'ターゲット1900', data: target1900Data },
-        { name: 'ターゲット1200', data: target1200Data },
-        { name: '速読英単語', data: sokudokuData },
-        { name: 'ドラゴンイングリッシュ', data: dragonData },
-        { name: 'ユメタン', data: yumetannData },
-      ].map((book) => (
-        <button key={book.name} className="nav-btn" onClick={() => {
-          if (book.data.length === 0) return alert("データがありません");
-          setSelectedBook(book);
-          setStartNo(1);
-          setEndNo(Math.min(book.data.length, 100));
-          setStep('highschool-setup');
-        }}>
-          {book.name}
-        </button>
-      ))}
-    </div>
-    <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
-  </div>
-)}
-
+            {[
+              { name: 'ターゲット1900', data: target1900Data },
+              { name: 'ターゲット1200', data: target1200Data },
+              { name: '速読英単語', data: sokudokuData },
+              { name: 'ドラゴンイングリッシュ', data: dragonData },
+              { name: 'ユメタン', data: yumetannData },
+            ].map((book) => (
+              <button key={book.name} className="nav-btn" onClick={() => {
+                if (book.data.length === 0) return alert("データがありません");
+                setSelectedBook(book);
+                setStartNo(1);
+                setEndNo(Math.min(book.data.length, 100));
+                setStep('highschool-setup');
+              }}>
+                {book.name}
+              </button>
+            ))}
+          </div>
+          <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
+        </div>
+      )}
+              
+      {step === 'highschool-setup' && (
+        <div className="quiz-container">
+          <h2>🚀 {selectedBook.name}</h2>
+          <div className="config-group" style={{textAlign: 'left'}}>
+            <label>出題モード:</label>
+            <select value={mode} onChange={(e) => setMode(e.target.value)}>
+              <option value="ja-en">日本語 → 英語</option>
+              <option value="en-ja">英語 → 日本語</option>
+            </select>
+            <label style={{marginTop: '20px'}}>▼ 単語No.で範囲指定</label>
+            <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+              <input type="number" value={startNo} onChange={(e) => setStartNo(Number(e.target.value))} style={{width:'80px'}} />
+              〜
+              <input type="number" value={endNo} onChange={(e) => setEndNo(Number(e.target.value))} style={{width:'80px'}} />
+            </div>
+            <p style={{fontSize:'12px', color:'#666'}}>（最大: {selectedBook.data.length}）</p>
+            <button className="nav-btn" style={{marginTop:'20px'}} onClick={() => {
+              const range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo);
+              if (range.length === 0) return alert("範囲内に単語がありません");
+              setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, 20));
+              setQIndex(0); setQuizAnswers([]); setCurrentInput("");
+              setIsKobunMode(false); setIsFukisokuMode(false);
+              setStep('quiz-main');
+            }}>
+              この範囲でスタート！
+            </button>
+            <div style={{margin: '30px 0', borderTop: '1px solid #ccc', paddingTop: '20px'}}>
+              <label>▼ もしくは</label>
+              <button className="nav-btn" style={{backgroundColor: '#6c757d'}} onClick={() => {
+                setQuizItems([...selectedBook.data].sort(() => 0.5 - Math.random()).slice(0, 20));
+                setQIndex(0); setQuizAnswers([]); setCurrentInput("");
+                setIsKobunMode(false); setIsFukisokuMode(false);
+                setStep('quiz-main');
+              }}>
+                全範囲からランダムに出題
+              </button>
+            </div>
+          </div>
+          <button className="secondary" onClick={() => setStep('highschool-menu')}>戻る</button>
+        </div>
+      )}
 
       {step === 'test-setup' && (
         <div className="test-builder-layout">
@@ -428,78 +464,6 @@ function App() {
         </div>
       )}
 
-      {/* ① 高校生英単語 本棚（単語帳選択） */}
-      {step === 'highschool-menu' && (
-        <div className="menu-box">
-          <h1>高校生英単語</h1>
-          <p>単語帳を選択してください</p>
-          <div className="button-grid">
-            {[
-              { name: 'ターゲット1900', data: target1900Data },
-              { name: 'ターゲット1200', data: target1200Data },
-              { name: '速読英単語', data: sokudokuData },
-              { name: 'ドラゴンイングリッシュ', data: dragonData },
-              { name: 'ユメタン', data: yumetannData },
-            ].map((book) => (
-            <button key={book.name} className="nav-btn" onClick={() => {
-              if (book.data.length === 0) return alert("データがありません");
-              setSelectedBook(book);
-              setStartNo(1);
-              setEndNo(Math.min(book.data.length, 100));
-              setStep('highschool-setup');
-              }}>
-                {book.name}
-                </button>
-               ))}
-               </div>
-               <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
-               </div>
-              )}
-              
-              {/* ② 高校生用クイズ設定画面 */}
-              {step === 'highschool-setup' && (
-                <div className="quiz-container">
-                  <h2>🚀 {selectedBook.name}</h2>
-                  <div className="config-group" style={{textAlign: 'left'}}>
-                    <label>出題モード:</label>
-                    <select value={mode} onChange={(e) => setMode(e.target.value)}>
-                      <option value="ja-en">日本語 → 英語</option>
-                      <option value="en-ja">英語 → 日本語</option>
-                      </select>
-                      <label style={{marginTop: '20px'}}>▼ 単語No.で範囲指定</label>
-                      <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                        <input type="number" value={startNo} onChange={(e) => setStartNo(Number(e.target.value))} style={{width:'80px'}} />
-                        〜
-                        <input type="number" value={endNo} onChange={(e) => setEndNo(Number(e.target.value))} style={{width:'80px'}} />
-                        </div>
-                        <p style={{fontSize:'12px', color:'#666'}}>（最大: {selectedBook.data.length}）</p>
-                        <button className="nav-btn" style={{marginTop:'20px'}} onClick={() => {
-                          const range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo);
-                          if (range.length === 0) return alert("範囲内に単語がありません");
-                          setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, 20));
-                          setQIndex(0); setQuizAnswers([]); setCurrentInput("");
-                          setIsKobunMode(false); setIsFukisokuMode(false);
-                          setStep('quiz-main');
-                          }}>
-                            この範囲でスタート！
-                          </button>
-                          
-                          <div style={{margin: '30px 0', borderTop: '1px solid #ccc', paddingTop: '20px'}}>
-                            <label>▼ もしくは</label>
-                            <button className="nav-btn" style={{backgroundColor: '#6c757d'}} onClick={() => {
-                              setQuizItems([...selectedBook.data].sort(() => 0.5 - Math.random()).slice(0, 20));
-                              setQIndex(0); setQuizAnswers([]); setCurrentInput("");
-                              setIsKobunMode(false); setIsFukisokuMode(false);
-                              setStep('quiz-main');
-                            }}>
-                                全範囲からランダムに出題
-                              </button>
-                          </div>
-                      </div>
-                      <button className="secondary" onClick={() => setStep('highschool-menu')}>戻る</button>
-                    </div>
-                  )}
-
       {step === 'fukisoku-setup' && (
         <div className="quiz-container">
           <h2>🔄 不規則変化</h2>
@@ -512,7 +476,6 @@ function App() {
         </div>
       )}
 
-      {/* 結果画面（詳細テーブル表示） */}
       {step === 'quiz-result' && (
         <div className="quiz-container" style={{maxWidth: '600px'}}>
           <h2>結果発表</h2>
