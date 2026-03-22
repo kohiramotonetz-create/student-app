@@ -4,7 +4,7 @@ import Papa from 'papaparse'
 import './App.css'
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
-const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL; // 送信用URL
+const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
 const QUESTION_COUNT = 20;
 
 function App() {
@@ -37,9 +37,6 @@ function App() {
   const [kobunData, setKobunData] = useState([]);
   const [isKobunMode, setIsKobunMode] = useState(false); 
 
-  // --- ★追加: アプリ名管理用のステート ---
-  const [currentAppName, setCurrentAppName] = useState('');
-
   const [targetData, setTargetData] = useState([]);
   const [targetminiData, setTargetminiData] = useState([]);
   const [sokudokuData, setSokudokuData] = useState([]);
@@ -50,14 +47,16 @@ function App() {
   const [startNo, setStartNo] = useState(1);
   const [endNo, setEndNo] = useState(100);
 
-  // --- ★追加: 送信関数 (fetch + no-cors + keepalive) ---
-  const sendResultToGAS = (finalAnswers) => {
-    if (!currentAppName || !LOG_GAS_URL) return;
+  // --- ★修正: 引数で直接名前を受け取る送信関数 ---
+  const sendResultToGAS = (finalAnswers, sheetName) => {
+    if (!sheetName || !LOG_GAS_URL) {
+      console.warn("送信スキップ: シート名またはURLがありません", { sheetName });
+      return;
+    }
 
-    // GAS側が待っている項目名に合わせてパッキング
     const payload = {
       action: "saveLog",
-      sheetName: currentAppName,
+      sheetName: sheetName,
       userName: userName,
       testRange: (selectedBook && selectedBook.name) ? `No.${startNo}～${endNo}` : (isKobunMode ? "古文（全範囲）" : (isFukisokuMode ? "不規則（全範囲）" : `${startUnit}${startPart}～${endUnit}${endPart}`)), 
       mode: mode,
@@ -67,15 +66,14 @@ function App() {
       history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
     };
 
-    const body = new URLSearchParams({ payload: JSON.stringify(payload) });
-
+    // GASで最も安定する text/plain + 生JSON形式
     fetch(LOG_GAS_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-      body,
-      mode: "no-cors",
+      mode: "cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify(payload),
       keepalive: true,
-    });
+    }).catch(e => console.error("送信エラー:", e));
   };
 
   useEffect(() => {
@@ -179,7 +177,6 @@ function App() {
     const endIndex = allData.findLastIndex(d => d.key === eKey);
     if (startIndex === -1 || endIndex === -1) return alert("範囲エラー");
     const range = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
-
     setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT));
     setQIndex(0); setQuizAnswers([]); setIsFukisokuMode(false); setIsKobunMode(false);
     setSelectedBook({ name: '', data: [] });
@@ -201,13 +198,21 @@ function App() {
     const clean = (str) => str ? str.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
     const isOk = quizReview.record.correct.split('/').some(ans => clean(practice) === clean(ans));
     if (isOk) {
-      const finalAnswers = [...quizAnswers]; // 送信用に現在の全回答をキャプチャ
+      const finalAnswers = [...quizAnswers]; 
       setPractice(""); setQuizReview({ visible: false, record: null }); setCurrentInput("");
+      
       if (qIndex + 1 < quizItems.length) {
         setQIndex(qIndex + 1);
       } else {
+        // --- ★修正: ここでシート名をその場で判定して直接渡す ---
+        let determinedSheetName = "";
+        if (isFukisokuMode) determinedSheetName = "英単語（不規則変化）";
+        else if (isKobunMode) determinedSheetName = "古文単語（自習）";
+        else if (selectedBook && selectedBook.name) determinedSheetName = selectedBook.name;
+        else determinedSheetName = "1問ずつテスト(自習)";
+
         setStep('quiz-result'); 
-        sendResultToGAS(finalAnswers); // ★ここで送信実行
+        sendResultToGAS(finalAnswers, determinedSheetName);
       }
     } else alert("正解を入力してください");
   };
@@ -225,7 +230,6 @@ function App() {
   return (
     <div className="container">
       {loading && <div className="loading-overlay">通信中...</div>}
-
       {step === 'login' && (
         <div className="login-box">
           <h1>Student App</h1>
@@ -234,7 +238,6 @@ function App() {
           <button onClick={handleLogin}>ログイン</button>
         </div>
       )}
-
       {step === 'change-password' && (
         <div className="login-box">
           <h2>🔐 パスワード変更</h2>
@@ -242,27 +245,16 @@ function App() {
           <button onClick={handleChangePassword}>変更して開始</button>
         </div>
       )}
-
       {step === 'menu' && (
         <div className="menu-box">
           <h1>メニュー</h1>
           <p>ようこそ {userName} 先生</p>
           <div className="button-grid">
-            <button className="nav-btn" onClick={() => { 
-              setCurrentAppName(''); // 紙は空にする（送信されない）
-              setIsKobunMode(false); setSelectedGrade(''); setStep('test-setup'); 
-            }}>📝 英単語テスト作成(紙)</button>
-            <button className="nav-btn" onClick={() => { 
-              setCurrentAppName('1問ずつテスト(自習)');
-              setIsFukisokuMode(false); setIsKobunMode(false); setSelectedGrade(''); setStep('quiz-setup'); 
-            }}>🚀 1問ずつテスト(自習)</button>
-            <button className="nav-btn" onClick={() => { 
-              setCurrentAppName('英単語（不規則変化）');
-              setIsFukisokuMode(true); setIsKobunMode(false); setStep('fukisoku-setup'); 
-            }}>🔄 英単語（不規則変化）</button>
+            <button className="nav-btn" onClick={() => { setIsKobunMode(false); setSelectedGrade(''); setStep('test-setup'); }}>📝 英単語テスト作成(紙)</button>
+            <button className="nav-btn" onClick={() => { setIsFukisokuMode(false); setIsKobunMode(false); setSelectedGrade(''); setStep('quiz-setup'); }}>🚀 1問ずつテスト(自習)</button>
+            <button className="nav-btn" onClick={() => { setIsFukisokuMode(true); setIsKobunMode(false); setStep('fukisoku-setup'); }}>🔄 英単語（不規則変化）</button>
             <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => {
               if (kobunData.length === 0) return alert("データなし");
-              setCurrentAppName('古文単語（自習）');
               setIsKobunMode(true); setIsFukisokuMode(false); setMode('en-ja');
               setSelectedBook({ name: '', data: [] });
               setQuizItems([...kobunData].sort(() => 0.5 - Math.random()).slice(0, 20));
@@ -273,7 +265,6 @@ function App() {
           <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
         </div>
       )}
-
       {step === 'highschool-menu' && (
         <div className="menu-box">
           <h1>高校生英単語</h1>
@@ -296,7 +287,6 @@ function App() {
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
       )}
-              
       {step === 'highschool-setup' && (
         <div className="quiz-container">
           <h2>🚀 {selectedBook.name}</h2>
@@ -313,13 +303,11 @@ function App() {
             <button className="nav-btn" style={{marginTop:'20px'}} onClick={() => {
               const range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo);
               if (range.length === 0) return alert("範囲内に単語がありません");
-              setCurrentAppName(selectedBook.name);
               setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, 20));
-              setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setIsKobunMode(false); setIsFukisokuMode(false);
+              setQIndex(0); setQuizAnswers([]); setIsKobunMode(false); setIsFukisokuMode(false);
               setStep('quiz-main');
             }}>この範囲でスタート！</button>
             <button className="nav-btn" style={{backgroundColor: '#6c757d', marginTop:'10px'}} onClick={() => {
-              setCurrentAppName(selectedBook.name);
               setQuizItems([...selectedBook.data].sort(() => 0.5 - Math.random()).slice(0, 20));
               setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setIsKobunMode(false); setIsFukisokuMode(false);
               setStep('quiz-main');
@@ -328,8 +316,7 @@ function App() {
           <button className="secondary" onClick={() => setStep('highschool-menu')}>戻る</button>
         </div>
       )}
-
-      {/* 以下、quiz-main, quiz-result などの UI コードは既存のまま維持 */}
+      {/* --- 以下UIコンポーネントは変更なし --- */}
       {step === 'test-setup' && (
         <div className="test-builder-layout">
           <div className="settings-panel no-print">
@@ -384,7 +371,6 @@ function App() {
           </div>
         </div>
       )}
-
       {step === 'quiz-setup' && (
         <div className="quiz-container">
           <h2>🚀 クイズ設定</h2>
@@ -410,7 +396,6 @@ function App() {
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
       )}
-
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
@@ -434,7 +419,6 @@ function App() {
           )}
         </div>
       )}
-
       {step === 'fukisoku-setup' && (
         <div className="quiz-container">
           <h2>🔄 不規則変化</h2>
@@ -446,7 +430,6 @@ function App() {
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
       )}
-
       {step === 'quiz-result' && (
         <div className="quiz-container" style={{maxWidth: '600px'}}>
           <h2>結果発表</h2>
