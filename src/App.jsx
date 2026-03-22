@@ -205,14 +205,19 @@ function App() {
         setQIndex(qIndex + 1);
       } else {
         // --- ★修正: ここでシート名をその場で判定して直接渡す ---
-        let determinedSheetName = "";
-        if (isFukisokuMode) determinedSheetName = "英単語（不規則変化）";
-        else if (isKobunMode) determinedSheetName = "古文単語（自習）";
-        else if (selectedBook && selectedBook.name) determinedSheetName = selectedBook.name;
-        else determinedSheetName = "1問ずつテスト(自習)";
+        let determinedSheetName = "1問ずつテスト(自習)"; // デフォルト値を設定しておく
+      if (isFukisokuMode) {determinedSheetName = "英単語（不規則変化）";
+      } else if (isKobunMode) {
+        determinedSheetName = "古文単語（自習）";
+      } else if (selectedBook && selectedBook.name) {
+        determinedSheetName = selectedBook.name;
+      }
+      
+      // デバッグ用に、送信直前の名前をコンソールに出す（F12で絶対に見えるはず）
+      console.log("★送信を試みます。シート名:", determinedSheetName);
 
-        setStep('quiz-result'); 
-        sendResultToGAS(finalAnswers, determinedSheetName);
+      setStep('quiz-result'); 
+      sendResultToGAS(finalAnswers, determinedSheetName);
       }
     } else alert("正解を入力してください");
   };
