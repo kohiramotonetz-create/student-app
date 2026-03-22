@@ -111,8 +111,7 @@ function App() {
     const record = { q: questionText, a: currentInput, correct: rawCorrect, en: item.en || "", ok: isCorrect, rawItem: item };
     setQuizAnswers(prev => [...prev, record]);
     setQuizReview({ visible: true, record });
-    // 自動読み上げ（英語モードの場合）
-    if (mode === 'en-ja') speakEn(item.en);
+    if (mode === 'en-ja' && !isKobunMode) speakEn(item.en);
   };
 
   // --- CSV読み込み・ログイン ---
@@ -137,7 +136,6 @@ function App() {
         const data = results.data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en);
         setAllData(data);
       }});
-      // 他のCSV読み込みも同様...（中略：以前のコードと同じ）
       const resF = await fetch('/wordlist-fukisoku.csv?v=' + new Date().getTime());
       const textF = await resF.text();
       Papa.parse(textF, { header: true, skipEmptyLines: true, complete: (results) => {
@@ -172,6 +170,16 @@ function App() {
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
 
+  const handleChangePassword = async () => {
+    if (!newPassword) return alert("入力してください");
+    setLoading(true);
+    try {
+      const response = await axios.post(GAS_URL, JSON.stringify({ action: "changePassword", userId, newPassword }), { headers: { 'Content-Type': 'text/plain' } });
+      if (response.data.result === "success") { alert("更新完了"); setStep('menu'); loadCsv(); }
+      else alert("更新失敗");
+    } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
+  };
+
   const speakEn = (text) => {
     if (isKobunMode || !text) return; 
     window.speechSynthesis.cancel();
@@ -196,6 +204,14 @@ function App() {
         </div>
       )}
 
+      {step === 'change-password' && (
+        <div className="login-box">
+          <h2>🔐 パスワード変更</h2>
+          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="新しいパスワード" />
+          <button onClick={handleChangePassword}>変更して開始</button>
+        </div>
+      )}
+
       {step === 'menu' && (
         <div className="menu-box">
           <h1>メニュー</h1>
@@ -212,6 +228,7 @@ function App() {
             }}>📚 古文単語（自習）</button>
             <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生英単語</button>
           </div>
+          <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
         </div>
       )}
 
@@ -225,7 +242,7 @@ function App() {
               <select value={school} onChange={(e) => setSchool(e.target.value)}>
                 <option value="木太中">木太中</option><option value="玉藻中">玉藻中</option><option value="桜町中">桜町中</option><option value="附属中">附属中</option><option value="custom">-- 直接入力 --</option>
               </select>
-              {school === 'custom' && <input type="text" value={customSchool} onChange={(e) => setCustomSchool(e.target.value)} />}
+              {school === 'custom' && <input type="text" value={customSchool} onChange={(e) => setCustomSchool(e.target.value)} placeholder="学校名を入力" />}
               
               <label>学年:</label>
               <div className="grade-selector">{gradeList.map(g => (<button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>))}</div>
@@ -291,16 +308,16 @@ function App() {
         </div>
       )}
 
-      {/* --- クイズ実行中 (音声ボタン復活) --- */}
+      {/* --- クイズ実行中 (音声ボタン：英単語のすぐ左) --- */}
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
-          <div className="q-display-box">
-            {mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}
-            {/* 音声ボタン */}
+          <div className="q-display-box" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px'}}>
+            {/* 音声ボタンを単語の左に配置 */}
             {!isKobunMode && (
-              <button className="audio-btn" onClick={() => speakEn(quizItems[qIndex].en)} title="音声を再生">🔊</button>
+              <button className="audio-btn" onClick={() => speakEn(quizItems[qIndex].en)} style={{fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer'}}>🔊</button>
             )}
+            <span>{mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}</span>
           </div>
           <input className="q-input" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} autoFocus />
           {!quizReview.visible && <button className="nav-btn" onClick={submitQuizAnswer}>回答する</button>}
@@ -320,7 +337,7 @@ function App() {
         </div>
       )}
 
-      {/* 高校生メニュー、結果画面、パスワード変更などは以前と同じ... */}
+      {/* 高校生メニュー、結果画面 */}
       {step === 'highschool-menu' && (
         <div className="menu-box">
           <h1>高校生英単語</h1>
@@ -357,14 +374,7 @@ function App() {
         <div className="quiz-container">
           <h2>結果発表</h2>
           <div style={{ fontSize: '32px' }}>{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length}</div>
-          <button className="secondary" onClick={() => setStep('menu')}>メニューへ戻る</button>
-        </div>
-      )}
-      {step === 'change-password' && (
-        <div className="login-box">
-          <h2>🔐 パスワード変更</h2>
-          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="新しいパスワード" />
-          <button onClick={handleChangePassword}>変更して開始</button>
+          <button className="secondary" onClick={() => { setStep('menu'); setSelectedBook({ name: '', data: [] }); }}>メニューへ戻る</button>
         </div>
       )}
     </div>
