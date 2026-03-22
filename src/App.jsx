@@ -46,7 +46,7 @@ function App() {
   const [startNo, setStartNo] = useState(1);
   const [endNo, setEndNo] = useState(100);
 
-  // --- 状態リセット（2回目以降のプレイ用） ---
+  // --- 状態リセット ---
   const resetQuizState = () => {
     setQIndex(0);
     setQuizAnswers([]);
@@ -55,7 +55,7 @@ function App() {
     setQuizReview({ visible: false, record: null });
   };
 
-  // --- スプレッドシート送信処理 ---
+  // --- スプレッドシート送信 ---
   const sendResultToGAS = (finalAnswers, sheetName) => {
     if (!sheetName || !LOG_GAS_URL) return;
     const payload = {
@@ -69,49 +69,31 @@ function App() {
       percentage: Math.round((finalAnswers.filter(a => a.ok).length / finalAnswers.length) * 100) + "%",
       history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
     };
-    fetch(LOG_GAS_URL, {
-      method: "POST",
-      mode: "no-cors", 
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify(payload),
-      keepalive: true,
-    }).catch(e => console.error("送信エラー:", e));
+    fetch(LOG_GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload), keepalive: true }).catch(e => console.error(e));
   };
 
-  // --- 次の問題へ（送信判定含む） ---
   const proceedToNext = () => {
     const finalAnswers = [...quizAnswers]; 
     if (qIndex + 1 < quizItems.length) {
       setQIndex(qIndex + 1);
       setQuizReview({ visible: false, record: null });
-      setCurrentInput("");
-      setPractice("");
+      setCurrentInput(""); setPractice("");
     } else {
-      let determinedSheetName = "1問ずつテスト(自習)";
-      if (isFukisokuMode) determinedSheetName = "英単語（不規則変化）";
-      else if (isKobunMode) determinedSheetName = "古文単語（自習）";
-      else if (selectedBook && selectedBook.name) determinedSheetName = selectedBook.name;
+      let dName = isFukisokuMode ? "英単語（不規則変化）" : isKobunMode ? "古文単語（自習）" : (selectedBook.name || "1問ずつテスト(自習)");
       setStep('quiz-result');
-      sendResultToGAS(finalAnswers, determinedSheetName);
+      sendResultToGAS(finalAnswers, dName);
     }
-  };
-
-  const finishPractice = () => {
-    const clean = (str) => str ? str.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
-    const isOk = quizReview.record.correct.split('/').some(ans => clean(practice) === clean(ans));
-    if (isOk) proceedToNext(); else alert("正解を入力してください");
   };
 
   const submitQuizAnswer = () => {
     const item = quizItems[qIndex];
-    const questionText = (mode === 'ja-en') ? item.ja : item.en;
-    const rawCorrect = (mode === 'ja-en') ? item.en : item.ja;
+    const qText = (mode === 'ja-en') ? item.ja : item.en;
+    const rawC = (mode === 'ja-en') ? item.en : item.ja;
     const clean = (str) => str ? str.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
-    const isCorrect = rawCorrect.split('/').some(ans => clean(currentInput) === clean(ans));
-    const record = { q: questionText, a: currentInput, correct: rawCorrect, en: item.en || "", ok: isCorrect, rawItem: item };
+    const isCorrect = rawC.split('/').some(ans => clean(currentInput) === clean(ans));
+    const record = { q: qText, a: currentInput, correct: rawC, en: item.en || "", ok: isCorrect, rawItem: item };
     setQuizAnswers(prev => [...prev, record]);
     setQuizReview({ visible: true, record });
-    // ★修正: ここでの自動読み上げは行わない（音声ボタンのみに集約）
   };
 
   const speakEn = (text) => {
@@ -122,7 +104,13 @@ function App() {
     window.speechSynthesis.speak(uttr);
   };
 
-  // --- CSV読み込み & 初期化 ---
+  const finishPractice = () => {
+    const clean = (str) => str ? str.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
+    if (quizReview.record.correct.split('/').some(ans => clean(practice) === clean(ans))) proceedToNext();
+    else alert("正解を入力してください");
+  };
+
+  // --- CSV読み込み・初期化 ---
   useEffect(() => {
     const filtered = [...new Set(allData.filter(d => d.unitGroup.startsWith(selectedGrade)).map(d => d.unitGroup))];
     if (filtered.length > 0) { setStartUnit(filtered[0]); setEndUnit(filtered[0]); }
@@ -143,26 +131,18 @@ function App() {
       Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => {
         setAllData(results.data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
       }});
+      // その他のCSV読み込み（略）
       const resF = await fetch('/wordlist-fukisoku.csv?v=' + new Date().getTime());
       const textF = await resF.text();
-      Papa.parse(textF, { header: true, skipEmptyLines: true, complete: (results) => {
-        setFukisokuData(results.data.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
-      }});
+      Papa.parse(textF, { header: true, skipEmptyLines: true, complete: (results) => { setFukisokuData(results.data.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en)); }});
       const resK = await fetch('/wordlist-junior_high_school-kobun.csv?v=' + new Date().getTime());
       const textK = await resK.text();
-      Papa.parse(textK, { header: true, skipEmptyLines: true, complete: (results) => {
-        setKobunData(results.data.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
-      }});
-      const hsFiles = [
-        { name: 'target1900.csv', setter: setTargetData }, { name: 'target1200.csv', setter: setTargetminiData },
-        { name: 'sokudoku.csv', setter: setSokudokuData }, { name: 'dragon.csv', setter: setDragonData }, { name: 'yumetann.csv', setter: setYumetannData },
-      ];
+      Papa.parse(textK, { header: true, skipEmptyLines: true, complete: (results) => { setKobunData(results.data.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en)); }});
+      const hsFiles = [{ name: 'target1900.csv', setter: setTargetData }, { name: 'target1200.csv', setter: setTargetminiData }, { name: 'sokudoku.csv', setter: setSokudokuData }, { name: 'dragon.csv', setter: setDragonData }, { name: 'yumetann.csv', setter: setYumetannData }];
       for (const file of hsFiles) {
         const res = await fetch(`/${file.name}?v=` + new Date().getTime());
         const text = await res.text();
-        Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => {
-          file.setter(results.data.map(d => ({ no: parseInt(d["No"]), en: d["英語"], ja: d["日本語"], unit: d["単元"] })).filter(d => d.en));
-        }});
+        Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => { file.setter(results.data.map(d => ({ no: parseInt(d["No"]), en: d["英語"], ja: d["日本語"], unit: d["単元"] })).filter(d => d.en)); }});
       }
     } catch (e) { console.error(e); }
   };
@@ -182,8 +162,7 @@ function App() {
     setLoading(true);
     try {
       const response = await axios.post(GAS_URL, JSON.stringify({ action: "changePassword", userId, newPassword }), { headers: { 'Content-Type': 'text/plain' } });
-      if (response.data.result === "success") { alert("更新完了"); setStep('menu'); loadCsv(); }
-      else alert("更新失敗");
+      if (response.data.result === "success") { alert("更新完了"); setStep('menu'); loadCsv(); } else alert("更新失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
 
@@ -231,7 +210,7 @@ function App() {
         </div>
       )}
 
-      {/* --- 紙テスト作成画面 (範囲選択UI完全復活) --- */}
+      {/* --- 紙テスト作成画面 --- */}
       {step === 'test-setup' && (
         <div className="test-builder-layout">
           <div className="settings-panel no-print">
@@ -239,12 +218,9 @@ function App() {
             <div className="config-group">
               <label>学年:</label>
               <div className="grade-selector">{gradeList.map(g => (<button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>))}</div>
-              <label>出題形式:</label>
-              <select value={mode} onChange={(e) => setMode(e.target.value)}><option value="en-ja">英語 → 日本語</option><option value="ja-en">日本語 → 英語</option></select>
               <label>学校名:</label>
               <select value={school} onChange={(e) => setSchool(e.target.value)}><option value="木太中">木太中</option><option value="玉藻中">玉藻中</option><option value="桜町中">桜町中</option><option value="附属中">附属中</option><option value="custom">-- 直接入力 --</option></select>
               {school === 'custom' && <input type="text" value={customSchool} onChange={(e) => setCustomSchool(e.target.value)} />}
-              
               <div style={{marginTop:'15px', fontWeight:'bold'}}>▼ 範囲指定</div>
               <label>開始:</label>
               <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select>
@@ -255,11 +231,9 @@ function App() {
             </div>
             <button className="nav-btn" onClick={() => {
               const sKey = startUnit + startPart; const eKey = endUnit + endPart;
-              const startIndex = allData.findIndex(d => d.key === sKey);
-              const endIndex = allData.findLastIndex(d => d.key === eKey);
+              const startIndex = allData.findIndex(d => d.key === sKey); const endIndex = allData.findLastIndex(d => d.key === eKey);
               const range = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
-              setTestWords([...range].sort(() => 0.5 - Math.random()).slice(0, 20));
-              setRangeText(`範囲: ${sKey} ～ ${eKey}`);
+              setTestWords([...range].sort(() => 0.5 - Math.random()).slice(0, 20)); setRangeText(`範囲: ${sKey} ～ ${eKey}`);
             }}>🔄 生成</button>
             <button className="nav-btn" style={{backgroundColor: '#28a745'}} onClick={() => window.print()}>🖨 印刷</button>
             <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
@@ -268,9 +242,7 @@ function App() {
             <div className="test-paper">
               <div className="header-area"><div className="header-left">氏名 ____________________</div><h1>英単語テスト</h1><div className="header-right">{school === 'custom' ? customSchool : school}</div></div>
               <p style={{fontSize:'12px', textAlign:'center'}}>{rangeText}</p>
-              <table className="paper-table">
-                <tbody>{testWords.map((d, i) => (<tr key={i}><td className="col-no">{i + 1}</td><td className="q-cell">{mode === 'en-ja' ? d.en : d.ja}</td><td className="a-cell"></td></tr>))}</tbody>
-              </table>
+              <table className="paper-table"><tbody>{testWords.map((d, i) => (<tr key={i}><td className="col-no">{i + 1}</td><td className="q-cell">{mode === 'en-ja' ? d.en : d.ja}</td><td className="a-cell"></td></tr>))}</tbody></table>
             </div>
           </div>
         </div>
@@ -291,34 +263,29 @@ function App() {
           </div>
           <button className="nav-btn" onClick={() => {
               const sKey = startUnit + startPart; const eKey = endUnit + endPart;
-              const startIndex = allData.findIndex(d => d.key === sKey);
-              const endIndex = allData.findLastIndex(d => d.key === eKey);
+              const startIndex = allData.findIndex(d => d.key === sKey); const endIndex = allData.findLastIndex(d => d.key === eKey);
               const range = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
-              resetQuizState();
-              setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, 20));
-              setStep('quiz-main');
+              resetQuizState(); setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, 20)); setStep('quiz-main');
           }}>スタート！</button>
         </div>
       )}
 
-      {/* --- クイズ実行中 (音声ボタン左隣・小型化) --- */}
+      {/* --- クイズ実行中 (音声ボタンの配置修正) --- */}
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
-          <div className="q-display-box" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}>
+          <div className="q-display-box" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative'}}>
             {!isKobunMode && (
-              <button className="audio-btn" onClick={() => speakEn(quizItems[qIndex].en)} style={{fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', opacity: '0.6'}}>🔊</button>
+              <button className="audio-btn" onClick={() => speakEn(quizItems[qIndex].en)} style={{fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', opacity: '0.6', marginRight: '10px'}}>🔊</button>
             )}
             <span style={{fontSize: '24px', fontWeight: 'bold'}}>{mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}</span>
           </div>
-          <input className="q-input" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} autoFocus />
+          <input className="q-input" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} autoFocus placeholder="答えを入力..." />
           {!quizReview.visible && <button className="nav-btn" onClick={submitQuizAnswer}>回答する</button>}
           {quizReview.visible && (
             <div className="review-box">
               <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>{quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}</p>
-              {quizReview.record.ok ? (
-                <button className="nav-btn" onClick={proceedToNext}>次へ進む</button>
-              ) : (
+              {quizReview.record.ok ? ( <button className="nav-btn" onClick={proceedToNext}>次へ進む</button> ) : (
                 <div className="practice-area">
                   <input className="p-input" value={practice} onChange={(e) => setPractice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && finishPractice()} autoFocus />
                   <button className="nav-btn" onClick={finishPractice}>確認</button>
@@ -329,7 +296,31 @@ function App() {
         </div>
       )}
 
-      {/* 高校生、結果画面 */}
+      {/* --- 結果発表 (一覧表示の復活) --- */}
+      {step === 'quiz-result' && (
+        <div className="quiz-container">
+          <h2>結果発表</h2>
+          <div style={{ fontSize: '32px', margin: '10px 0' }}>{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length}</div>
+          <div className="result-table-container" style={{maxHeight: '400px', overflowY: 'auto', marginBottom: '20px'}}>
+            <table className="result-detail-table" style={{width: '100%', fontSize: '14px', borderCollapse: 'collapse'}}>
+              <thead><tr style={{borderBottom: '2px solid #ddd'}}><th>判定</th><th>問題</th><th>正解</th><th>回答</th></tr></thead>
+              <tbody>
+                {quizAnswers.map((a, i) => (
+                  <tr key={i} style={{borderBottom: '1px solid #eee'}}>
+                    <td style={{padding: '8px', color: a.ok ? 'green' : 'red'}}>{a.ok ? '○' : '×'}</td>
+                    <td style={{padding: '8px'}}>{a.q}</td>
+                    <td style={{padding: '8px'}}>{a.correct}</td>
+                    <td style={{padding: '8px'}}>{a.a || '(未回答)'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button className="secondary" onClick={() => { setStep('menu'); setSelectedBook({ name: '', data: [] }); }}>メニューへ戻る</button>
+        </div>
+      )}
+
+      {/* 高校生メニュー */}
       {step === 'highschool-menu' && (
         <div className="menu-box">
           <h1>高校生英単語</h1>
@@ -351,13 +342,6 @@ function App() {
             <div style={{display:'flex', alignItems:'center', gap:'10px'}}><input type="number" value={startNo} onChange={(e) => setStartNo(Number(e.target.value))} style={{width:'80px'}} />〜<input type="number" value={endNo} onChange={(e) => setEndNo(Number(e.target.value))} style={{width:'80px'}} /></div>
           </div>
           <button className="nav-btn" onClick={() => { const range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo); resetQuizState(); setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, 20)); setStep('quiz-main'); }}>スタート！</button>
-        </div>
-      )}
-      {step === 'quiz-result' && (
-        <div className="quiz-container">
-          <h2>結果発表</h2>
-          <div style={{ fontSize: '32px', margin: '10px 0' }}>{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length}</div>
-          <button className="secondary" onClick={() => { setStep('menu'); setSelectedBook({ name: '', data: [] }); }}>メニューへ戻る</button>
         </div>
       )}
     </div>
