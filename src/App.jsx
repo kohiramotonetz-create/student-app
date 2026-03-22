@@ -47,7 +47,7 @@ function App() {
   const [startNo, setStartNo] = useState(1);
   const [endNo, setEndNo] = useState(100);
 
-  // --- ★修正: 引数で直接名前を受け取る送信関数 ---
+  // --- 送信関数 ---
   const sendResultToGAS = (finalAnswers, sheetName) => {
     if (!sheetName || !LOG_GAS_URL) {
       console.warn("送信スキップ: シート名またはURLがありません", { sheetName });
@@ -66,16 +66,64 @@ function App() {
       history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
     };
 
-    // GASで最も安定する text/plain + 生JSON形式
     fetch(LOG_GAS_URL, {
       method: "POST",
-      mode: "cors",
+      mode: "no-cors", 
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify(payload),
       keepalive: true,
     }).catch(e => console.error("送信エラー:", e));
   };
 
+  // --- ★修正：次へ進む共通処理（ここで送信判定を行う） ---
+  const proceedToNext = () => {
+    const finalAnswers = [...quizAnswers]; 
+    
+    if (qIndex + 1 < quizItems.length) {
+      // まだ次の問題がある場合
+      setQIndex(qIndex + 1);
+      setQuizReview({ visible: false, record: null });
+      setCurrentInput("");
+      setPractice("");
+    } else {
+      // ★全問終了した瞬間：シート名を判定して送信
+      let determinedSheetName = "1問ずつテスト(自習)";
+      if (isFukisokuMode) determinedSheetName = "英単語（不規則変化）";
+      else if (isKobunMode) determinedSheetName = "古文単語（自習）";
+      else if (selectedBook && selectedBook.name) determinedSheetName = selectedBook.name;
+
+      console.log("★全問終了: 送信を開始します", determinedSheetName);
+      
+      setStep('quiz-result');
+      sendResultToGAS(finalAnswers, determinedSheetName);
+    }
+  };
+
+  // --- ★修正：間違い直し完了処理 ---
+  const finishPractice = () => {
+    const clean = (str) => str ? str.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
+    const isOk = quizReview.record.correct.split('/').some(ans => clean(practice) === clean(ans));
+    
+    if (isOk) {
+      proceedToNext(); // 共通の進む処理へ
+    } else {
+      alert("正解を入力してください");
+    }
+  };
+
+  // クイズ回答ボタン
+  const submitQuizAnswer = () => {
+    const item = quizItems[qIndex];
+    const questionText = (mode === 'ja-en') ? item.ja : item.en;
+    const rawCorrect = (mode === 'ja-en') ? item.en : item.ja;
+    const clean = (str) => str ? str.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
+    const isCorrect = rawCorrect.split('/').some(ans => clean(currentInput) === clean(ans));
+    const record = { q: questionText, a: currentInput, correct: rawCorrect, en: item.en || "", ok: isCorrect, rawItem: item };
+    setQuizAnswers(prev => [...prev, record]);
+    setQuizReview({ visible: true, record });
+  };
+
+  // --- 共通CSV読み込み・ログイン等は変更なし ---
   useEffect(() => {
     const filtered = [...new Set(allData.filter(d => d.unitGroup.startsWith(selectedGrade)).map(d => d.unitGroup))];
     if (filtered.length > 0) { setStartUnit(filtered[0]); setEndUnit(filtered[0]); }
@@ -109,7 +157,6 @@ function App() {
         const data = results.data.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en);
         setKobunData(data);
       }});
-
       const hsFiles = [
         { name: 'target1900.csv', setter: setTargetData },
         { name: 'target1200.csv', setter: setTargetminiData },
@@ -117,7 +164,6 @@ function App() {
         { name: 'dragon.csv', setter: setDragonData },
         { name: 'yumetann.csv', setter: setYumetannData },
       ];
-
       for (const file of hsFiles) {
         const res = await fetch(`/${file.name}?v=` + new Date().getTime());
         const text = await res.text();
@@ -156,8 +202,7 @@ function App() {
     if (isKobunMode || !text) return; 
     window.speechSynthesis.cancel();
     const uttr = new SpeechSynthesisUtterance(text);
-    uttr.lang = 'en-US';
-    uttr.rate = 0.9;
+    uttr.lang = 'en-US'; uttr.rate = 0.9;
     window.speechSynthesis.speak(uttr);
   };
 
@@ -179,47 +224,7 @@ function App() {
     const range = allData.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
     setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT));
     setQIndex(0); setQuizAnswers([]); setIsFukisokuMode(false); setIsKobunMode(false);
-    setSelectedBook({ name: '', data: [] });
-    setStep('quiz-main');
-  };
-
-  const submitQuizAnswer = () => {
-    const item = quizItems[qIndex];
-    const questionText = (mode === 'ja-en') ? item.ja : item.en;
-    const rawCorrect = (mode === 'ja-en') ? item.en : item.ja;
-    const clean = (str) => str ? str.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
-    const isCorrect = rawCorrect.split('/').some(ans => clean(currentInput) === clean(ans));
-    const record = { q: questionText, a: currentInput, correct: rawCorrect, en: item.en || "", ok: isCorrect, rawItem: item };
-    setQuizAnswers(prev => [...prev, record]);
-    setQuizReview({ visible: true, record });
-  };
-
-  const finishPractice = () => {
-    const clean = (str) => str ? str.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
-    const isOk = quizReview.record.correct.split('/').some(ans => clean(practice) === clean(ans));
-    if (isOk) {
-      const finalAnswers = [...quizAnswers]; 
-      setPractice(""); setQuizReview({ visible: false, record: null }); setCurrentInput("");
-      
-      if (qIndex + 1 < quizItems.length) {
-        setQIndex(qIndex + 1);
-      } else {
-        // --- ★修正: ここでシート名をその場で判定して直接渡す ---
-        let determinedSheetName = "1問ずつテスト(自習)"; // デフォルト値を設定しておく
-      if (isFukisokuMode) {determinedSheetName = "英単語（不規則変化）";
-      } else if (isKobunMode) {
-        determinedSheetName = "古文単語（自習）";
-      } else if (selectedBook && selectedBook.name) {
-        determinedSheetName = selectedBook.name;
-      }
-      
-      // デバッグ用に、送信直前の名前をコンソールに出す（F12で絶対に見えるはず）
-      console.log("★送信を試みます。シート名:", determinedSheetName);
-
-      setStep('quiz-result'); 
-      sendResultToGAS(finalAnswers, determinedSheetName);
-      }
-    } else alert("正解を入力してください");
+    setSelectedBook({ name: '', data: [] }); setStep('quiz-main');
   };
 
   const retryWrongQuestions = () => {
@@ -273,19 +278,14 @@ function App() {
       {step === 'highschool-menu' && (
         <div className="menu-box">
           <h1>高校生英単語</h1>
-          <p>単語帳を選択してください</p>
           <div className="button-grid">
             {[
-              { name: 'ターゲット1900', data: targetData },
-              { name: 'ターゲット1200', data: targetminiData },
-              { name: '速読英単語', data: sokudokuData },
-              { name: 'ドラゴンイングリッシュ', data: dragonData },
-              { name: 'ユメタン', data: yumetannData },
+              { name: 'ターゲット1900', data: targetData }, { name: 'ターゲット1200', data: targetminiData },
+              { name: '速読英単語', data: sokudokuData }, { name: 'ドラゴンイングリッシュ', data: dragonData }, { name: 'ユメタン', data: yumetannData },
             ].map((book) => (
               <button key={book.name} className="nav-btn" onClick={() => {
                 if (book.data.length === 0) return alert("データがありません");
-                setSelectedBook(book); setStartNo(1); setEndNo(Math.min(book.data.length, 100));
-                setStep('highschool-setup');
+                setSelectedBook(book); setStartNo(1); setEndNo(Math.min(book.data.length, 100)); setStep('highschool-setup');
               }}>{book.name}</button>
             ))}
           </div>
@@ -309,19 +309,12 @@ function App() {
               const range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo);
               if (range.length === 0) return alert("範囲内に単語がありません");
               setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, 20));
-              setQIndex(0); setQuizAnswers([]); setIsKobunMode(false); setIsFukisokuMode(false);
-              setStep('quiz-main');
+              setQIndex(0); setQuizAnswers([]); setIsKobunMode(false); setIsFukisokuMode(false); setStep('quiz-main');
             }}>この範囲でスタート！</button>
-            <button className="nav-btn" style={{backgroundColor: '#6c757d', marginTop:'10px'}} onClick={() => {
-              setQuizItems([...selectedBook.data].sort(() => 0.5 - Math.random()).slice(0, 20));
-              setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setIsKobunMode(false); setIsFukisokuMode(false);
-              setStep('quiz-main');
-            }}>全範囲からランダムに出題</button>
           </div>
           <button className="secondary" onClick={() => setStep('highschool-menu')}>戻る</button>
         </div>
       )}
-      {/* --- 以下UIコンポーネントは変更なし --- */}
       {step === 'test-setup' && (
         <div className="test-builder-layout">
           <div className="settings-panel no-print">
@@ -333,24 +326,7 @@ function App() {
               </select>
               {school === 'custom' && <input type="text" value={customSchool} onChange={(e) => setCustomSchool(e.target.value)} placeholder="学校名を入力" />}
               <label>学年:</label>
-              <div className="grade-selector">
-                {gradeList.map(g => (<button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>))}
-              </div>
-              <label>出題モード:</label>
-              <select value={mode} onChange={(e) => setMode(e.target.value)}>
-                <option value="en-ja">英語 → 日本語</option><option value="ja-en">日本語 → 英語</option>
-              </select>
-            </div>
-            <div className="config-group">
-              <label>▼ 範囲指定 ({selectedGrade})</label>
-              <div style={{display:'flex', gap:'5px', marginBottom:'5px'}}>
-                <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select>
-                <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>{[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}</select>
-              </div>
-              <div style={{display:'flex', gap:'5px'}}>
-                <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select>
-                <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>{[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}</select>
-              </div>
+              <div className="grade-selector">{gradeList.map(g => (<button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>))}</div>
             </div>
             <button className="nav-btn" onClick={generatePaperTest}>🔄 生成</button>
             <button className="secondary" onClick={() => setShowAnswer(!showAnswer)}>👁 {showAnswer ? '隠す' : '解答表示'}</button>
@@ -365,10 +341,7 @@ function App() {
                 <thead><tr><th className="col-no">No.</th><th>問題</th><th>解答欄</th></tr></thead>
                 <tbody>
                   {testWords.map((d, i) => (
-                    <tr key={i}><td className="col-no">{i + 1}</td><td className="q-cell">
-                      {!isKobunMode && <button className="no-print-speaker no-print" onClick={() => speakEn(d.en)}>🔊</button>}
-                      <span className="q-text">{mode === 'en-ja' ? d.en : d.ja}</span>
-                    </td><td className="a-cell">{showAnswer ? (mode === 'en-ja' ? d.ja : d.en) : ''}</td></tr>
+                    <tr key={i}><td className="col-no">{i + 1}</td><td className="q-cell"><span className="q-text">{mode === 'en-ja' ? d.en : d.ja}</span></td><td className="a-cell">{showAnswer ? (mode === 'en-ja' ? d.ja : d.en) : ''}</td></tr>
                   ))}
                 </tbody>
               </table>
@@ -386,16 +359,9 @@ function App() {
             <select value={mode} onChange={(e) => setMode(e.target.value)}>
               <option value="ja-en">日本語 → 英語</option><option value="en-ja">英語 → 日本語</option>
             </select>
-            <label style={{marginTop: '15px'}}>▼ 開始範囲 ({selectedGrade})</label>
-            <div style={{display:'flex', gap:'5px', marginBottom:'5px'}}>
-              <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select>
-              <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>{[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}</select>
-            </div>
-            <label style={{marginTop: '10px'}}>▼ 終了範囲 ({selectedGrade})</label>
-            <div style={{display:'flex', gap:'5px'}}>
-              <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select>
-              <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>{[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}</select>
-            </div>
+            <div style={{marginTop: '15px'}}>▼ 範囲指定</div>
+            <select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select>
+            <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select>
           </div>
           <button className="nav-btn" onClick={startQuiz}>スタート！</button>
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
@@ -410,9 +376,9 @@ function App() {
           {quizReview.visible && (
             <div className="review-box">
               <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>{quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}</p>
-              {!quizReview.record.ok && !isKobunMode && <button className="secondary" onClick={() => speakEn(quizReview.record.en)} style={{marginBottom: '10px'}}>🔊 音声を聴く</button>}
               {quizReview.record.ok ? (
-                <button className="nav-btn" onClick={() => { setQuizReview({ visible: false }); setCurrentInput(""); if (qIndex + 1 < quizItems.length) setQIndex(qIndex + 1); else setStep('quiz-result'); }}>次へ進む</button>
+                // ★修正：正解した時も共通のproceedToNextを通す
+                <button className="nav-btn" onClick={() => proceedToNext()}>次へ進む</button>
               ) : (
                 <div className="practice-area">
                   <p style={{fontSize: '12px', color: '#666', marginBottom: '5px'}}>練習（正解を入力して次へ）</p>
@@ -427,22 +393,21 @@ function App() {
       {step === 'fukisoku-setup' && (
         <div className="quiz-container">
           <h2>🔄 不規則変化</h2>
-          <p>全範囲から20問ランダムに出題されます</p>
           <button className="nav-btn" onClick={() => {
-            const sel = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT);
+            const sel = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, 20);
             setQuizItems(sel); setQIndex(0); setQuizAnswers([]); setMode('ja-en'); setIsFukisokuMode(true); setIsKobunMode(false); setSelectedBook({ name: '', data: [] }); setStep('quiz-main');
           }}>スタート</button>
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
       )}
       {step === 'quiz-result' && (
-        <div className="quiz-container" style={{maxWidth: '600px'}}>
+        <div className="quiz-container">
           <h2>結果発表</h2>
           <div style={{ fontSize: '32px', margin: '10px 0' }}>{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length}</div>
-          <div className="result-table-container" style={{maxHeight: '400px', overflowY: 'auto', marginBottom: '20px'}}>
-            <table className="result-detail-table" style={{width: '100%', borderCollapse: 'collapse', fontSize: '14px'}}>
-              <thead><tr style={{background: '#f8f9fa'}}><th style={{border: '1px solid #ddd', padding: '8px'}}>判定</th><th style={{border: '1px solid #ddd', padding: '8px'}}>問題</th><th style={{border: '1px solid #ddd', padding: '8px'}}>正解</th><th style={{border: '1px solid #ddd', padding: '8px'}}>あなたの回答</th></tr></thead>
-              <tbody>{quizAnswers.map((a, i) => (<tr key={i}><td style={{border: '1px solid #ddd', padding: '8px', textAlign: 'center'}}>{a.ok ? '○' : '×'}</td><td style={{border: '1px solid #ddd', padding: '8px'}}>{a.q}</td><td style={{border: '1px solid #ddd', padding: '8px'}}>{a.correct}</td><td style={{border: '1px solid #ddd', padding: '8px', color: a.ok ? 'inherit' : '#dc3545'}}>{a.a || '未回答'}</td></tr>))}</tbody>
+          <div className="result-table-container">
+            <table className="result-detail-table">
+              <thead><tr><th>判定</th><th>問題</th><th>正解</th><th>あなたの回答</th></tr></thead>
+              <tbody>{quizAnswers.map((a, i) => (<tr key={i}><td>{a.ok ? '○' : '×'}</td><td>{a.q}</td><td>{a.correct}</td><td>{a.a || '未回答'}</td></tr>))}</tbody>
             </table>
           </div>
           <div className="button-grid">
