@@ -45,78 +45,84 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .preview-panel { flex: 1; display: flex; justify-content: center; padding: 20px; overflow-y: auto; }
 .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 10mm 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); box-sizing: border-box; }
 
-/* --- 紙テストテーブルの完全固定化 --- */
+/* --- ✅ 紙テストテーブル：枠線の太さとガタつきを解消 --- */
 .paper-table { 
   width: 100% !important; 
-  border-collapse: collapse; 
+  border-collapse: collapse; /* 隣り合う線を1本に重ねる */
   border-spacing: 0;
   margin-top: 10px;
   table-layout: fixed; 
-  border: 1px solid #000 !important; /* 枠線を1pxに固定 */
+  border: 1px solid #000 !important; /* 外枠を1pxに固定 */
 }
 
 .paper-table td { 
-  border: 1px solid #000 !important; 
-  /* 20問を収めるために10.5mmに調整 */
-  height: 10.5mm !important; 
-  padding: 0 !important; /* セルの余白を排除してガタつき防止 */
+  border: 1px solid #000 !important; /* 内側の線もすべて1pxに固定 */
+  height: 10.5mm !important; /* 20問を収める高さ */
+  padding: 0 !important; /* セル自体のパディングをゼロにする（重要） */
   vertical-align: middle;
   box-sizing: border-box;
 }
 
-/* 解答欄（右側）をちょうど半分で固定 */
-.a-cell { 
-  width: 50% !important; 
-  background-color: #fff;
-}
-
-/* 番号列の幅 */
+/* 番号列 */
 .col-no { 
   width: 35px !important; 
   text-align: center; 
   font-weight: bold;
 }
 
-/* 問題列の内部レイアウト（横並びを強制） */
+/* 問題列：横並びを強制 */
 .q-cell-grid {
   display: flex !important;
   flex-direction: row !important;
-  align-items: center;
+  align-items: center; /* 上下中央揃え */
   height: 100%;
   width: 100%;
+  overflow: hidden; /* はみ出し防止 */
 }
 
-/* スピーカーを包むエリア */
+/* スピーカーを包むエリア（左寄せ） */
 .audio-wrapper {
-  flex: 0 0 30px; /* 幅固定 */
+  flex: 0 0 35px; /* スピーカーの幅を確保 */
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 2px; /* ★ここでスピーカーの高さを微調整 */
+  height: 100%;
 }
 
-/* 単語を包むエリア */
+/* 単語を包むエリア（左寄せ） */
 .text-wrapper {
   flex: 1;
-  text-align: left;
-  padding-left: 5px;
   display: flex;
-  align-items: center;
+  align-items: center; /* 単語自体の上下中央 */
+  height: 100%;
+  padding-left: 2px; /* スピーカーとの距離を少し詰める */
 }
 
-/* 音声ボタン */
+/* スピーカーボタン自体の調整 */
 .audio-btn-fixed {
   border: none !important;
   background: none !important;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   padding: 0 !important;
-  margin: 0 !important;
-  width: auto !important;
+  /* ★ ここで高さを微調整：以前より少しだけ下げるなら 1px〜2px */
+  margin: 1px 0 0 0 !important; 
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 
+/* 単語のテキスト */
+.text-wrapper span {
+  font-size: 16px;
+  color: #444;
+  line-height: 1; /* 行間の余白を消す */
+}
+
+/* 解答欄 */
+.a-cell { 
+  width: 50% !important; 
+}
 /* --- ヘッダー --- */
 .header-area { display: flex; align-items: center; border-bottom: 2px solid #000; margin-bottom: 10px; padding-bottom: 5px; position: relative; }
 .header-left, .header-right { flex: 1; font-size: 14px; }
