@@ -45,44 +45,33 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .preview-panel { flex: 1; display: flex; justify-content: center; padding: 20px; overflow-y: auto; }
 .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 10mm 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); box-sizing: border-box; }
 
-/* --- ✅ 紙テストテーブルの修正：枠線を1pxに完全統一 --- */
+/* --- 紙テストテーブルの完全固定化（これをApp.cssの後半に貼る） --- */
 .paper-table { 
   width: 100% !important; 
-  border-collapse: collapse; /* 線を重ねて1本にする */
-  border-spacing: 0;
+  border-collapse: collapse; 
   margin-top: 10px;
-  table-layout: fixed; /* 列幅を固定 */
-  border: 1px solid #000 !important; /* 外枠を1pxに固定 */
+  table-layout: fixed; /* これと下の50%がセットで線を真っ直ぐにします */
+  border: 1px solid #000;
 }
 
-.paper-table th, .paper-table td { 
-  border: 1px solid #000 !important; /* 内側の線もすべて1pxに固定 */
+.paper-table td { 
+  border: 1px solid #000; 
   height: 11.5mm !important; 
   padding: 0 8px;
   vertical-align: middle;
   box-sizing: border-box;
 }
 
-/* 番号列 */
-.col-no { 
-  width: 40px !important; 
-  text-align: center; 
-  font-weight: bold;
-}
-
-/* 問題列の内部 */
-.q-cell-grid {
-  display: flex !important;
-  align-items: center;
-  gap: 8px;
-  text-align: left;
-  height: 100%;
-}
-
-/* 解答欄 */
+/* 解答欄（右側）をちょうど半分で固定 */
 .a-cell { 
   width: 50% !important; 
   background-color: #fff;
+}
+
+/* 番号列の幅 */
+.col-no { 
+  width: 40px !important; 
+  text-align: center; 
 }
 
 /* 音声ボタン */

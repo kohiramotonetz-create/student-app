@@ -26,7 +26,7 @@ function App() {
   const [kakushinData, setKakushinData] = useState([]);
   const [kobun315Data, setKobun315Data] = useState([]);
 
-  const [selectedGrade, setSelectedGrade] = useState('中1'); // デフォルト学年
+  const [selectedGrade, setSelectedGrade] = useState('中1'); 
   const [startUnit, setStartUnit] = useState('');
   const [startPart, setStartPart] = useState('');
   const [endUnit, setEndUnit] = useState('');
@@ -59,7 +59,7 @@ function App() {
     return [...new Set(selectedBook.data.map(d => d.part))].filter(p => p).sort();
   }, [selectedBook]);
 
-  // ✅ データ読み込み後の初期範囲セットロジック
+  // ✅ 範囲選択のバグ対策ロジック（維持）
   useEffect(() => {
     if (allData.length === 0 || !selectedGrade) return;
     const filtered = [...new Set(allData.filter(d => d.unitGroup.startsWith(selectedGrade)).map(d => d.unitGroup))];
@@ -160,6 +160,7 @@ function App() {
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
+  // ✅ ログイン機能（パスワードあり）維持
   const handleLogin = async () => {
     if (!userId || !password) return alert("入力してください");
     setLoading(true);
@@ -261,9 +262,19 @@ function App() {
             <div className="test-paper">
               <div className="header-area"><div className="header-left">氏名 ____________________</div><h1>英単語テスト</h1><div className="header-right">{school === 'custom' ? customSchool : school}</div></div>
               <table className="paper-table">
-                <tbody>{testWords.map((d, i) => (<tr key={i}><td className="col-no">{i + 1}</td>
-                <td className="q-cell-grid"><button className="audio-btn-fixed no-print" onClick={() => speakEn(d.en)}>🔊</button><span>{mode === 'en-ja' ? d.en : d.ja}</span></td>
-                <td className="a-cell" style={{width:'250px'}}>{showPaperAnswers ? (mode === 'en-ja' ? d.ja : d.en) : ""}</td></tr>))}</tbody>
+                <tbody>{testWords.map((d, i) => (
+                  <tr key={i}>
+                    <td className="col-no">{i + 1}</td>
+                    <td className="q-cell-grid">
+                      <button className="audio-btn-fixed no-print" onClick={() => speakEn(d.en)}>🔊</button>
+                      <span>{mode === 'en-ja' ? d.en : d.ja}</span>
+                    </td>
+                    {/* ✅ ここを修正：style={width}を削除してCSSに任せる */}
+                    <td className="a-cell">
+                      {showPaperAnswers ? (mode === 'en-ja' ? d.ja : d.en) : ""}
+                    </td>
+                  </tr>
+                ))}</tbody>
               </table>
             </div>
           </div>
