@@ -13,31 +13,16 @@
   max-width: 450px; 
   margin: auto; 
 }
-/* ★ここを追加：ログインボックス内のh1（タイトル）を黒くする */
-.login-box h1 {
+
+/* タイトルカラーを黒で統一 */
+.login-box h1, .menu-box h1 {
   color: #000000 !important;
   margin-bottom: 24px;
   font-weight: bold;
 }
-
-/* ログイン画面のタイトルを黒にする */
-.login-box h1 {
-  color: #000000 !important;
-  margin-bottom: 24px;
-  font-weight: bold;
-}
-
-/* ★ここを追加：メニュー画面の「メニュー」という文字を黒にする */
-.menu-box h1 {
-  color: #000000 !important;
-  margin-bottom: 20px;
-  font-weight: bold;
-}
-
 
 /* --- クイズ実行画面パーツ --- */
 .q-header { font-size: 14px; color: #666; margin-bottom: 10px; }
-/* クイズ画面背景を白に変更 */
 .q-display-box { font-size: 28px; font-weight: bold; margin: 20px 0; padding: 20px; background: white; border-radius: 10px; border: 1px solid #eee; }
 .review-box { margin-top: 20px; padding-top: 20px; border-top: 2px dashed #eee; }
 .txt-ok { color: #28a745; font-weight: bold; font-size: 20px; }
@@ -59,41 +44,47 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .settings-panel { width: 320px; background: #fff; padding: 20px; border-right: 1px solid #ccc; overflow-y: auto; text-align: left; }
 .preview-panel { flex: 1; display: flex; justify-content: center; padding: 20px; overflow-y: auto; }
 .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 10mm 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); box-sizing: border-box; }
-/* --- 紙テストテーブルの完全固定化 --- */
-.paper-table {  width: 100% !important;  border-collapse: collapse; /* 線を重ねて1本にする */
+
+/* --- ✅ 紙テストテーブルの完全固定化（修正箇所） --- */
+.paper-table { 
+  width: 100% !important; 
+  border-collapse: collapse; 
   margin-top: 10px;
-  table-layout: fixed; /* 列幅を固定する設定 */
-  border: 1.5px solid #000; /* 外枠を少し太くして締める */
+  table-layout: fixed; /* 列幅を固定してガタつきを防止 */
+  border: 1px solid #000; /* 全体の外枠（太くしない） */
 }
 
-.paper-table th, .paper-table td {  border: 1px solid #000; /* 内側の線 */
-  height: 50px; /* ★ここを固定！ 12mm〜13mm相当の高さ */
-  padding: 0 10px;
+.paper-table th, .paper-table td { 
+  border: 1px solid #000; /* 内側の線 */
+  height: 11.5mm !important; /* ★高さをミリ単位で完全固定 */
+  padding: 0 8px;
   vertical-align: middle;
   box-sizing: border-box;
 }
 
-/* 列ごとの幅指定 */
-.col-no {  width: 45px !important;  text-align: center;  font-weight: bold;  background-color: #f9f9f9; /* 番号列だけ少し色をつけてもOK（印刷時は白黒になります） */
+/* 番号列 */
+.col-no { 
+  width: 40px !important; 
+  text-align: center; 
+  font-weight: bold;
 }
 
-.q-cell-grid {  display: grid !important;  grid-template-columns: 30px 1fr;  align-items: center;  text-align: left;  height: 100%; /* セルいっぱいに広げる */
+/* 問題列の内部レイアウト */
+.q-cell-grid {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  height: 100%;
 }
 
-.a-cell {  width: 50% !important; /* 解答欄を全体の半分に固定 */
+/* 解答欄（右側）の幅を半分に固定して、縦線を一直線にする */
+.a-cell { 
+  width: 50% !important; 
   background-color: #fff;
 }
-.col-no { width: 40px !important; text-align: center; }
 
-/* ★ 🔊ボタンを青枠（左端）に揃えるためのグリッド設定 */
-.q-cell-grid {
-  display: grid !important;
-  grid-template-columns: 35px 1fr; /* 左端35pxを音声ボタン用に固定 */
-  align-items: center;
-  padding-left: 5px !important;
-  text-align: left;
-}
-
+/* 音声ボタンの見た目リセット（印刷用） */
 .audio-btn-fixed {
   border: none !important;
   background: none !important;
@@ -102,7 +93,8 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
   padding: 0 !important;
   margin: 0 !important;
   width: auto !important;
-  justify-self: start;
+  display: flex;
+  align-items: center;
 }
 
 /* --- ヘッダー --- */
@@ -110,4 +102,7 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .header-left, .header-right { flex: 1; font-size: 14px; }
 .header-right { text-align: right; font-weight: bold; }
 
-@media print { .no-print { display: none !important; } .test-paper { box-shadow: none; margin: 0; } }
+@media print { 
+  .no-print { display: none !important; } 
+  .test-paper { box-shadow: none; margin: 0; padding: 10mm 15mm !important; width: 210mm; } 
+}
