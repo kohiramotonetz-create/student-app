@@ -59,8 +59,30 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .settings-panel { width: 320px; background: #fff; padding: 20px; border-right: 1px solid #ccc; overflow-y: auto; text-align: left; }
 .preview-panel { flex: 1; display: flex; justify-content: center; padding: 20px; overflow-y: auto; }
 .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 10mm 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); box-sizing: border-box; }
-.paper-table { width: 100% !important; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
-.paper-table th, .paper-table td { border: 1px solid #000; height: 11.5mm !important; vertical-align: middle; }
+/* --- 紙テストテーブルの完全固定化 --- */
+.paper-table {  width: 100% !important;  border-collapse: collapse; /* 線を重ねて1本にする */
+  margin-top: 10px;
+  table-layout: fixed; /* 列幅を固定する設定 */
+  border: 1.5px solid #000; /* 外枠を少し太くして締める */
+}
+
+.paper-table th, .paper-table td {  border: 1px solid #000; /* 内側の線 */
+  height: 50px; /* ★ここを固定！ 12mm〜13mm相当の高さ */
+  padding: 0 10px;
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+
+/* 列ごとの幅指定 */
+.col-no {  width: 45px !important;  text-align: center;  font-weight: bold;  background-color: #f9f9f9; /* 番号列だけ少し色をつけてもOK（印刷時は白黒になります） */
+}
+
+.q-cell-grid {  display: grid !important;  grid-template-columns: 30px 1fr;  align-items: center;  text-align: left;  height: 100%; /* セルいっぱいに広げる */
+}
+
+.a-cell {  width: 50% !important; /* 解答欄を全体の半分に固定 */
+  background-color: #fff;
+}
 .col-no { width: 40px !important; text-align: center; }
 
 /* ★ 🔊ボタンを青枠（左端）に揃えるためのグリッド設定 */
