@@ -175,7 +175,7 @@ function App() {
             <button className="nav-btn" onClick={() => { setIsFukisokuMode(false); setIsKobunMode(false); setSelectedBook({ name: '', data: [] }); setStep('quiz-setup'); }}>🚀 1問ずつテスト(自習)</button>
             {/* 不規則変化も設定画面へ飛ばすように変更 */}
             <button className="nav-btn" onClick={() => { setIsFukisokuMode(true); setIsKobunMode(false); setSelectedBook({ name: '', data: [] }); setStep('fukisoku-setup'); }}>🔄 英単語（不規則変化）</button>
-            <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => { setIsKobunMode(true); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('kobun-setup'); }}>📚 古文単語（自習）</button>
+            <button className="nav-btn" onClick={() => { setIsKobunMode(true); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('kobun-setup'); }}>📚 古文単語（自習）</button>
             <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生英単語</button>
           </div>
           <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
