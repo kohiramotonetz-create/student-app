@@ -81,7 +81,7 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
   cursor: pointer;
   font-size: 14px;
   padding: 0 !important;
-  margin: 3px 0 0 0 !important;
+  margin: 8px 0 0 0 !important;
   width: auto !important;
   display: flex;
   align-items: center;
