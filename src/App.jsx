@@ -10,8 +10,8 @@ const QUESTION_COUNT = 20;
 function App() {
   const [step, setStep] = useState('login'); 
   const [userId, setUserId] = useState('');
-  const [password, setPassword] = useState(''); // ✅ 復旧
-  const [newPassword, setNewPassword] = useState(''); // ✅ 復旧
+  const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -26,7 +26,7 @@ function App() {
   const [kakushinData, setKakushinData] = useState([]);
   const [kobun315Data, setKobun315Data] = useState([]);
 
-  const [selectedGrade, setSelectedGrade] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState('中1'); // デフォルト学年
   const [startUnit, setStartUnit] = useState('');
   const [startPart, setStartPart] = useState('');
   const [endUnit, setEndUnit] = useState('');
@@ -40,7 +40,7 @@ function App() {
   const [selectedBook, setSelectedBook] = useState({ name: '', data: [] });
   const [startNo, setStartNo] = useState(1);
   const [endNo, setEndNo] = useState(100);
-  const [selectedParts, setSelectedParts] = useState([]); // ✅ 品詞絞り込み用
+  const [selectedParts, setSelectedParts] = useState([]); 
   const [showPaperAnswers, setShowPaperAnswers] = useState(false);
 
   const [quizItems, setQuizItems] = useState([]);
@@ -58,6 +58,28 @@ function App() {
     if (selectedBook.name !== '古文単語315') return [];
     return [...new Set(selectedBook.data.map(d => d.part))].filter(p => p).sort();
   }, [selectedBook]);
+
+  // ✅ データ読み込み後の初期範囲セットロジック
+  useEffect(() => {
+    if (allData.length === 0 || !selectedGrade) return;
+    const filtered = [...new Set(allData.filter(d => d.unitGroup.startsWith(selectedGrade)).map(d => d.unitGroup))];
+    if (filtered.length > 0) {
+      setStartUnit(filtered[0]);
+      setEndUnit(filtered[0]);
+    }
+  }, [selectedGrade, allData]);
+
+  useEffect(() => {
+    if (allData.length === 0) return;
+    if (startUnit) {
+      const sParts = [...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))];
+      if (sParts.length > 0) setStartPart(sParts[0]);
+    }
+    if (endUnit) {
+      const eParts = [...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))];
+      if (eParts.length > 0) setEndPart(eParts[0]);
+    }
+  }, [startUnit, endUnit, allData]);
 
   const sendResultToGAS = (finalAnswers, sheetName) => {
     if (!sheetName || !LOG_GAS_URL) return;
@@ -139,22 +161,22 @@ function App() {
   };
 
   const handleLogin = async () => {
-    if (!userId || !password) return alert("入力してください"); // ✅ 復旧
+    if (!userId || !password) return alert("入力してください");
     setLoading(true);
     try {
-      const response = await axios.post(GAS_URL, JSON.stringify({ action: "login", userId, password }), { // ✅ 復旧
+      const response = await axios.post(GAS_URL, JSON.stringify({ action: "login", userId, password }), {
         headers: { 'Content-Type': 'text/plain' }
       });
       if (response.data.result === "success") { 
         setUserName(response.data.name); 
-        if (response.data.isInitial) setStep('change-password'); // ✅ 復旧
+        if (response.data.isInitial) setStep('change-password');
         else await loadCsv(); 
       }
       else alert("認証失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
 
-  const handleChangePassword = async () => { // ✅ 復旧
+  const handleChangePassword = async () => {
     if (!newPassword) return alert("入力してください");
     setLoading(true);
     try {
@@ -165,11 +187,6 @@ function App() {
       else alert("更新失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
-
-  useEffect(() => {
-    const filtered = [...new Set(allData.filter(d => d.unitGroup.startsWith(selectedGrade)).map(d => d.unitGroup))];
-    if (filtered.length > 0) { setStartUnit(filtered[0]); setEndUnit(filtered[0]); }
-  }, [selectedGrade, allData]);
 
   const gradeList = useMemo(() => [...new Set(allData.map(d => d.unitGroup.substring(0, 2)))].sort(), [allData]);
   const filteredUnits = useMemo(() => [...new Set(allData.filter(d => d.unitGroup.startsWith(selectedGrade)).map(d => d.unitGroup))], [allData, selectedGrade]);
@@ -187,7 +204,7 @@ function App() {
         </div>
       )}
 
-      {step === 'change-password' && ( // ✅ 復旧
+      {step === 'change-password' && (
         <div className="login-box">
           <h2>パスワード変更</h2>
           <p>初期パスワードから変更してください</p>
@@ -232,7 +249,7 @@ function App() {
             <button className="nav-btn" onClick={() => {
               const sKey = startUnit + startPart; const eKey = endUnit + endPart;
               const sIdx = allData.findIndex(d => d.key === sKey); const eIdx = allData.findLastIndex(d => d.key === eKey);
-              if (sIdx === -1 || eIdx === -1) return alert("範囲外");
+              if (sIdx === -1 || eIdx === -1) return alert("選択した範囲のデータが見つかりません");
               const range = allData.slice(Math.min(sIdx, eIdx), Math.max(sIdx, eIdx) + 1);
               setTestWords([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT));
             }}>🔄 問題作成</button>
@@ -270,7 +287,7 @@ function App() {
           <button className="nav-btn" onClick={() => {
               const sKey = startUnit + startPart; const eKey = endUnit + endPart;
               const sIdx = allData.findIndex(d => d.key === sKey); const eIdx = allData.findLastIndex(d => d.key === eKey);
-              if (sIdx === -1 || eIdx === -1) return alert("範囲外");
+              if (sIdx === -1 || eIdx === -1) return alert("選択した範囲のデータが見つかりません");
               const range = allData.slice(Math.min(sIdx, eIdx), Math.max(sIdx, eIdx) + 1);
               resetQuizState(); setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); setStep('quiz-main');
           }}>スタート！</button>
