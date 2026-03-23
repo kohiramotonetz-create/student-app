@@ -7,16 +7,6 @@ const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
 const QUESTION_COUNT = 20;
 
-const parseCsvPromise = (fileUrl) => {
-  return new Promise((resolve, reject) => {
-    Papa.parse(fileUrl + '?v=' + new Date().getTime(), {
-      download: true, header: true, skipEmptyLines: true,
-      complete: (results) => resolve(results.data),
-      error: (error) => reject(error),
-    });
-  });
-};
-
 function App() {
   const [step, setStep] = useState('login'); 
   const [userId, setUserId] = useState('');
@@ -64,18 +54,14 @@ function App() {
 
   const sendResultToGAS = (finalAnswers, sheetName) => {
     if (!sheetName || !LOG_GAS_URL) return;
-    const params = new URLSearchParams();
-    params.append('action', 'saveLog');
-    params.append('sheetName', sheetName);
-    params.append('userName', userName);
-    params.append('testRange', (selectedBook && selectedBook.name) ? `No.${startNo}～${endNo}` : (isKobunMode ? "古文" : (isFukisokuMode ? "不規則" : `${startUnit}${startPart}～${endUnit}${endPart}`)));
-    params.append('mode', mode);
-    params.append('score', finalAnswers.filter(a => a.ok).length);
-    params.append('total', finalAnswers.length);
-    params.append('percentage', Math.round((finalAnswers.filter(a => a.ok).length / finalAnswers.length) * 100) + "%");
-    params.append('history', finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', '));
-
-    fetch(LOG_GAS_URL, { method: "POST", mode: "no-cors", body: params, keepalive: true }).catch(e => console.error(e));
+    const payload = {
+      action: "saveLog", sheetName, userName,
+      testRange: (selectedBook && selectedBook.name) ? `No.${startNo}～${endNo}` : (isKobunMode ? "古文" : (isFukisokuMode ? "不規則" : `${startUnit}${startPart}～${endUnit}${endPart}`)), 
+      mode, score: finalAnswers.filter(a => a.ok).length, total: finalAnswers.length,
+      percentage: Math.round((finalAnswers.filter(a => a.ok).length / finalAnswers.length) * 100) + "%",
+      history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
+    };
+    fetch(LOG_GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload), keepalive: true }).catch(e => console.error(e));
   };
 
   const proceedToNext = () => {
@@ -110,36 +96,52 @@ function App() {
     window.speechSynthesis.speak(uttr);
   };
 
-  const loadAllCsvData = async () => {
-    setLoading(true);
+  const loadCsv = async () => {
     try {
-      const promises = [
-        parseCsvPromise('/wordlist.csv'), parseCsvPromise('/wordlist-fukisoku.csv'), parseCsvPromise('/wordlist-junior_high_school-kobun.csv'),
-        parseCsvPromise('/hs_data/target1900.csv'), parseCsvPromise('/hs_data/target1200.csv'),
-        parseCsvPromise('/hs_data/sokudoku.csv'), parseCsvPromise('/hs_data/dragon.csv'), parseCsvPromise('/hs_data/yumetann.csv'),
-      ];
-      const results = await Promise.all(promises);
-      setAllData(results[0].map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
-      setFukisokuData(results[1].map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
-      setKobunData(results[2].map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
-      const hsSetters = [setTargetData, setTargetminiData, setSokudokuData, setDragonData, setYumetannData];
-      for (let i = 0; i < 5; i++) { hsSetters[i](results[i+3].map(d => ({ no: parseInt(d["No"]), en: d["英語"], ja: d["日本語"], unit: d["単元"] })).filter(d => d.en)); }
-      setStep('menu');
-    } catch (e) { alert("データ読み込み失敗"); setStep('login'); } finally { setLoading(false); }
+      const fetchAndParse = async (url) => {
+        const res = await fetch(url + '?v=' + new Date().getTime());
+        const text = await res.text();
+        return new Promise(resolve => Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => resolve(results.data) }));
+      };
+      const data = await fetchAndParse('/wordlist.csv');
+      setAllData(data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
+      const dataF = await fetchAndParse('/wordlist-fukisoku.csv');
+      setFukisokuData(dataF.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
+      const dataK = await fetchAndParse('/wordlist-junior_high_school-kobun.csv');
+      setKobunData(dataK.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
+      const hsFiles = [{ n: 'target1900.csv', s: setTargetData }, { n: 'target1200.csv', s: setTargetminiData }, { n: 'sokudoku.csv', s: setSokudokuData }, { n: 'dragon.csv', s: setDragonData }, { n: 'yumetann.csv', s: setYumetannData }];
+      for (const f of hsFiles) {
+        const d = await fetchAndParse('/' + f.n);
+        f.s(d.map(x => ({ no: parseInt(x["No"]), en: x["英語"], ja: x["日本語"], unit: x["単元"] })).filter(x => x.en));
+      }
+    } catch (e) { console.error(e); }
   };
 
+  // ✅ ログイン：JSON形式 + text/plain ヘッダーに完全復旧
   const handleLogin = async () => {
     if (!userId || !password) return alert("入力してください");
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.append('action', 'login');
-      params.append('userId', userId);
-      params.append('password', password);
+      const response = await axios.post(GAS_URL, JSON.stringify({ action: "login", userId, password }), {
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      if (response.data.result === "success") {
+        setUserName(response.data.name);
+        if (response.data.isInitial) setStep('change-password');
+        else { setStep('menu'); loadCsv(); }
+      } else alert("認証失敗");
+    } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
+  };
 
-      const response = await axios.post(GAS_URL, params);
-      if (response.data.result === "success") { setUserName(response.data.name); if (response.data.isInitial) setStep('change-password'); else await loadAllCsvData(); }
-      else alert("認証失敗");
+  const handleChangePassword = async () => {
+    if (!newPassword) return alert("入力してください");
+    setLoading(true);
+    try {
+      const response = await axios.post(GAS_URL, JSON.stringify({ action: "changePassword", userId, newPassword }), {
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      if (response.data.result === "success") { alert("更新完了"); setStep('menu'); loadCsv(); }
+      else alert("更新失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
 
@@ -179,8 +181,8 @@ function App() {
           <div className="button-grid">
             <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('test-setup'); }}>📝 英単語テスト作成(紙)</button>
             <button className="nav-btn" onClick={() => { setIsFukisokuMode(false); setIsKobunMode(false); setSelectedBook({ name: '', data: [] }); setStep('quiz-setup'); }}>🚀 1問ずつテスト(自習)</button>
-            <button className="nav-btn" onClick={() => { const sel = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT); resetQuizState(); setQuizItems(sel); setMode('ja-en'); setIsFukisokuMode(true); setStep('quiz-main'); }}>🔄 英単語（不規則変化）</button>
-            <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => { resetQuizState(); setIsKobunMode(true); setMode('en-ja'); setQuizItems([...kobunData].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); setStep('quiz-main'); }}>📚 古文単語（自習）</button>
+            <button className="nav-btn" onClick={() => { const sel = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, 20); resetQuizState(); setQuizItems(sel); setMode('ja-en'); setIsFukisokuMode(true); setStep('quiz-main'); }}>🔄 英単語（不規則変化）</button>
+            <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => { resetQuizState(); setIsKobunMode(true); setMode('en-ja'); setQuizItems([...kobunData].sort(() => 0.5 - Math.random()).slice(0, 20)); setStep('quiz-main'); }}>📚 古文単語（自習）</button>
             <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生英単語</button>
           </div>
           <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
@@ -205,7 +207,6 @@ function App() {
             <button className="nav-btn" onClick={() => {
               const sKey = startUnit + startPart; const eKey = endUnit + endPart;
               const sIdx = allData.findIndex(d => d.key === sKey); const eIdx = allData.findLastIndex(d => d.key === eKey);
-              if (sIdx === -1 || eIdx === -1) return alert("範囲外");
               const range = allData.slice(Math.min(sIdx, eIdx), Math.max(sIdx, eIdx) + 1);
               setTestWords([...range].sort(() => 0.5 - Math.random()).slice(0, 20)); setRangeText(`範囲: ${sKey} ～ ${eKey}`);
             }}>🔄 生成</button>
@@ -215,10 +216,11 @@ function App() {
           </div>
           <div className="preview-panel">
             <div className="test-paper">
-              <div className="header-area"><h1>英単語テスト</h1></div>
+              <div className="header-area"><h1>英単語テスト</h1><div className="header-right">{school === 'custom' ? customSchool : school}</div></div>
               <table className="paper-table">
                 <tbody>{testWords.map((d, i) => (<tr key={i}><td className="col-no">{i + 1}</td>
                 <td className="q-cell" style={{position:'relative', paddingLeft:'40px'}}>
+                  {/* 赤印：セルの左端に音声ボタンを一列に揃える */}
                   <button className="audio-btn no-print" onClick={() => speakEn(d.en)} style={{position:'absolute', left:'10px', top:'50%', transform:'translateY(-50%)', border:'none', background:'none', cursor:'pointer', fontSize:'14px', opacity:0.6}}>🔊</button>
                   {mode === 'en-ja' ? d.en : d.ja}
                 </td>
@@ -240,7 +242,8 @@ function App() {
             <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select></div>
           </div>
           <button className="nav-btn" onClick={() => {
-              const sIdx = allData.findIndex(d => d.key === (startUnit + startPart)); const eIdx = allData.findLastIndex(d => d.key === (endUnit + endPart));
+              const sKey = startUnit + startPart; const eKey = endUnit + endPart;
+              const sIdx = allData.findIndex(d => d.key === sKey); const eIdx = allData.findLastIndex(d => d.key === eKey);
               const range = allData.slice(Math.min(sIdx, eIdx), Math.max(sIdx, eIdx) + 1);
               resetQuizState(); setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); setStep('quiz-main');
           }}>スタート！</button>
@@ -251,6 +254,7 @@ function App() {
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
           
+          {/* レイアウト：背景白、単語周りの枠なし、音声専用スペースあり */}
           <div className="q-display-box" style={{
             display: 'flex', alignItems: 'stretch', justifyContent: 'center', 
             background: 'white', border: '1px solid #ddd', borderRadius: '12px', 
@@ -320,10 +324,10 @@ function App() {
         <div className="quiz-container">
           <h2>結果発表</h2>
           <div style={{ fontSize: '32px', margin: '10px 0' }}>{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length}</div>
-          <div style={{maxHeight: '300px', overflowY: 'auto', width: '100%', border: '1px solid #eee'}}>
+          <div style={{maxHeight: '350px', overflowY: 'auto', width: '100%', border: '1px solid #eee'}}>
             <table style={{width: '100%', fontSize: '13px', borderCollapse: 'collapse'}}>
-              <thead style={{background: '#f8f9fa'}}><tr><th>判定</th><th>問題</th><th>正解</th><th>回答</th></tr></thead>
-              <tbody>{quizAnswers.map((a, i) => (<tr key={i} style={{borderBottom: '1px solid #eee'}}><td style={{color: a.ok ? 'green' : 'red'}}>{a.ok ? '○' : '×'}</td><td>{a.q}</td><td>{a.correct}</td><td>{a.a}</td></tr>))}</tbody>
+              <thead style={{background: '#f8f9fa', position:'sticky', top:0}}><tr><th>判定</th><th>問題</th><th>正解</th><th>回答</th></tr></thead>
+              <tbody>{quizAnswers.map((a, i) => (<tr key={i} style={{borderBottom: '1px solid #eee'}}><td style={{color: a.ok ? 'green' : 'red', fontWeight:'bold', textAlign:'center'}}>{a.ok ? '○' : '×'}</td><td>{a.q}</td><td>{a.correct}</td><td>{a.a}</td></tr>))}</tbody>
             </table>
           </div>
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
