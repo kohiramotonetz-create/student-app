@@ -64,14 +64,18 @@ function App() {
 
   const sendResultToGAS = (finalAnswers, sheetName) => {
     if (!sheetName || !LOG_GAS_URL) return;
-    const payload = {
-      action: "saveLog", sheetName, userName,
-      testRange: (selectedBook && selectedBook.name) ? `No.${startNo}～${endNo}` : (isKobunMode ? "古文" : (isFukisokuMode ? "不規則" : `${startUnit}${startPart}～${endUnit}${endPart}`)), 
-      mode, score: finalAnswers.filter(a => a.ok).length, total: finalAnswers.length,
-      percentage: Math.round((finalAnswers.filter(a => a.ok).length / finalAnswers.length) * 100) + "%",
-      history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
-    };
-    fetch(LOG_GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload), keepalive: true }).catch(e => console.error(e));
+    const params = new URLSearchParams();
+    params.append('action', 'saveLog');
+    params.append('sheetName', sheetName);
+    params.append('userName', userName);
+    params.append('testRange', (selectedBook && selectedBook.name) ? `No.${startNo}～${endNo}` : (isKobunMode ? "古文" : (isFukisokuMode ? "不規則" : `${startUnit}${startPart}～${endUnit}${endPart}`)));
+    params.append('mode', mode);
+    params.append('score', finalAnswers.filter(a => a.ok).length);
+    params.append('total', finalAnswers.length);
+    params.append('percentage', Math.round((finalAnswers.filter(a => a.ok).length / finalAnswers.length) * 100) + "%");
+    params.append('history', finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', '));
+
+    fetch(LOG_GAS_URL, { method: "POST", mode: "no-cors", body: params, keepalive: true }).catch(e => console.error(e));
   };
 
   const proceedToNext = () => {
@@ -128,7 +132,12 @@ function App() {
     if (!userId || !password) return alert("入力してください");
     setLoading(true);
     try {
-      const response = await axios.post(GAS_URL, JSON.stringify({ action: "login", userId, password }), { headers: { 'Content-Type': 'text/plain' } });
+      const params = new URLSearchParams();
+      params.append('action', 'login');
+      params.append('userId', userId);
+      params.append('password', password);
+
+      const response = await axios.post(GAS_URL, params);
       if (response.data.result === "success") { setUserName(response.data.name); if (response.data.isInitial) setStep('change-password'); else await loadAllCsvData(); }
       else alert("認証失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
@@ -210,7 +219,6 @@ function App() {
               <table className="paper-table">
                 <tbody>{testWords.map((d, i) => (<tr key={i}><td className="col-no">{i + 1}</td>
                 <td className="q-cell" style={{position:'relative', paddingLeft:'40px'}}>
-                  {/* 赤印：セルの左端に音声ボタンを固定 */}
                   <button className="audio-btn no-print" onClick={() => speakEn(d.en)} style={{position:'absolute', left:'10px', top:'50%', transform:'translateY(-50%)', border:'none', background:'none', cursor:'pointer', fontSize:'14px', opacity:0.6}}>🔊</button>
                   {mode === 'en-ja' ? d.en : d.ja}
                 </td>
@@ -243,7 +251,6 @@ function App() {
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
           
-          {/* 【要望反映】背景は白、単語周りの囲みなし、左に音声専用枠 */}
           <div className="q-display-box" style={{
             display: 'flex', alignItems: 'stretch', justifyContent: 'center', 
             background: 'white', border: '1px solid #ddd', borderRadius: '12px', 
