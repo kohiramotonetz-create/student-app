@@ -10,7 +10,8 @@ const QUESTION_COUNT = 20;
 function App() {
   const [step, setStep] = useState('login'); 
   const [userId, setUserId] = useState('');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState(''); // ✅ 復旧
+  const [newPassword, setNewPassword] = useState(''); // ✅ 復旧
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -53,7 +54,6 @@ function App() {
     setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setPractice(""); setQuizReview({ visible: false, record: null });
   };
 
-  // ✅ 315古文のデータから存在する品詞を自動抽出
   const availableParts = useMemo(() => {
     if (selectedBook.name !== '古文単語315') return [];
     return [...new Set(selectedBook.data.map(d => d.part))].filter(p => p).sort();
@@ -66,9 +66,8 @@ function App() {
       : (isKobunMode ? "古文" : (isFukisokuMode ? "不規則" : `${startUnit}${startPart}～${endUnit}${endPart}`));
 
     const payload = {
-      action: "saveLog", sheetName, userName,
-      testRange: rangeLabel,
-      mode, score: finalAnswers.filter(a => a.ok).length, total: finalAnswers.length,
+      action: "saveLog", sheetName, userName, testRange: rangeLabel, mode,
+      score: finalAnswers.filter(a => a.ok).length, total: finalAnswers.length,
       percentage: Math.round((finalAnswers.filter(a => a.ok).length / finalAnswers.length) * 100) + "%",
       history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
     };
@@ -80,9 +79,8 @@ function App() {
     if (qIndex + 1 < quizItems.length) {
       setQIndex(qIndex + 1); setQuizReview({ visible: false, record: null }); setCurrentInput(""); setPractice("");
     } else {
-      let determinedSheetName = selectedBook.name || (isFukisokuMode ? "英単語（不規則変化）" : (isKobunMode ? "古文単語（自習）" : "1問ずつテスト(自習)"));
-      setStep('quiz-result'); 
-      sendResultToGAS(finalAnswers, determinedSheetName);
+      let dSheet = selectedBook.name || (isFukisokuMode ? "英単語（不規則変化）" : (isKobunMode ? "古文単語（自習）" : "1問ずつテスト(自習)"));
+      setStep('quiz-result'); sendResultToGAS(finalAnswers, dSheet);
     }
   };
 
@@ -116,31 +114,24 @@ function App() {
         const text = await res.text();
         return new Promise(resolve => Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => resolve(results.data) }));
       };
-      
       const data = await fetchAndParse('/wordlist.csv');
       setAllData(data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
-      
       const dataF = await fetchAndParse('/wordlist-fukisoku.csv');
       setFukisokuData(dataF.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
-      
       const dataK = await fetchAndParse('/wordlist-junior_high_school-kobun.csv');
       setKobunData(dataK.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
-
       const hsFiles = [
         { n: 'target1900.csv', s: setTargetData }, { n: 'target1200.csv', s: setTargetminiData },
         { n: 'sokudoku.csv', s: setSokudokuData }, { n: 'dragon.csv', s: setDragonData }, { n: 'yumetann.csv', s: setYumetannData },
         { n: 'kakushin351.csv', s: setKakushinData }, { n: 'kobunn315.csv', s: setKobun315Data },
       ];
-
       for (const f of hsFiles) {
         const d = await fetchAndParse('/' + f.n);
         f.s(d.map((x, index) => ({
-          // ✅ ヘッダー柔軟対応
           no: parseInt(x["No"] || x["問題番号"] || (index + 1)),
           en: x["古文"] || x["英語"] || x["単語"] || x["en"],
           ja: x["現代語訳"] || x["日本語訳"] || x["日本語"] || x["ja"],
-          part: x["品詞"] || "", // 品詞情報を取得
-          unit: x["単元"] || ""
+          part: x["品詞"] || "", unit: x["単元"] || ""
         })).filter(x => x.en));
       }
       setStep('menu');
@@ -148,11 +139,30 @@ function App() {
   };
 
   const handleLogin = async () => {
-    if (!userId) return alert("入力してください");
+    if (!userId || !password) return alert("入力してください"); // ✅ 復旧
     setLoading(true);
     try {
-      const response = await axios.post(GAS_URL, JSON.stringify({ action: "login", userId }), { headers: { 'Content-Type': 'text/plain' } });
-      if (response.data.result === "success") { setUserName(response.data.name); await loadCsv(); } else alert("認証失敗");
+      const response = await axios.post(GAS_URL, JSON.stringify({ action: "login", userId, password }), { // ✅ 復旧
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      if (response.data.result === "success") { 
+        setUserName(response.data.name); 
+        if (response.data.isInitial) setStep('change-password'); // ✅ 復旧
+        else await loadCsv(); 
+      }
+      else alert("認証失敗");
+    } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
+  };
+
+  const handleChangePassword = async () => { // ✅ 復旧
+    if (!newPassword) return alert("入力してください");
+    setLoading(true);
+    try {
+      const response = await axios.post(GAS_URL, JSON.stringify({ action: "changePassword", userId, newPassword }), {
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      if (response.data.result === "success") { alert("更新完了"); setStep('menu'); await loadCsv(); }
+      else alert("更新失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
 
@@ -172,7 +182,17 @@ function App() {
         <div className="login-box">
           <h1>生徒単語アプリ</h1>
           <input type="text" placeholder="生徒番号" value={userId} onChange={(e) => setUserId(e.target.value)} />
+          <input type="password" placeholder="パスワード(初期:1234)" value={password} onChange={(e) => setPassword(e.target.value)} />
           <button onClick={handleLogin}>ログイン</button>
+        </div>
+      )}
+
+      {step === 'change-password' && ( // ✅ 復旧
+        <div className="login-box">
+          <h2>パスワード変更</h2>
+          <p>初期パスワードから変更してください</p>
+          <input type="password" placeholder="新しいパスワード" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          <button onClick={handleChangePassword}>変更して開始</button>
         </div>
       )}
 
@@ -191,7 +211,6 @@ function App() {
         </div>
       )}
 
-      {/* --- テスト作成 (紙) --- */}
       {step === 'test-setup' && (
         <div className="test-builder-layout">
           <div className="settings-panel no-print">
@@ -234,7 +253,6 @@ function App() {
         </div>
       )}
 
-      {/* --- 自習クイズ設定 --- */}
       {step === 'quiz-setup' && (
         <div className="quiz-container">
           <h2>🚀 クイズ設定</h2>
@@ -260,7 +278,6 @@ function App() {
         </div>
       )}
 
-      {/* --- 不規則・古文設定 --- */}
       {(step === 'fukisoku-setup' || step === 'kobun-setup') && (
         <div className="quiz-container">
           <h2>🚀 {isFukisokuMode ? "不規則変化" : "古文単語"} 設定</h2>
@@ -279,7 +296,6 @@ function App() {
         </div>
       )}
 
-      {/* --- 高校生メニュー --- */}
       {step === 'highschool-menu' && (
         <div className="menu-box">
           <h1>🎓 高校生モード</h1>
@@ -303,7 +319,6 @@ function App() {
         </div>
       )}
 
-      {/* --- 高校生設定 --- */}
       {step === 'highschool-setup' && (
         <div className="quiz-container">
           <h2>🚀 {selectedBook.name}</h2>
@@ -318,7 +333,6 @@ function App() {
               <input type="number" value={startNo} onChange={(e) => setStartNo(Number(e.target.value))} style={{width:'80px'}} />〜<input type="number" value={endNo} onChange={(e) => setEndNo(Number(e.target.value))} style={{width:'80px'}} />
             </div>
 
-            {/* ✅ 315古文のみ品詞ボタンを表示 */}
             {selectedBook.name === '古文単語315' && availableParts.length > 0 && (
               <div style={{marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px'}}>
                 <label>品詞絞り込み (複数可):</label>
@@ -343,7 +357,6 @@ function App() {
         </div>
       )}
 
-      {/* --- クイズ実行画面 --- */}
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
@@ -369,7 +382,6 @@ function App() {
         </div>
       )}
 
-      {/* --- 結果表示 --- */}
       {step === 'quiz-result' && (
         <div className="quiz-container">
           <h2>結果発表</h2>
