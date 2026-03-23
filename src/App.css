@@ -13,7 +13,26 @@
   max-width: 450px; 
   margin: auto; 
 }
+/* ★ここを追加：ログインボックス内のh1（タイトル）を黒くする */
+.login-box h1 {
+  color: #000000 !important;
+  margin-bottom: 24px;
+  font-weight: bold;
+}
 
+/* ログイン画面のタイトルを黒にする */
+.login-box h1 {
+  color: #000000 !important;
+  margin-bottom: 24px;
+  font-weight: bold;
+}
+
+/* ★ここを追加：メニュー画面の「メニュー」という文字を黒にする */
+.menu-box h1 {
+  color: #000000 !important;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
 
 
 /* --- クイズ実行画面パーツ --- */
