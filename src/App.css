@@ -14,6 +14,13 @@
   margin: auto; 
 }
 
+/* ★ここを追加：ログインボックス内のh1（タイトル）を黒くする */
+.login-box h1 {
+  color: #000000 !important;
+  margin-bottom: 24px;
+  font-weight: bold;
+}
+
 /* --- クイズ実行画面パーツ --- */
 .q-header { font-size: 14px; color: #666; margin-bottom: 10px; }
 /* クイズ画面背景を白に変更 */
