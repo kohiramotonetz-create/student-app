@@ -164,9 +164,9 @@ function App() {
       
       {step === 'login' && (
         <div className="login-box">
-          <h1>Student App</h1>
-          <input type="text" placeholder="ID" value={userId} onChange={(e) => setUserId(e.target.value)} />
-          <input type="password" placeholder="Pass" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <h1>生徒単語アプリ</h1>
+          <input type="text" placeholder="生徒番号" value={userId} onChange={(e) => setUserId(e.target.value)} />
+          <input type="password" placeholder="パスワード(初期パスワード:1234)" value={password} onChange={(e) => setPassword(e.target.value)} />
           <button onClick={handleLogin}>ログイン</button>
         </div>
       )}
@@ -220,7 +220,7 @@ function App() {
               if (sIdx === -1 || eIdx === -1) return alert("範囲外");
               const range = allData.slice(Math.min(sIdx, eIdx), Math.max(sIdx, eIdx) + 1);
               setTestWords([...range].sort(() => 0.5 - Math.random()).slice(0, 20)); setRangeText(`範囲: ${sKey} ～ ${eKey}`);
-            }}>🔄 生成</button>
+            }}>🔄 問題作成（＆ランダム）</button>
             <button className="nav-btn" style={{backgroundColor: '#17a2b8'}} onClick={() => setShowPaperAnswers(!showPaperAnswers)}>👁 {showPaperAnswers ? "解答を隠す" : "解答を表示"}</button>
             <button className="nav-btn" style={{backgroundColor: '#28a745'}} onClick={() => window.print()}>🖨 印刷</button>
             <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
