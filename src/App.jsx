@@ -64,13 +64,25 @@ function App() {
     fetch(LOG_GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload), keepalive: true }).catch(e => console.error(e));
   };
 
+  // ✅ 修正：高校生データの送信判定を確実に
   const proceedToNext = () => {
     const finalAnswers = [...quizAnswers]; 
     if (qIndex + 1 < quizItems.length) {
       setQIndex(qIndex + 1); setQuizReview({ visible: false, record: null }); setCurrentInput(""); setPractice("");
     } else {
-      let sheet = isFukisokuMode ? "英単語（不規則変化）" : isKobunMode ? "古文単語（自習）" : (selectedBook.name || "1問ずつテスト(自習)");
-      setStep('quiz-result'); sendResultToGAS(finalAnswers, sheet);
+      let determinedSheetName = "";
+      if (selectedBook && selectedBook.name) {
+        determinedSheetName = selectedBook.name; // ターゲット1900など
+      } else if (isFukisokuMode) {
+        determinedSheetName = "英単語（不規則変化）";
+      } else if (isKobunMode) {
+        determinedSheetName = "古文単語（自習）";
+      } else {
+        determinedSheetName = "1問ずつテスト(自習)";
+      }
+      
+      setStep('quiz-result'); 
+      sendResultToGAS(finalAnswers, determinedSheetName);
     }
   };
 
@@ -182,6 +194,7 @@ function App() {
         </div>
       )}
 
+      {/* テスト作成画面 */}
       {step === 'test-setup' && (
         <div className="test-builder-layout">
           <div className="settings-panel no-print">
@@ -221,6 +234,7 @@ function App() {
         </div>
       )}
 
+      {/* クイズ設定画面 */}
       {step === 'quiz-setup' && (
         <div className="quiz-container">
           <h2>🚀 クイズ設定</h2>
@@ -243,6 +257,7 @@ function App() {
         </div>
       )}
 
+      {/* クイズ実行画面 */}
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
@@ -250,14 +265,12 @@ function App() {
             display: 'flex', alignItems: 'stretch', justifyContent: 'center', 
             background: 'white', border: 'none', overflow: 'hidden', marginBottom: '20px', height: '100px'
           }}>
-            {/* 古文モード以外（英単語）のみ左側の音声エリアを表示 */}
             {!isKobunMode && (
               <div className="q-audio-area" style={{ flex: '0 0 70px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'white' }}>
                 <button className="audio-btn" onClick={() => speakEn(quizItems[qIndex].en)} style={{ fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', opacity: '0.6' }}>🔊</button>
               </div>
             )}
             <div className="q-word-area" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-              {/* 古文モード以外のみ中央の仕切り線を表示 */}
               {!isKobunMode && <div style={{position:'absolute', left:0, top:'15px', bottom:'15px', width:'1px', background:'#eee'}}></div>}
               <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#444' }}>
                 {mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}
@@ -275,7 +288,7 @@ function App() {
         </div>
       )}
 
-      {/* 高校生、結果画面等は変更なし */}
+      {/* 高校生メニュー */}
       {step === 'highschool-menu' && (
         <div className="menu-box">
           <h1>🎓 高校生英単語</h1>
@@ -287,6 +300,8 @@ function App() {
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
       )}
+
+      {/* 高校生範囲設定 */}
       {step === 'highschool-setup' && (
         <div className="quiz-container">
           <h2>🚀 {selectedBook.name}</h2>
@@ -300,6 +315,8 @@ function App() {
           }}>スタート！</button>
         </div>
       )}
+
+      {/* 結果画面 */}
       {step === 'quiz-result' && (
         <div className="quiz-container">
           <h2>結果発表</h2>
@@ -310,7 +327,7 @@ function App() {
               <tbody>{quizAnswers.map((a, i) => (<tr key={i} style={{borderBottom: '1px solid #eee'}}><td style={{color: a.ok ? 'green' : 'red', fontWeight:'bold', textAlign:'center'}}>{a.ok ? '○' : '×'}</td><td>{a.q}</td><td>{a.correct}</td><td>{a.a}</td></tr>))}</tbody>
             </table>
           </div>
-          <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
+          <button className="secondary" onClick={() => { resetQuizState(); setSelectedBook({ name: '', data: [] }); setStep('menu'); }}>メニューへ戻る</button>
         </div>
       )}
     </div>
