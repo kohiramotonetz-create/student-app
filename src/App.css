@@ -45,18 +45,19 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .preview-panel { flex: 1; display: flex; justify-content: center; padding: 20px; overflow-y: auto; }
 .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 10mm 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); box-sizing: border-box; }
 
-/* --- ✅ 紙テストテーブルの完全固定化（修正箇所） --- */
+/* --- ✅ 紙テストテーブルの修正：枠線を1pxに完全統一 --- */
 .paper-table { 
   width: 100% !important; 
-  border-collapse: collapse; 
+  border-collapse: collapse; /* 線を重ねて1本にする */
+  border-spacing: 0;
   margin-top: 10px;
-  table-layout: fixed; /* 列幅を固定してガタつきを防止 */
-  border: 1px solid #000; /* 全体の外枠（太くしない） */
+  table-layout: fixed; /* 列幅を固定 */
+  border: 1px solid #000 !important; /* 外枠を1pxに固定 */
 }
 
 .paper-table th, .paper-table td { 
-  border: 1px solid #000; /* 内側の線 */
-  height: 11.5mm !important; /* ★高さをミリ単位で完全固定 */
+  border: 1px solid #000 !important; /* 内側の線もすべて1pxに固定 */
+  height: 11.5mm !important; 
   padding: 0 8px;
   vertical-align: middle;
   box-sizing: border-box;
@@ -69,7 +70,7 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
   font-weight: bold;
 }
 
-/* 問題列の内部レイアウト */
+/* 問題列の内部 */
 .q-cell-grid {
   display: flex !important;
   align-items: center;
@@ -78,13 +79,13 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
   height: 100%;
 }
 
-/* 解答欄（右側）の幅を半分に固定して、縦線を一直線にする */
+/* 解答欄 */
 .a-cell { 
   width: 50% !important; 
   background-color: #fff;
 }
 
-/* 音声ボタンの見た目リセット（印刷用） */
+/* 音声ボタン */
 .audio-btn-fixed {
   border: none !important;
   background: none !important;
