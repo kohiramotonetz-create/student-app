@@ -7,6 +7,16 @@ const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
 const QUESTION_COUNT = 20;
 
+const parseCsvPromise = (fileUrl) => {
+  return new Promise((resolve, reject) => {
+    Papa.parse(fileUrl + '?v=' + new Date().getTime(), {
+      download: true, header: true, skipEmptyLines: true,
+      complete: (results) => resolve(results.data),
+      error: (error) => reject(error),
+    });
+  });
+};
+
 function App() {
   const [step, setStep] = useState('login'); 
   const [userId, setUserId] = useState('');
@@ -96,28 +106,22 @@ function App() {
     window.speechSynthesis.speak(uttr);
   };
 
-  const loadCsv = async () => {
+  const loadAllCsvData = async () => {
+    setLoading(true);
     try {
-      const fetchAndParse = async (url) => {
-        const res = await fetch(url + '?v=' + new Date().getTime());
-        const text = await res.text();
-        return new Promise(resolve => Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => resolve(results.data) }));
-      };
-      const data = await fetchAndParse('/wordlist.csv');
-      setAllData(data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
-      const dataF = await fetchAndParse('/wordlist-fukisoku.csv');
-      setFukisokuData(dataF.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
-      const dataK = await fetchAndParse('/wordlist-junior_high_school-kobun.csv');
-      setKobunData(dataK.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
-      const hsFiles = [
-        { n: 'target1900.csv', s: setTargetData }, { n: 'target1200.csv', s: setTargetminiData },
-        { n: 'sokudoku.csv', s: setSokudokuData }, { n: 'dragon.csv', s: setDragonData }, { n: 'yumetann.csv', s: setYumetannData },
+      const promises = [
+        parseCsvPromise('/wordlist.csv'), parseCsvPromise('/wordlist-fukisoku.csv'), parseCsvPromise('/wordlist-junior_high_school-kobun.csv'),
+        parseCsvPromise('/hs_data/target1900.csv'), parseCsvPromise('/hs_data/target1200.csv'),
+        parseCsvPromise('/hs_data/sokudoku.csv'), parseCsvPromise('/hs_data/dragon.csv'), parseCsvPromise('/hs_data/yumetann.csv'),
       ];
-      for (const f of hsFiles) {
-        const d = await fetchAndParse('/' + f.n);
-        f.s(d.map(x => ({ no: parseInt(x["No"]), en: x["英語"], ja: x["日本語"], unit: x["単元"] })).filter(x => x.en));
-      }
-    } catch (e) { console.error(e); }
+      const results = await Promise.all(promises);
+      setAllData(results[0].map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
+      setFukisokuData(results[1].map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
+      setKobunData(results[2].map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
+      const hsSetters = [setTargetData, setTargetminiData, setSokudokuData, setDragonData, setYumetannData];
+      for (let i = 0; i < 5; i++) { hsSetters[i](results[i+3].map(d => ({ no: parseInt(d["No"]), en: d["英語"], ja: d["日本語"], unit: d["単元"] })).filter(d => d.en)); }
+      setStep('menu');
+    } catch (e) { alert("データ読み込み失敗"); setStep('login'); } finally { setLoading(false); }
   };
 
   const handleLogin = async () => {
@@ -130,7 +134,7 @@ function App() {
       if (response.data.result === "success") {
         setUserName(response.data.name);
         if (response.data.isInitial) setStep('change-password');
-        else { setStep('menu'); loadCsv(); }
+        else { setStep('menu'); loadAllCsvData(); }
       } else alert("認証失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
@@ -142,7 +146,7 @@ function App() {
       const response = await axios.post(GAS_URL, JSON.stringify({ action: "changePassword", userId, newPassword }), {
         headers: { 'Content-Type': 'text/plain' }
       });
-      if (response.data.result === "success") { alert("更新完了"); setStep('menu'); loadCsv(); }
+      if (response.data.result === "success") { alert("更新完了"); setStep('menu'); loadAllCsvData(); }
       else alert("更新失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
@@ -181,10 +185,10 @@ function App() {
           <h1>メニュー</h1>
           <p>ようこそ {userName} 先生</p>
           <div className="button-grid">
-            <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(false); setSelectedGrade(''); setStep('test-setup'); }}>📝 英単語テスト作成(紙)</button>
-            <button className="nav-btn" onClick={() => { setIsFukisokuMode(false); setIsKobunMode(false); setSelectedGrade(''); setStep('quiz-setup'); }}>🚀 1問ずつテスト(自習)</button>
+            <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('test-setup'); }}>📝 英単語テスト作成(紙)</button>
+            <button className="nav-btn" onClick={() => { setIsFukisokuMode(false); setIsKobunMode(false); setSelectedBook({ name: '', data: [] }); setStep('quiz-setup'); }}>🚀 1問ずつテスト(自習)</button>
             <button className="nav-btn" onClick={() => { const sel = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, 20); resetQuizState(); setQuizItems(sel); setMode('ja-en'); setIsFukisokuMode(true); setStep('quiz-main'); }}>🔄 英単語（不規則変化）</button>
-            <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => { resetQuizState(); setIsKobunMode(true); setMode('en-ja'); setQuizItems([...kobunData].sort(() => 0.5 - Math.random()).slice(0, 20)); setStep('quiz-main'); }}>📚 古文単語（自習）</button>
+            <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => { resetQuizState(); setIsKobunMode(true); setMode('en-ja'); setQuizItems([...kobunData].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); setStep('quiz-main'); }}>📚 古文単語（自習）</button>
             <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生英単語</button>
           </div>
           <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
@@ -200,10 +204,6 @@ function App() {
               <div className="grade-selector">{gradeList.map(g => (<button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>))}</div>
               <label>形式:</label>
               <select value={mode} onChange={(e) => setMode(e.target.value)}><option value="en-ja">英語→日本語</option><option value="ja-en">日本語→英語</option></select>
-              <label>学校名:</label>
-              <select value={school} onChange={(e) => setSchool(e.target.value)}><option value="木太中">木太中</option><option value="玉藻中">玉藻中</option><option value="桜町中">桜町中</option><option value="附属中">附属中</option><option value="custom">-- 直接入力 --</option></select>
-              {school === 'custom' && <input type="text" value={customSchool} onChange={(e) => setCustomSchool(e.target.value)} placeholder="学校名を入力" />}
-              
               <label>範囲:</label>
               <div style={{display:'flex', gap:'5px'}}><select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select>
               <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>{[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}</select></div>
@@ -211,11 +211,10 @@ function App() {
               <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>{[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}</select></div>
             </div>
             <button className="nav-btn" onClick={() => {
-              const sKey = startUnit + startPart; const eKey = endUnit + endPart;
-              const sIdx = allData.findIndex(d => d.key === sKey); const eIdx = allData.findLastIndex(d => d.key === eKey);
+              const sIdx = allData.findIndex(d => d.key === (startUnit + startPart)); const eIdx = allData.findLastIndex(d => d.key === (endUnit + endPart));
               if (sIdx === -1 || eIdx === -1) return alert("範囲外");
               const range = allData.slice(Math.min(sIdx, eIdx), Math.max(sIdx, eIdx) + 1);
-              setTestWords([...range].sort(() => 0.5 - Math.random()).slice(0, 20)); setRangeText(`範囲: ${sKey} ～ ${eKey}`);
+              setTestWords([...range].sort(() => 0.5 - Math.random()).slice(0, 20)); setRangeText(`範囲: ${startUnit + startPart} ～ ${endUnit + endPart}`);
             }}>🔄 生成</button>
             <button className="nav-btn" style={{backgroundColor: '#17a2b8'}} onClick={() => setShowPaperAnswers(!showPaperAnswers)}>👁 {showPaperAnswers ? "解答を隠す" : "解答を表示"}</button>
             <button className="nav-btn" style={{backgroundColor: '#28a745'}} onClick={() => window.print()}>🖨 印刷</button>
@@ -226,11 +225,9 @@ function App() {
               <div className="header-area"><div className="header-left">氏名 ____________________</div><h1>英単語テスト</h1><div className="header-right">{school === 'custom' ? customSchool : school}</div></div>
               <table className="paper-table">
                 <tbody>{testWords.map((d, i) => (<tr key={i}><td className="col-no">{i + 1}</td>
-                <td className="q-cell-grid">
-                  {/* 音声ボタン：左端に固定 */}
-                  <button className="audio-btn-fixed no-print" onClick={() => speakEn(d.en)}>🔊</button>
-                  {/* 単語テキスト */}
-                  <span>{mode === 'en-ja' ? d.en : d.ja}</span>
+                <td className="q-cell" style={{display:'flex', alignItems:'center'}}>
+                  <button className="audio-btn no-print" onClick={() => speakEn(d.en)} style={{width:'30px', border:'none', background:'none', cursor:'pointer', fontSize:'14px', opacity:0.6, textAlign:'left'}}>🔊</button>
+                  <span style={{flex:1}}>{mode === 'en-ja' ? d.en : d.ja}</span>
                 </td>
                 <td className="a-cell" style={{width:'250px'}}>{showPaperAnswers ? (mode === 'en-ja' ? d.ja : d.en) : ""}</td></tr>))}</tbody>
               </table>
@@ -245,13 +242,17 @@ function App() {
           <div className="config-group">
             <label>学年:</label>
             <div className="grade-selector">{gradeList.map(g => (<button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>))}</div>
+            {/* ★範囲選択UIの修正：紙テストと同様に、開始と終了を選択可能に */}
             <label>範囲:</label>
             <div style={{display:'flex', gap:'5px'}}><select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select>
-            <select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select></div>
+            <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>{[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}</select></div>
+            <div style={{display:'flex', gap:'5px'}}><select value={endUnit} onChange={(e) => setEndUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select>
+            <select value={endPart} onChange={(e) => setEndPart(e.target.value)}>{[...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}</select></div>
           </div>
           <button className="nav-btn" onClick={() => {
               const sKey = startUnit + startPart; const eKey = endUnit + endPart;
               const sIdx = allData.findIndex(d => d.key === sKey); const eIdx = allData.findLastIndex(d => d.key === eKey);
+              if (sIdx === -1 || eIdx === -1) return alert("範囲外");
               const range = allData.slice(Math.min(sIdx, eIdx), Math.max(sIdx, eIdx) + 1);
               resetQuizState(); setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); setStep('quiz-main');
           }}>スタート！</button>
@@ -261,21 +262,48 @@ function App() {
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
-          <div className="q-display-box" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'center', background: 'white', border: '1px solid #ddd', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px', height: '100px' }}>
-            <div className="q-audio-area" style={{ flex: '0 0 70px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #eee', borderRadius: '8px', margin: '15px 0 15px 15px', background: '#fcfcfc' }}>
-              {!isKobunMode && <button className="audio-btn" onClick={() => speakEn(quizItems[qIndex].en)} style={{ fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', opacity: '0.6' }}>🔊</button>}
+          
+          {/* ★淵（ボーダー）と背景をなくす修正（画像1枚目、7枚目の指示） */}
+          <div className="q-display-box" style={{
+            display: 'flex', alignItems: 'stretch', justifyContent: 'center', 
+            background: 'white', // 背景を完全に白に
+            border: 'none', // 渊をなくす
+            overflow: 'hidden', marginBottom: '20px', height: '100px'
+          }}>
+            {/* 音声ボタンエリア */}
+            <div className="q-audio-area" style={{
+              flex: '0 0 70px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+              border: 'none', // 渊をなくす
+              background: 'white' // 背景を完全に白に
+            }}>
+              {!isKobunMode && (
+                <button className="audio-btn" onClick={() => speakEn(quizItems[qIndex].en)} style={{
+                  fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', opacity: '0.6'
+                }}>🔊</button>
+              )}
             </div>
+            {/* 英単語エリア */}
             <div className="q-word-area" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              {/* 中央の仕切り線（淵ではない） */}
               <div style={{position:'absolute', left:0, top:'15px', bottom:'15px', width:'1px', background:'#eee'}}></div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#444', border: '1px solid #aaa', borderRadius: '15px', padding: '5px 20px' }}>{mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}</div>
+              {/* ★単語の楕円枠（渊）をなくす修正 */}
+              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#444' }}>
+                {mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}
+              </div>
             </div>
           </div>
+
           <input className="q-input" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} autoFocus placeholder="答えを入力..." />
           {!quizReview.visible && <button className="nav-btn" onClick={submitQuizAnswer}>回答する</button>}
           {quizReview.visible && (
             <div className="review-box">
               <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>{quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}</p>
-              {quizReview.record.ok ? <button className="nav-btn" onClick={proceedToNext}>次へ進む</button> : <div className="practice-area"><input className="p-input" value={practice} onChange={(e) => setPractice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && finishPractice()} autoFocus /><button className="nav-btn" onClick={finishPractice}>確認</button></div>}
+              {quizReview.record.ok ? ( <button className="nav-btn" onClick={proceedToNext}>次へ進む</button> ) : (
+                <div className="practice-area">
+                  <input className="p-input" value={practice} onChange={(e) => setPractice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && finishPractice()} autoFocus />
+                  <button className="nav-btn" onClick={finishPractice}>確認</button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -317,7 +345,7 @@ function App() {
               <tbody>{quizAnswers.map((a, i) => (<tr key={i} style={{borderBottom: '1px solid #eee'}}><td style={{color: a.ok ? 'green' : 'red', fontWeight:'bold', textAlign:'center'}}>{a.ok ? '○' : '×'}</td><td>{a.q}</td><td>{a.correct}</td><td>{a.a}</td></tr>))}</tbody>
             </table>
           </div>
-          <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
+          <button className="secondary" onClick={() => { resetQuizState(); setSelectedBook({ name: '', data: [] }); setStep('menu'); }}>メニューへ戻る</button>
         </div>
       )}
     </div>
