@@ -64,15 +64,15 @@ function App() {
     fetch(LOG_GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload), keepalive: true }).catch(e => console.error(e));
   };
 
-  // ✅ 修正：高校生データの送信判定を確実に
   const proceedToNext = () => {
     const finalAnswers = [...quizAnswers]; 
     if (qIndex + 1 < quizItems.length) {
       setQIndex(qIndex + 1); setQuizReview({ visible: false, record: null }); setCurrentInput(""); setPractice("");
     } else {
+      // ✅ 高校生のシート名判定修正
       let determinedSheetName = "";
       if (selectedBook && selectedBook.name) {
-        determinedSheetName = selectedBook.name; // ターゲット1900など
+        determinedSheetName = selectedBook.name;
       } else if (isFukisokuMode) {
         determinedSheetName = "英単語（不規則変化）";
       } else if (isKobunMode) {
@@ -80,7 +80,6 @@ function App() {
       } else {
         determinedSheetName = "1問ずつテスト(自習)";
       }
-      
       setStep('quiz-result'); 
       sendResultToGAS(finalAnswers, determinedSheetName);
     }
@@ -111,31 +110,24 @@ function App() {
   const loadCsv = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/wordlist.csv?v=' + new Date().getTime());
-      const text = await res.text();
-      Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => {
-        setAllData(results.data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
-      }});
-      const resF = await fetch('/wordlist-fukisoku.csv?v=' + new Date().getTime());
-      const textF = await resF.text();
-      Papa.parse(textF, { header: true, skipEmptyLines: true, complete: (results) => {
-        setFukisokuData(results.data.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
-      }});
-      const resK = await fetch('/wordlist-junior_high_school-kobun.csv?v=' + new Date().getTime());
-      const textK = await resK.text();
-      Papa.parse(textK, { header: true, skipEmptyLines: true, complete: (results) => {
-        setKobunData(results.data.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
-      }});
-      const hsFiles = [{ name: 'target1900.csv', setter: setTargetData }, { name: 'target1200.csv', setter: setTargetminiData }, { name: 'sokudoku.csv', setter: setSokudokuData }, { name: 'dragon.csv', setter: setDragonData }, { name: 'yumetann.csv', setter: setYumetannData }];
-      for (const file of hsFiles) {
-        const res = await fetch(`/${file.name}?v=` + new Date().getTime());
+      const fetchAndParse = async (url) => {
+        const res = await fetch(url + '?v=' + new Date().getTime());
         const text = await res.text();
-        Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => {
-          file.setter(results.data.map(d => ({ no: parseInt(d["No"]), en: d["英語"], ja: d["日本語"], unit: d["単元"] })).filter(d => d.en));
-        }});
+        return new Promise(resolve => Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => resolve(results.data) }));
+      };
+      const data = await fetchAndParse('/wordlist.csv');
+      setAllData(data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
+      const dataF = await fetchAndParse('/wordlist-fukisoku.csv');
+      setFukisokuData(dataF.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
+      const dataK = await fetchAndParse('/wordlist-junior_high_school-kobun.csv');
+      setKobunData(dataK.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
+      const hsFiles = [{ n: 'target1900.csv', s: setTargetData }, { n: 'target1200.csv', s: setTargetminiData }, { n: 'sokudoku.csv', s: setSokudokuData }, { n: 'dragon.csv', s: setDragonData }, { n: 'yumetann.csv', s: setYumetannData }];
+      for (const f of hsFiles) {
+        const d = await fetchAndParse('/' + f.n);
+        f.s(d.map(x => ({ no: parseInt(x["No"]), en: x["英語"], ja: x["日本語"], unit: x["単元"] })).filter(x => x.en));
       }
       setStep('menu');
-    } catch (e) { alert("データ読み込み失敗"); } finally { setLoading(false); }
+    } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
   const handleLogin = async () => {
@@ -194,7 +186,7 @@ function App() {
         </div>
       )}
 
-      {/* テスト作成画面 */}
+      {/* ✅ テスト作成画面（学校名UIを復元） */}
       {step === 'test-setup' && (
         <div className="test-builder-layout">
           <div className="settings-panel no-print">
@@ -204,6 +196,18 @@ function App() {
               <div className="grade-selector">{gradeList.map(g => (<button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>))}</div>
               <label>形式:</label>
               <select value={mode} onChange={(e) => setMode(e.target.value)}><option value="en-ja">英語→日本語</option><option value="ja-en">日本語→英語</option></select>
+              
+              {/* ▼ 学校名UIの復元箇所 */}
+              <label>学校名:</label>
+              <select value={school} onChange={(e) => setSchool(e.target.value)}>
+                <option value="木太中">木太中</option>
+                <option value="玉藻中">玉藻中</option>
+                <option value="桜町中">桜町中</option>
+                <option value="附属中">附属中</option>
+                <option value="custom">-- 直接入力 --</option>
+              </select>
+              {school === 'custom' && <input type="text" value={customSchool} onChange={(e) => setCustomSchool(e.target.value)} placeholder="学校名を入力" />}
+              
               <label>範囲:</label>
               <div style={{display:'flex', gap:'5px'}}><select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select>
               <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>{[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}</select></div>
@@ -223,7 +227,7 @@ function App() {
           </div>
           <div className="preview-panel">
             <div className="test-paper">
-              <div className="header-area"><h1>英単語テスト</h1><div className="header-right">{school === 'custom' ? customSchool : school}</div></div>
+              <div className="header-area"><div className="header-left">氏名 ____________________</div><h1>英単語テスト</h1><div className="header-right">{school === 'custom' ? customSchool : school}</div></div>
               <table className="paper-table">
                 <tbody>{testWords.map((d, i) => (<tr key={i}><td className="col-no">{i + 1}</td>
                 <td className="q-cell-grid"><button className="audio-btn-fixed no-print" onClick={() => speakEn(d.en)}>🔊</button><span>{mode === 'en-ja' ? d.en : d.ja}</span></td>
@@ -261,10 +265,7 @@ function App() {
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
-          <div className="q-display-box" style={{
-            display: 'flex', alignItems: 'stretch', justifyContent: 'center', 
-            background: 'white', border: 'none', overflow: 'hidden', marginBottom: '20px', height: '100px'
-          }}>
+          <div className="q-display-box" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'center', background: 'white', border: 'none', overflow: 'hidden', marginBottom: '20px', height: '100px' }}>
             {!isKobunMode && (
               <div className="q-audio-area" style={{ flex: '0 0 70px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'white' }}>
                 <button className="audio-btn" onClick={() => speakEn(quizItems[qIndex].en)} style={{ fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', opacity: '0.6' }}>🔊</button>
@@ -288,7 +289,7 @@ function App() {
         </div>
       )}
 
-      {/* 高校生メニュー */}
+      {/* 高校生、結果画面等は省略なしで全て維持 */}
       {step === 'highschool-menu' && (
         <div className="menu-box">
           <h1>🎓 高校生英単語</h1>
@@ -300,8 +301,6 @@ function App() {
           <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
         </div>
       )}
-
-      {/* 高校生範囲設定 */}
       {step === 'highschool-setup' && (
         <div className="quiz-container">
           <h2>🚀 {selectedBook.name}</h2>
@@ -315,8 +314,6 @@ function App() {
           }}>スタート！</button>
         </div>
       )}
-
-      {/* 結果画面 */}
       {step === 'quiz-result' && (
         <div className="quiz-container">
           <h2>結果発表</h2>
