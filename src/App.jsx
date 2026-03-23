@@ -265,11 +265,15 @@ function App() {
                 <tbody>{testWords.map((d, i) => (
                   <tr key={i}>
                     <td className="col-no">{i + 1}</td>
+                    {/* ✅ ここを修正：横並び用のwrapper構造に変更 */}
                     <td className="q-cell-grid">
-                      <button className="audio-btn-fixed no-print" onClick={() => speakEn(d.en)}>🔊</button>
-                      <span>{mode === 'en-ja' ? d.en : d.ja}</span>
+                      <div className="audio-wrapper no-print">
+                        <button className="audio-btn-fixed" onClick={() => speakEn(d.en)}>🔊</button>
+                      </div>
+                      <div className="text-wrapper">
+                        <span>{mode === 'en-ja' ? d.en : d.ja}</span>
+                      </div>
                     </td>
-                    {/* ✅ ここを修正：style={width}を削除してCSSに任せる */}
                     <td className="a-cell">
                       {showPaperAnswers ? (mode === 'en-ja' ? d.ja : d.en) : ""}
                     </td>
