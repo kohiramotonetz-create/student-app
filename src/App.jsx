@@ -96,39 +96,30 @@ function App() {
     window.speechSynthesis.speak(uttr);
   };
 
-  // ✅ CSV読み込み：以前の「動いていたコード」のパス指定に戻しました
   const loadCsv = async () => {
     try {
-      const res = await fetch('/wordlist.csv?v=' + new Date().getTime());
-      const text = await res.text();
-      Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => {
-        setAllData(results.data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
-      }});
-      const resF = await fetch('/wordlist-fukisoku.csv?v=' + new Date().getTime());
-      const textF = await resF.text();
-      Papa.parse(textF, { header: true, skipEmptyLines: true, complete: (results) => {
-        setFukisokuData(results.data.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
-      }});
-      const resK = await fetch('/wordlist-junior_high_school-kobun.csv?v=' + new Date().getTime());
-      const textK = await resK.text();
-      Papa.parse(textK, { header: true, skipEmptyLines: true, complete: (results) => {
-        setKobunData(results.data.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
-      }});
-      const hsFiles = [
-        { name: 'target1900.csv', setter: setTargetData }, { name: 'target1200.csv', setter: setTargetminiData },
-        { name: 'sokudoku.csv', setter: setSokudokuData }, { name: 'dragon.csv', setter: setDragonData }, { name: 'yumetann.csv', setter: setYumetannData },
-      ];
-      for (const file of hsFiles) {
-        const res = await fetch(`/${file.name}?v=` + new Date().getTime());
+      const fetchAndParse = async (url) => {
+        const res = await fetch(url + '?v=' + new Date().getTime());
         const text = await res.text();
-        Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => {
-          file.setter(results.data.map(d => ({ no: parseInt(d["No"]), en: d["英語"], ja: d["日本語"], unit: d["単元"] })).filter(d => d.en));
-        }});
+        return new Promise(resolve => Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => resolve(results.data) }));
+      };
+      const data = await fetchAndParse('/wordlist.csv');
+      setAllData(data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
+      const dataF = await fetchAndParse('/wordlist-fukisoku.csv');
+      setFukisokuData(dataF.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
+      const dataK = await fetchAndParse('/wordlist-junior_high_school-kobun.csv');
+      setKobunData(dataK.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
+      const hsFiles = [
+        { n: 'target1900.csv', s: setTargetData }, { n: 'target1200.csv', s: setTargetminiData },
+        { n: 'sokudoku.csv', s: setSokudokuData }, { n: 'dragon.csv', s: setDragonData }, { n: 'yumetann.csv', s: setYumetannData },
+      ];
+      for (const f of hsFiles) {
+        const d = await fetchAndParse('/' + f.n);
+        f.s(d.map(x => ({ no: parseInt(x["No"]), en: x["英語"], ja: x["日本語"], unit: x["単元"] })).filter(x => x.en));
       }
-    } catch (e) { console.error("CSVエラー:", e); }
+    } catch (e) { console.error(e); }
   };
 
-  // ✅ ログイン：JSON.stringify + text/plain 形式（動いていた形）
   const handleLogin = async () => {
     if (!userId || !password) return alert("入力してください");
     setLoading(true);
@@ -190,8 +181,8 @@ function App() {
           <h1>メニュー</h1>
           <p>ようこそ {userName} 先生</p>
           <div className="button-grid">
-            <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('test-setup'); }}>📝 英単語テスト作成(紙)</button>
-            <button className="nav-btn" onClick={() => { setIsFukisokuMode(false); setIsKobunMode(false); setSelectedBook({ name: '', data: [] }); setStep('quiz-setup'); }}>🚀 1問ずつテスト(自習)</button>
+            <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(false); setSelectedGrade(''); setStep('test-setup'); }}>📝 英単語テスト作成(紙)</button>
+            <button className="nav-btn" onClick={() => { setIsFukisokuMode(false); setIsKobunMode(false); setSelectedGrade(''); setStep('quiz-setup'); }}>🚀 1問ずつテスト(自習)</button>
             <button className="nav-btn" onClick={() => { const sel = [...fukisokuData].sort(() => 0.5 - Math.random()).slice(0, 20); resetQuizState(); setQuizItems(sel); setMode('ja-en'); setIsFukisokuMode(true); setStep('quiz-main'); }}>🔄 英単語（不規則変化）</button>
             <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => { resetQuizState(); setIsKobunMode(true); setMode('en-ja'); setQuizItems([...kobunData].sort(() => 0.5 - Math.random()).slice(0, 20)); setStep('quiz-main'); }}>📚 古文単語（自習）</button>
             <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生英単語</button>
@@ -235,9 +226,11 @@ function App() {
               <div className="header-area"><div className="header-left">氏名 ____________________</div><h1>英単語テスト</h1><div className="header-right">{school === 'custom' ? customSchool : school}</div></div>
               <table className="paper-table">
                 <tbody>{testWords.map((d, i) => (<tr key={i}><td className="col-no">{i + 1}</td>
-                <td className="q-cell" style={{display:'flex', alignItems:'center'}}>
-                  <button className="audio-btn no-print" onClick={() => speakEn(d.en)} style={{width:'30px', border:'none', background:'none', cursor:'pointer', fontSize:'14px', opacity:0.6, textAlign:'left'}}>🔊</button>
-                  <span style={{flex:1}}>{mode === 'en-ja' ? d.en : d.ja}</span>
+                <td className="q-cell-grid">
+                  {/* 音声ボタン：左端に固定 */}
+                  <button className="audio-btn-fixed no-print" onClick={() => speakEn(d.en)}>🔊</button>
+                  {/* 単語テキスト */}
+                  <span>{mode === 'en-ja' ? d.en : d.ja}</span>
                 </td>
                 <td className="a-cell" style={{width:'250px'}}>{showPaperAnswers ? (mode === 'en-ja' ? d.ja : d.en) : ""}</td></tr>))}</tbody>
               </table>
@@ -268,42 +261,21 @@ function App() {
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
-          
-          <div className="q-display-box" style={{
-            display: 'flex', alignItems: 'stretch', justifyContent: 'center', 
-            background: 'white', border: '1px solid #ddd', borderRadius: '12px', 
-            overflow: 'hidden', marginBottom: '20px', height: '100px'
-          }}>
-            <div className="q-audio-area" style={{
-              flex: '0 0 70px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-              border: '1px solid #eee', borderRadius: '8px', margin: '15px 0 15px 15px', background: '#fcfcfc'
-            }}>
-              {!isKobunMode && (
-                <button className="audio-btn" onClick={() => speakEn(quizItems[qIndex].en)} style={{
-                  fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', opacity: '0.6'
-                }}>🔊</button>
-              )}
+          <div className="q-display-box" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'center', background: 'white', border: '1px solid #ddd', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px', height: '100px' }}>
+            <div className="q-audio-area" style={{ flex: '0 0 70px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #eee', borderRadius: '8px', margin: '15px 0 15px 15px', background: '#fcfcfc' }}>
+              {!isKobunMode && <button className="audio-btn" onClick={() => speakEn(quizItems[qIndex].en)} style={{ fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', opacity: '0.6' }}>🔊</button>}
             </div>
             <div className="q-word-area" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <div style={{position:'absolute', left:0, top:'15px', bottom:'15px', width:'1px', background:'#eee'}}></div>
-              {/* 要望反映：楕円枠あり */}
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#444', border: '1px solid #aaa', borderRadius: '15px', padding: '5px 20px' }}>
-                {mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}
-              </div>
+              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#444', border: '1px solid #aaa', borderRadius: '15px', padding: '5px 20px' }}>{mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}</div>
             </div>
           </div>
-
           <input className="q-input" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} autoFocus placeholder="答えを入力..." />
           {!quizReview.visible && <button className="nav-btn" onClick={submitQuizAnswer}>回答する</button>}
           {quizReview.visible && (
             <div className="review-box">
               <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"}>{quizReview.record.ok ? "✅ 正解！" : `❌ 正解: ${quizReview.record.correct}`}</p>
-              {quizReview.record.ok ? ( <button className="nav-btn" onClick={proceedToNext}>次へ進む</button> ) : (
-                <div className="practice-area">
-                  <input className="p-input" value={practice} onChange={(e) => setPractice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && finishPractice()} autoFocus />
-                  <button className="nav-btn" onClick={finishPractice}>確認</button>
-                </div>
-              )}
+              {quizReview.record.ok ? <button className="nav-btn" onClick={proceedToNext}>次へ進む</button> : <div className="practice-area"><input className="p-input" value={practice} onChange={(e) => setPractice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && finishPractice()} autoFocus /><button className="nav-btn" onClick={finishPractice}>確認</button></div>}
             </div>
           )}
         </div>

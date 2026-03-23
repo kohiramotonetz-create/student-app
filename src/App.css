@@ -16,7 +16,8 @@
 
 /* --- クイズ実行画面パーツ --- */
 .q-header { font-size: 14px; color: #666; margin-bottom: 10px; }
-.q-display-box { font-size: 28px; font-weight: bold; margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 10px; border: 1px solid #eee; }
+/* クイズ画面背景を白に変更 */
+.q-display-box { font-size: 28px; font-weight: bold; margin: 20px 0; padding: 20px; background: white; border-radius: 10px; border: 1px solid #eee; }
 .review-box { margin-top: 20px; padding-top: 20px; border-top: 2px dashed #eee; }
 .txt-ok { color: #28a745; font-weight: bold; font-size: 20px; }
 .txt-ng { color: #dc3545; font-weight: bold; font-size: 20px; }
@@ -37,63 +38,33 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .settings-panel { width: 320px; background: #fff; padding: 20px; border-right: 1px solid #ccc; overflow-y: auto; text-align: left; }
 .preview-panel { flex: 1; display: flex; justify-content: center; padding: 20px; overflow-y: auto; }
 .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 10mm 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); box-sizing: border-box; }
-.paper-table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse; margin-top: 10px; }
+.paper-table { width: 100% !important; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
 .paper-table th, .paper-table td { border: 1px solid #000; height: 11.5mm !important; vertical-align: middle; }
-.col-no { width: 50px !important; text-align: center; }
-.q-cell { position: relative; padding-left: 45px !important; text-align: left; }
-.no-print-speaker { position: absolute !important; left: 5px !important; top: 30% !important; transform: translateY(-50%) !important; width: 30px !important; height: 30px !important; background: white !important; border: 1px solid #ccc !important; border-radius: 4px !important; display: flex; align-items: center; justify-content: center; padding: 0 !important; }
+.col-no { width: 40px !important; text-align: center; }
+
+/* ★ 🔊ボタンを青枠（左端）に揃えるためのグリッド設定 */
+.q-cell-grid {
+  display: grid !important;
+  grid-template-columns: 35px 1fr; /* 左端35pxを音声ボタン用に固定 */
+  align-items: center;
+  padding-left: 5px !important;
+  text-align: left;
+}
+
+.audio-btn-fixed {
+  border: none !important;
+  background: none !important;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: auto !important;
+  justify-self: start;
+}
 
 /* --- ヘッダー --- */
 .header-area { display: flex; align-items: center; border-bottom: 2px solid #000; margin-bottom: 10px; padding-bottom: 5px; position: relative; }
 .header-left, .header-right { flex: 1; font-size: 14px; }
 .header-right { text-align: right; font-weight: bold; }
-.test-title { flex: 0 0 auto; text-align: center; margin: 0 20px !important; font-size: 24px !important; color: #1a73e8 !important; white-space: nowrap; }
 
 @media print { .no-print { display: none !important; } .test-paper { box-shadow: none; margin: 0; } }
-
-/* クイズ結果画面のテーブル用 */
-.result-table-container {
-  border: 1px solid #eee;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.result-detail-table th {
-  position: sticky;
-  top: 0;
-  background: #f8f9fa;
-  z-index: 1;
-}
-
-.result-detail-table td {
-  text-align: left;
-}
-
-{/* 修正箇所：display: grid を使い、ボタンの幅を完全に独立させます */}
-<td className="q-cell" style={{
-  display: 'grid', 
-  gridTemplateColumns: '40px 1fr', // 左端40pxを音声ボタン専用、残りを単語に
-  alignItems: 'center',
-  padding: '5px 10px'
-}}>
-  {/* 音声ボタン（青枠の位置） */}
-  <button className="audio-btn no-print" onClick={() => speakEn(d.en)} style={{
-    border: 'none', 
-    background: 'none', 
-    cursor: 'pointer', 
-    fontSize: '16px', 
-    opacity: 0.6,
-    padding: 0,
-    justifySelf: 'start' // セル内の左端にピタッと寄せる
-  }}>
-    🔊
-  </button>
-  
-  {/* 単語テキスト（赤枠から追い出された位置） */}
-  <span style={{
-    textAlign: 'left',
-    wordBreak: 'break-all' // 長い単語でも崩れないように
-  }}>
-    {mode === 'en-ja' ? d.en : d.ja}
-  </span>
-</td>
