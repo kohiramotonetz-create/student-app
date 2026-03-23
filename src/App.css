@@ -45,19 +45,21 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .preview-panel { flex: 1; display: flex; justify-content: center; padding: 20px; overflow-y: auto; }
 .test-paper { width: 210mm; min-height: 297mm; background: #fff; padding: 10mm 15mm; box-shadow: 0 0 10px rgba(0,0,0,0.5); box-sizing: border-box; }
 
-/* --- 紙テストテーブルの完全固定化（これをApp.cssの後半に貼る） --- */
+/* --- 紙テストテーブルの完全固定化 --- */
 .paper-table { 
   width: 100% !important; 
   border-collapse: collapse; 
+  border-spacing: 0;
   margin-top: 10px;
-  table-layout: fixed; /* これと下の50%がセットで線を真っ直ぐにします */
-  border: 1px solid #000;
+  table-layout: fixed; 
+  border: 1px solid #000 !important; /* 枠線を1pxに固定 */
 }
 
 .paper-table td { 
-  border: 1px solid #000; 
-  height: 11.5mm !important; 
-  padding: 0 8px;
+  border: 1px solid #000 !important; 
+  /* 20問を収めるために10.5mmに調整 */
+  height: 10.5mm !important; 
+  padding: 0 !important; /* セルの余白を排除してガタつき防止 */
   vertical-align: middle;
   box-sizing: border-box;
 }
@@ -70,8 +72,36 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 
 /* 番号列の幅 */
 .col-no { 
-  width: 40px !important; 
+  width: 35px !important; 
   text-align: center; 
+  font-weight: bold;
+}
+
+/* 問題列の内部レイアウト（横並びを強制） */
+.q-cell-grid {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+
+/* スピーカーを包むエリア */
+.audio-wrapper {
+  flex: 0 0 30px; /* 幅固定 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 2px; /* ★ここでスピーカーの高さを微調整 */
+}
+
+/* 単語を包むエリア */
+.text-wrapper {
+  flex: 1;
+  text-align: left;
+  padding-left: 5px;
+  display: flex;
+  align-items: center;
 }
 
 /* 音声ボタン */
@@ -81,7 +111,7 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
   cursor: pointer;
   font-size: 14px;
   padding: 0 !important;
-  margin: 5px 0 0 0 !important;
+  margin: 0 !important;
   width: auto !important;
   display: flex;
   align-items: center;
@@ -94,5 +124,10 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 
 @media print { 
   .no-print { display: none !important; } 
-  .test-paper { box-shadow: none; margin: 0; padding: 10mm 15mm !important; width: 210mm; } 
+  .test-paper { 
+    box-shadow: none; 
+    margin: 0; 
+    padding: 8mm 12mm !important; /* 印刷時の余白を微調整 */
+    width: 210mm; 
+  } 
 }
