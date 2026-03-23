@@ -4,7 +4,7 @@
 
 /* --- カード形式のコンテナ --- */
 .login-box, .menu-box, .quiz-container { 
-  background: #000000; 
+  background: #ffffff; 
   padding: 40px; 
   border-radius: 12px; 
   box-shadow: 0 8px 24px rgba(0,0,0,0.12); 
