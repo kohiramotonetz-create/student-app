@@ -68,3 +68,32 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .result-detail-table td {
   text-align: left;
 }
+
+{/* 修正箇所：display: grid を使い、ボタンの幅を完全に独立させます */}
+<td className="q-cell" style={{
+  display: 'grid', 
+  gridTemplateColumns: '40px 1fr', // 左端40pxを音声ボタン専用、残りを単語に
+  alignItems: 'center',
+  padding: '5px 10px'
+}}>
+  {/* 音声ボタン（青枠の位置） */}
+  <button className="audio-btn no-print" onClick={() => speakEn(d.en)} style={{
+    border: 'none', 
+    background: 'none', 
+    cursor: 'pointer', 
+    fontSize: '16px', 
+    opacity: 0.6,
+    padding: 0,
+    justifySelf: 'start' // セル内の左端にピタッと寄せる
+  }}>
+    🔊
+  </button>
+  
+  {/* 単語テキスト（赤枠から追い出された位置） */}
+  <span style={{
+    textAlign: 'left',
+    wordBreak: 'break-all' // 長い単語でも崩れないように
+  }}>
+    {mode === 'en-ja' ? d.en : d.ja}
+  </span>
+</td>
