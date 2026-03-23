@@ -11,7 +11,6 @@ function App() {
   const [step, setStep] = useState('login'); 
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -23,7 +22,6 @@ function App() {
   const [sokudokuData, setSokudokuData] = useState([]);
   const [dragonData, setDragonData] = useState([]);
   const [yumetannData, setYumetannData] = useState([]);
-  // ✅ 高校生古文単語用のステートを追加
   const [kakushinData, setKakushinData] = useState([]);
   const [kobun315Data, setKobun315Data] = useState([]);
 
@@ -36,12 +34,12 @@ function App() {
   const [customSchool, setCustomSchool] = useState(''); 
   const [mode, setMode] = useState('en-ja'); 
   const [testWords, setTestWords] = useState([]);
-  const [rangeText, setRangeText] = useState('');
   const [isFukisokuMode, setIsFukisokuMode] = useState(false);
   const [isKobunMode, setIsKobunMode] = useState(false); 
   const [selectedBook, setSelectedBook] = useState({ name: '', data: [] });
   const [startNo, setStartNo] = useState(1);
   const [endNo, setEndNo] = useState(100);
+  const [selectedParts, setSelectedParts] = useState([]); // ✅ 品詞絞り込み用
   const [showPaperAnswers, setShowPaperAnswers] = useState(false);
 
   const [quizItems, setQuizItems] = useState([]);
@@ -55,11 +53,21 @@ function App() {
     setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setPractice(""); setQuizReview({ visible: false, record: null });
   };
 
+  // ✅ 315古文のデータから存在する品詞を自動抽出
+  const availableParts = useMemo(() => {
+    if (selectedBook.name !== '古文単語315') return [];
+    return [...new Set(selectedBook.data.map(d => d.part))].filter(p => p).sort();
+  }, [selectedBook]);
+
   const sendResultToGAS = (finalAnswers, sheetName) => {
     if (!sheetName || !LOG_GAS_URL) return;
+    const rangeLabel = (selectedBook && selectedBook.name) 
+      ? `No.${startNo}～${endNo}${selectedParts.length > 0 ? `(${selectedParts.join('/')})` : ''}` 
+      : (isKobunMode ? "古文" : (isFukisokuMode ? "不規則" : `${startUnit}${startPart}～${endUnit}${endPart}`));
+
     const payload = {
       action: "saveLog", sheetName, userName,
-      testRange: (selectedBook && selectedBook.name) ? `No.${startNo}～${endNo}` : (isKobunMode ? "古文" : (isFukisokuMode ? "不規則" : `${startUnit}${startPart}～${endUnit}${endPart}`)), 
+      testRange: rangeLabel,
       mode, score: finalAnswers.filter(a => a.ok).length, total: finalAnswers.length,
       percentage: Math.round((finalAnswers.filter(a => a.ok).length / finalAnswers.length) * 100) + "%",
       history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
@@ -72,12 +80,7 @@ function App() {
     if (qIndex + 1 < quizItems.length) {
       setQIndex(qIndex + 1); setQuizReview({ visible: false, record: null }); setCurrentInput(""); setPractice("");
     } else {
-      let determinedSheetName = "";
-      if (selectedBook && selectedBook.name) determinedSheetName = selectedBook.name;
-      else if (isFukisokuMode) determinedSheetName = "英単語（不規則変化）";
-      else if (isKobunMode) determinedSheetName = "古文単語（自習）";
-      else determinedSheetName = "1問ずつテスト(自習)";
-      
+      let determinedSheetName = selectedBook.name || (isFukisokuMode ? "英単語（不規則変化）" : (isKobunMode ? "古文単語（自習）" : "1問ずつテスト(自習)"));
       setStep('quiz-result'); 
       sendResultToGAS(finalAnswers, determinedSheetName);
     }
@@ -85,7 +88,6 @@ function App() {
 
   const submitQuizAnswer = () => {
     const item = quizItems[qIndex];
-    // mode と en/ja の関係は、読み込み時に en=英語(古文)、ja=日本語(現代語訳) となるように統一しています
     const qText = (mode === 'ja-en') ? item.ja : item.en;
     const rawC = (mode === 'ja-en') ? item.en : item.ja;
     const clean = (s) => s ? s.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
@@ -114,36 +116,43 @@ function App() {
         const text = await res.text();
         return new Promise(resolve => Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => resolve(results.data) }));
       };
+      
       const data = await fetchAndParse('/wordlist.csv');
       setAllData(data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
+      
       const dataF = await fetchAndParse('/wordlist-fukisoku.csv');
       setFukisokuData(dataF.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
+      
       const dataK = await fetchAndParse('/wordlist-junior_high_school-kobun.csv');
       setKobunData(dataK.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
+
       const hsFiles = [
         { n: 'target1900.csv', s: setTargetData }, { n: 'target1200.csv', s: setTargetminiData },
         { n: 'sokudoku.csv', s: setSokudokuData }, { n: 'dragon.csv', s: setDragonData }, { n: 'yumetann.csv', s: setYumetannData },
-        // ✅ 高校生古文単語のCSVを追加
         { n: 'kakushin351.csv', s: setKakushinData }, { n: 'kobunn315.csv', s: setKobun315Data },
       ];
+
       for (const f of hsFiles) {
         const d = await fetchAndParse('/' + f.n);
-        // 高校生用CSVは en=英語(古文)、ja=日本語(現代語訳) に統一してマッピング
-        f.s(d.map(x => ({ no: parseInt(x["No"]), en: x["英語"] || x["古文"], ja: x["日本語"] || x["現代語訳"], unit: x["単元"] })).filter(x => x.en));
+        f.s(d.map((x, index) => ({
+          // ✅ ヘッダー柔軟対応
+          no: parseInt(x["No"] || x["問題番号"] || (index + 1)),
+          en: x["古文"] || x["英語"] || x["単語"] || x["en"],
+          ja: x["現代語訳"] || x["日本語訳"] || x["日本語"] || x["ja"],
+          part: x["品詞"] || "", // 品詞情報を取得
+          unit: x["単元"] || ""
+        })).filter(x => x.en));
       }
       setStep('menu');
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
   const handleLogin = async () => {
-    if (!userId || !password) return alert("入力してください");
+    if (!userId) return alert("入力してください");
     setLoading(true);
     try {
-      const response = await axios.post(GAS_URL, JSON.stringify({ action: "login", userId, password }), {
-        headers: { 'Content-Type': 'text/plain' }
-      });
-      if (response.data.result === "success") { setUserName(response.data.name); if (response.data.isInitial) setStep('change-password'); else await loadCsv(); }
-      else alert("認証失敗");
+      const response = await axios.post(GAS_URL, JSON.stringify({ action: "login", userId }), { headers: { 'Content-Type': 'text/plain' } });
+      if (response.data.result === "success") { setUserName(response.data.name); await loadCsv(); } else alert("認証失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
 
@@ -151,14 +160,6 @@ function App() {
     const filtered = [...new Set(allData.filter(d => d.unitGroup.startsWith(selectedGrade)).map(d => d.unitGroup))];
     if (filtered.length > 0) { setStartUnit(filtered[0]); setEndUnit(filtered[0]); }
   }, [selectedGrade, allData]);
-
-  useEffect(() => {
-    if (allData.length === 0) return;
-    const sParts = [...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))];
-    if (sParts.length > 0 && (!startPart || !sParts.includes(startPart))) setStartPart(sParts[0]);
-    const eParts = [...new Set(allData.filter(d => d.unitGroup === endUnit).map(d => d.part))];
-    if (eParts.length > 0 && (!endPart || !eParts.includes(endPart))) setEndPart(eParts[0]);
-  }, [startUnit, endUnit, allData]);
 
   const gradeList = useMemo(() => [...new Set(allData.map(d => d.unitGroup.substring(0, 2)))].sort(), [allData]);
   const filteredUnits = useMemo(() => [...new Set(allData.filter(d => d.unitGroup.startsWith(selectedGrade)).map(d => d.unitGroup))], [allData, selectedGrade]);
@@ -171,7 +172,6 @@ function App() {
         <div className="login-box">
           <h1>生徒単語アプリ</h1>
           <input type="text" placeholder="生徒番号" value={userId} onChange={(e) => setUserId(e.target.value)} />
-          <input type="password" placeholder="パスワード" value={password} onChange={(e) => setPassword(e.target.value)} />
           <button onClick={handleLogin}>ログイン</button>
         </div>
       )}
@@ -184,13 +184,14 @@ function App() {
             <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('test-setup'); }}>📝 英単語テスト作成(紙)</button>
             <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('quiz-setup'); }}>🚀 1問ずつテスト(自習)</button>
             <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(true); setSelectedBook({ name: '', data: [] }); setStep('fukisoku-setup'); }}>🔄 英単語（不規則変化）</button>
-            <button className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => { setIsKobunMode(true); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('kobun-setup'); }}>📚 古文単語（自習）</button>
-            <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生英単語</button>
+            <button className="nav-btn" onClick={() => { setIsKobunMode(true); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('kobun-setup'); }}>📚 古文単語（自習）</button>
+            <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生モード</button>
           </div>
           <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
         </div>
       )}
 
+      {/* --- テスト作成 (紙) --- */}
       {step === 'test-setup' && (
         <div className="test-builder-layout">
           <div className="settings-panel no-print">
@@ -214,9 +215,9 @@ function App() {
               const sIdx = allData.findIndex(d => d.key === sKey); const eIdx = allData.findLastIndex(d => d.key === eKey);
               if (sIdx === -1 || eIdx === -1) return alert("範囲外");
               const range = allData.slice(Math.min(sIdx, eIdx), Math.max(sIdx, eIdx) + 1);
-              setTestWords([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); setRangeText(`範囲: ${sKey} ～ ${eKey}`);
-            }}>🔄 問題作成（＆ランダム）</button>
-            <button className="nav-btn" style={{backgroundColor: '#17a2b8'}} onClick={() => setShowPaperAnswers(!showPaperAnswers)}>👁 {showPaperAnswers ? "解答を隠す" : "解答を表示"}</button>
+              setTestWords([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT));
+            }}>🔄 問題作成</button>
+            <button className="nav-btn" style={{backgroundColor: '#17a2b8'}} onClick={() => setShowPaperAnswers(!showPaperAnswers)}>👁 {showPaperAnswers ? "解答隠す" : "解答表示"}</button>
             <button className="nav-btn" style={{backgroundColor: '#28a745'}} onClick={() => window.print()}>🖨 印刷</button>
             <button className="secondary" onClick={() => setStep('menu')}>戻る</button>
           </div>
@@ -233,6 +234,7 @@ function App() {
         </div>
       )}
 
+      {/* --- 自習クイズ設定 --- */}
       {step === 'quiz-setup' && (
         <div className="quiz-container">
           <h2>🚀 クイズ設定</h2>
@@ -258,6 +260,7 @@ function App() {
         </div>
       )}
 
+      {/* --- 不規則・古文設定 --- */}
       {(step === 'fukisoku-setup' || step === 'kobun-setup') && (
         <div className="quiz-container">
           <h2>🚀 {isFukisokuMode ? "不規則変化" : "古文単語"} 設定</h2>
@@ -276,21 +279,83 @@ function App() {
         </div>
       )}
 
+      {/* --- 高校生メニュー --- */}
+      {step === 'highschool-menu' && (
+        <div className="menu-box">
+          <h1>🎓 高校生モード</h1>
+          <div style={{marginBottom:'20px'}}>
+            <h3 style={{color:'#333', marginBottom:'10px'}}>🎓 高校生英単語</h3>
+            <div className="button-grid">
+              {[{ n: 'ターゲット1900', d: targetData }, { n: 'ターゲット1200', d: targetminiData }, { n: '速読英単語', d: sokudokuData }, { n: 'ドラゴンイングリッシュ', d: dragonData }, { n: 'ユメタン', d: yumetannData }].map((b) => (
+                <button key={b.n} className="nav-btn" onClick={() => { setIsKobunMode(false); setSelectedBook({name:b.n, data:b.d}); setStartNo(1); setEndNo(Math.min(b.d.length, 100)); setStep('highschool-setup'); }}>{b.n}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{marginTop:'20px', borderTop:'2px dashed #eee', paddingTop:'10px'}}>
+            <h3 style={{color:'#333', marginBottom:'10px'}}>📚 高校生古文単語</h3>
+            <div className="button-grid">
+              {[{ n: '核心古文単語351', d: kakushinData }, { n: '古文単語315', d: kobun315Data }].map((b) => (
+                <button key={b.n} className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => { setIsKobunMode(true); setSelectedBook({name:b.n, data:b.d}); setStartNo(1); setEndNo(Math.min(b.d.length, 100)); setStep('highschool-setup'); }}>{b.n}</button>
+              ))}
+            </div>
+          </div>
+          <button className="secondary" style={{marginTop:'20px'}} onClick={() => setStep('menu')}>戻る</button>
+        </div>
+      )}
+
+      {/* --- 高校生設定 --- */}
+      {step === 'highschool-setup' && (
+        <div className="quiz-container">
+          <h2>🚀 {selectedBook.name}</h2>
+          <div className="config-group">
+            <label>形式:</label>
+            <select value={mode} onChange={(e) => setMode(e.target.value)}>
+              <option value="en-ja">{isKobunMode ? "古文→現代語訳" : "英語→日本語"}</option>
+              <option value="ja-en">{isKobunMode ? "現代語訳→古文" : "日本語→英語"}</option>
+            </select>
+            <label>範囲(No.):</label>
+            <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+              <input type="number" value={startNo} onChange={(e) => setStartNo(Number(e.target.value))} style={{width:'80px'}} />〜<input type="number" value={endNo} onChange={(e) => setEndNo(Number(e.target.value))} style={{width:'80px'}} />
+            </div>
+
+            {/* ✅ 315古文のみ品詞ボタンを表示 */}
+            {selectedBook.name === '古文単語315' && availableParts.length > 0 && (
+              <div style={{marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px'}}>
+                <label>品詞絞り込み (複数可):</label>
+                <div style={{display:'flex', flexWrap:'wrap', gap:'5px', marginTop:'5px'}}>
+                  {availableParts.map(part => (
+                    <button key={part} onClick={() => setSelectedParts(prev => prev.includes(part) ? prev.filter(p => p !== part) : [...prev, part])}
+                      style={{ padding: '5px 10px', fontSize: '12px', borderRadius: '4px', border: '1px solid #6f42c1', cursor: 'pointer',
+                        backgroundColor: selectedParts.includes(part) ? '#6f42c1' : 'white', color: selectedParts.includes(part) ? 'white' : '#6f42c1' }}>{part}</button>
+                  ))}
+                </div>
+                {selectedParts.length > 0 && <button onClick={() => setSelectedParts([])} style={{fontSize:'11px', color:'gray', background:'none', border:'none', marginTop:'5px', cursor:'pointer'}}>全解除</button>}
+              </div>
+            )}
+          </div>
+          <button className="nav-btn" onClick={() => {
+            let range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo);
+            if (selectedBook.name === '古文単語315' && selectedParts.length > 0) range = range.filter(d => selectedParts.includes(d.part));
+            if(range.length === 0) return alert("該当なし");
+            resetQuizState(); setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); setStep('quiz-main');
+          }}>スタート！</button>
+          <button className="secondary" onClick={() => { setStep('highschool-menu'); setSelectedParts([]); }}>戻る</button>
+        </div>
+      )}
+
+      {/* --- クイズ実行画面 --- */}
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
-          <div className="q-display-box" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'center', background: 'white', border: 'none', overflow: 'hidden', marginBottom: '20px', height: '100px' }}>
-            {/* 古文モード（中学生・高校生含む）以外、かつ英→日の時のみ音声を表示 */}
+          <div className="q-display-box" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'center', background: 'white', border: 'none', height: '100px', marginBottom: '20px' }}>
             {mode === 'en-ja' && !isKobunMode && (
-              <div className="q-audio-area" style={{ flex: '0 0 70px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'white' }}>
-                <button className="audio-btn" onClick={() => speakEn(quizItems[qIndex].en)} style={{ fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', opacity: '0.6' }}>🔊</button>
+              <div className="q-audio-area" style={{ flex: '0 0 70px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <button className="audio-btn" onClick={() => speakEn(quizItems[qIndex].en)} style={{ fontSize: '18px', background: 'none', border: 'none', opacity: '0.6' }}>🔊</button>
               </div>
             )}
             <div className="q-word-area" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               {(mode === 'en-ja' && !isKobunMode) && <div style={{position:'absolute', left:0, top:'15px', bottom:'15px', width:'1px', background:'#eee'}}></div>}
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#444' }}>
-                {mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}
-              </div>
+              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#444' }}>{mode === 'ja-en' ? quizItems[qIndex].ja : quizItems[qIndex].en}</div>
             </div>
           </div>
           <input className="q-input" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} autoFocus placeholder="答えを入力..." />
@@ -304,59 +369,7 @@ function App() {
         </div>
       )}
 
-      {step === 'highschool-menu' && (
-        <div className="menu-box">
-          <h1>🎓 高校生モード</h1>
-          {/* ✅ 英単語セクション */}
-          <div style={{marginBottom:'20px'}}>
-            <h3 style={{color:'#333', marginBottom:'10px'}}>🎓 高校生英単語</h3>
-            <div className="button-grid">
-              {[
-                { n: 'ターゲット1900', d: targetData }, { n: 'ターゲット1200', d: targetminiData },
-                { n: '速読英単語', d: sokudokuData }, { n: 'ドラゴンイングリッシュ', d: dragonData }, { n: 'ユメタン', d: yumetannData }
-              ].map((b) => (
-                <button key={b.n} className="nav-btn" onClick={() => { setIsKobunMode(false); setSelectedBook({name:b.n, data:b.d}); setStartNo(1); setEndNo(Math.min(b.d.length, 100)); setStep('highschool-setup'); }}>{b.n}</button>
-              ))}
-            </div>
-          </div>
-          
-          {/* ✅ 古文単語セクション（追加） */}
-          <div style={{marginTop:'20px', borderTop:'2px dashed #eee', paddingTop:'10px'}}>
-            <h3 style={{color:'#333', marginBottom:'10px'}}>📚 高校生古文単語</h3>
-            <div className="button-grid">
-              {[
-                { n: '核心古文単語351', d: kakushinData },
-                { n: '古文単語315', d: kobun315Data }
-              ].map((b) => (
-                <button key={b.n} className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => { setIsKobunMode(true); setSelectedBook({name:b.n, data:b.d}); setStartNo(1); setEndNo(Math.min(b.d.length, 100)); setStep('highschool-setup'); }}>{b.n}</button>
-              ))}
-            </div>
-          </div>
-          <button className="secondary" style={{marginTop:'20px'}} onClick={() => setStep('menu')}>戻る</button>
-        </div>
-      )}
-
-      {step === 'highschool-setup' && (
-        <div className="quiz-container">
-          <h2>🚀 {selectedBook.name}</h2>
-          <div className="config-group">
-            <label>形式:</label>
-            <select value={mode} onChange={(e) => setMode(e.target.value)}>
-              <option value="en-ja">{isKobunMode ? "古文→現代語訳" : "英語→日本語"}</option>
-              <option value="ja-en">{isKobunMode ? "現代語訳→古文" : "日本語→英語"}</option>
-            </select>
-            <label>範囲(No.):</label>
-            <div style={{display:'flex', gap:'10px'}}><input type="number" value={startNo} onChange={(e) => setStartNo(Number(e.target.value))} />〜<input type="number" value={endNo} onChange={(e) => setEndNo(Number(e.target.value))} /></div>
-          </div>
-          <button className="nav-btn" onClick={() => {
-            const range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo);
-            if(range.length === 0) return alert("範囲内に単語がありません");
-            resetQuizState(); setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); setStep('quiz-main');
-          }}>スタート！</button>
-          <button className="secondary" onClick={() => setStep('highschool-menu')}>戻る</button>
-        </div>
-      )}
-
+      {/* --- 結果表示 --- */}
       {step === 'quiz-result' && (
         <div className="quiz-container">
           <h2>結果発表</h2>
