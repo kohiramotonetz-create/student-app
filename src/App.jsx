@@ -52,6 +52,7 @@ function App() {
     setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setPractice(""); setQuizReview({ visible: false, record: null });
   };
 
+  // スプレッドシート送信も text/plain 形式に統一
   const sendResultToGAS = (finalAnswers, sheetName) => {
     if (!sheetName || !LOG_GAS_URL) return;
     const payload = {
@@ -117,7 +118,7 @@ function App() {
     } catch (e) { console.error(e); }
   };
 
-  // ✅ ログイン：JSON形式 + text/plain ヘッダーに完全復旧
+  // ✅ ログイン：JSON.stringify + text/plain 形式に完全固定
   const handleLogin = async () => {
     if (!userId || !password) return alert("入力してください");
     setLoading(true);
@@ -198,6 +199,10 @@ function App() {
               <div className="grade-selector">{gradeList.map(g => (<button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>))}</div>
               <label>形式:</label>
               <select value={mode} onChange={(e) => setMode(e.target.value)}><option value="en-ja">英語→日本語</option><option value="ja-en">日本語→英語</option></select>
+              <label>学校名:</label>
+              <select value={school} onChange={(e) => setSchool(e.target.value)}><option value="木太中">木太中</option><option value="玉藻中">玉藻中</option><option value="桜町中">桜町中</option><option value="附属中">附属中</option><option value="custom">-- 直接入力 --</option></select>
+              {school === 'custom' && <input type="text" value={customSchool} onChange={(e) => setCustomSchool(e.target.value)} placeholder="学校名を入力" />}
+              
               <label>範囲:</label>
               <div style={{display:'flex', gap:'5px'}}><select value={startUnit} onChange={(e) => setStartUnit(e.target.value)}>{filteredUnits.map(u => <option key={u} value={u}>{u}</option>)}</select>
               <select value={startPart} onChange={(e) => setStartPart(e.target.value)}>{[...new Set(allData.filter(d => d.unitGroup === startUnit).map(d => d.part))].map(p => <option key={p} value={p}>{p}</option>)}</select></div>
@@ -207,6 +212,7 @@ function App() {
             <button className="nav-btn" onClick={() => {
               const sKey = startUnit + startPart; const eKey = endUnit + endPart;
               const sIdx = allData.findIndex(d => d.key === sKey); const eIdx = allData.findLastIndex(d => d.key === eKey);
+              if (sIdx === -1 || eIdx === -1) return alert("範囲外");
               const range = allData.slice(Math.min(sIdx, eIdx), Math.max(sIdx, eIdx) + 1);
               setTestWords([...range].sort(() => 0.5 - Math.random()).slice(0, 20)); setRangeText(`範囲: ${sKey} ～ ${eKey}`);
             }}>🔄 生成</button>
@@ -216,13 +222,15 @@ function App() {
           </div>
           <div className="preview-panel">
             <div className="test-paper">
-              <div className="header-area"><h1>英単語テスト</h1><div className="header-right">{school === 'custom' ? customSchool : school}</div></div>
+              {/* 学校名表示の修正 */}
+              <div className="header-area"><div className="header-left">氏名 ____________________</div><h1>英単語テスト</h1><div className="header-right">{school === 'custom' ? customSchool : school}</div></div>
+              <p style={{fontSize:'12px', textAlign:'center', margin:'5px 0'}}>{rangeText}</p>
               <table className="paper-table">
                 <tbody>{testWords.map((d, i) => (<tr key={i}><td className="col-no">{i + 1}</td>
-                <td className="q-cell" style={{position:'relative', paddingLeft:'40px'}}>
-                  {/* 赤印：セルの左端に音声ボタンを一列に揃える */}
-                  <button className="audio-btn no-print" onClick={() => speakEn(d.en)} style={{position:'absolute', left:'10px', top:'50%', transform:'translateY(-50%)', border:'none', background:'none', cursor:'pointer', fontSize:'14px', opacity:0.6}}>🔊</button>
-                  {mode === 'en-ja' ? d.en : d.ja}
+                {/* 配置修正：[音声ボタン] [単語] の順で左端に揃える */}
+                <td className="q-cell" style={{display:'flex', alignItems:'center'}}>
+                  <button className="audio-btn no-print" onClick={() => speakEn(d.en)} style={{width:'30px', border:'none', background:'none', cursor:'pointer', fontSize:'14px', opacity:0.6, textAlign:'left'}}>🔊</button>
+                  <span style={{flex:1}}>{mode === 'en-ja' ? d.en : d.ja}</span>
                 </td>
                 <td className="a-cell" style={{width:'250px'}}>{showPaperAnswers ? (mode === 'en-ja' ? d.ja : d.en) : ""}</td></tr>))}</tbody>
               </table>
@@ -254,7 +262,6 @@ function App() {
         <div className="quiz-container">
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
           
-          {/* レイアウト：背景白、単語周りの枠なし、音声専用スペースあり */}
           <div className="q-display-box" style={{
             display: 'flex', alignItems: 'stretch', justifyContent: 'center', 
             background: 'white', border: '1px solid #ddd', borderRadius: '12px', 
