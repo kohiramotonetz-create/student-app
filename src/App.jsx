@@ -129,7 +129,15 @@ function App() {
   const speakEn = (text) => {
     if (isKobunMode || !text) return; 
     window.speechSynthesis.cancel();
-    const uttr = new SpeechSynthesisUtterance(text); uttr.lang = 'en-US'; uttr.rate = 0.9;
+    const uttr = new SpeechSynthesisUtterance(text);
+    
+    // 利用可能な音声リストを取得し、英語の音声を探してセットする
+    const voices = window.speechSynthesis.getVoices();
+    const enVoice = voices.find(v => v.lang.startsWith('en')) || voices.find(v => v.lang.includes('en'));
+    if (enVoice) uttr.voice = enVoice;
+
+    uttr.lang = 'en-US'; 
+    uttr.rate = 0.9;
     window.speechSynthesis.speak(uttr);
   };
 
