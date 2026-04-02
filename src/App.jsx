@@ -233,7 +233,7 @@ function App() {
       {step === 'menu' && (
         <div className="menu-box">
           <h1>メニュー</h1>
-          <p>ようこそ {userName} 先生</p>
+          <p>ようこそ {userName} さん</p>
           <div className="button-grid">
             <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('test-setup'); }}>📝 英単語テスト作成(紙)</button>
             <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('quiz-setup'); }}>🚀 1問ずつテスト(自習)</button>
