@@ -137,29 +137,33 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
     width: 210mm; 
   } 
 }
-/* 通信中のオーバーレイを画面中央にポップアップ表示 */
+/* 通信中のオーバーレイ（背景を暗くする） */
 .loading-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5); /* 画面を少し暗くする */
+  background-color: rgba(0, 0, 0, 0.6); /* 背景を少し暗く */
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 9999; /* 一番手前に表示 */
-  color: white;
-  font-size: 20px;
+  z-index: 9999;
+  color: #333; /* 文字色を濃いグレーに */
+  font-size: 18px;
   font-weight: bold;
 }
 
-/* さらに「ポップアップ感」を出すための装飾（任意） */
-.loading-overlay::after {
-  content: "通信中...";
+/* ポップアップの白い箱を作る設定 */
+.loading-overlay::before {
+  content: "";
+  position: absolute;
+  width: 180px; /* 箱の幅 */
+  height: 80px;  /* 箱の高さ */
   background: white;
-  color: #333;
-  padding: 20px 40px;
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  z-index: -1; /* 文字の裏に配置 */
 }
+
+/* ★もしCSSに .loading-overlay::after が残っていたら、それは削除してください！ */
