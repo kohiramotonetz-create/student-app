@@ -1,6 +1,6 @@
 {
-  "short_name": "生徒単語",
-  "name": "生徒単語アプリ",
+  "short_name": "スキマくん",
+  "name": "スキマくん",
   "display": "standalone",
   "start_url": "/",
   "theme_color": "#1a73e8",
