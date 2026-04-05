@@ -1,20 +1,16 @@
 {
   "short_name": "生徒単語",
   "name": "生徒単語アプリ",
+  "display": "standalone",
+  "start_url": "/",
+  "theme_color": "#1a73e8",
+  "background_color": "#ffffff",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/icon-1024.png",
       "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "/icon-512.png",
-      "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "192x192 512x512 1024x1024",
+      "purpose": "any"
     }
-  ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#1a73e8",
-  "background_color": "#ffffff"
+  ]
 }
