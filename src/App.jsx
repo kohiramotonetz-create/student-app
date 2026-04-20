@@ -25,6 +25,11 @@ function App() {
   const [yumetannData, setYumetannData] = useState([]);
   const [kakushinData, setKakushinData] = useState([]);
   const [kobun315Data, setKobun315Data] = useState([]);
+  const [kikutanData, setKikutanData] = useState([]);
+  const [irohaData, setIrohaData] = useState([]);
+  const [kobun325Data, setKobun325Data] = useState([]);
+  const [formulaData, setFormulaData] = useState([]);
+
   // ✅ 書き単用のステート追加
   const [kakitanData, setKakitanData] = useState([]);
   const [startDay, setStartDay] = useState('DAY1');
@@ -171,6 +176,8 @@ function App() {
         { n: 'target1900.csv', s: setTargetData }, { n: 'target1200.csv', s: setTargetminiData },
         { n: 'sokudoku.csv', s: setSokudokuData }, { n: 'dragon.csv', s: setDragonData }, { n: 'yumetann.csv', s: setYumetannData },
         { n: 'kakushin351.csv', s: setKakushinData }, { n: 'kobunn315.csv', s: setKobun315Data },
+        { n: 'kikutan_j2.csv', s: setKikutanData },   { n: 'iroha.csv', s: setIrohaData },
+        { n: 'kobun325.csv', s: setKobun325Data },    { n: 'formula600.csv', s: setFormulaData },
       ];
       for (const f of hsFiles) {
         const d = await fetchAndParse('/' + f.n);
@@ -394,7 +401,7 @@ function App() {
           <div style={{marginBottom:'20px'}}>
             <h3 style={{color:'#333', marginBottom:'10px'}}>🎓 高校生英単語</h3>
             <div className="button-grid">
-              {[{ n: 'ターゲット1900', d: targetData }, { n: 'ターゲット1200', d: targetminiData }, { n: '速読英単語', d: sokudokuData }, { n: 'ドラゴンイングリッシュ', d: dragonData }, { n: 'ユメタン', d: yumetannData }].map((b) => (
+              {[{ n: 'ターゲット1900', d: targetData }, { n: 'ターゲット1200', d: targetminiData }, { n: '速読英単語', d: sokudokuData }, { n: 'ドラゴンイングリッシュ', d: dragonData }, { n: 'ユメタン', d: yumetannData },].map((b) => (
                 <button key={b.n} className="nav-btn" onClick={() => { setIsKobunMode(false); setSelectedBook({name:b.n, data:b.d}); setStartNo(1); setEndNo(Math.min(b.d.length, 100)); setStep('highschool-setup'); }}>{b.n}</button>
               ))}
             </div>
@@ -402,7 +409,7 @@ function App() {
           <div style={{marginTop:'20px', borderTop:'2px dashed #eee', paddingTop:'10px'}}>
             <h3 style={{color:'#333', marginBottom:'10px'}}>📚 高校生古文単語</h3>
             <div className="button-grid">
-              {[{ n: '核心古文単語351', d: kakushinData }, { n: '古文単語315', d: kobun315Data }].map((b) => (
+              {[{ n: '核心古文単語351', d: kakushinData }, { n: '古文単語315', d: kobun315Data }, { n: 'いろはにほへと', d: irohaData },{ n: '古文325', d: kobun325Data },{ n: 'FORMULA600', d: formulaData }].map((b) => (
                 <button key={b.n} className="nav-btn" style={{ backgroundColor: '#6f42c1', color: 'white' }} onClick={() => { setIsKobunMode(true); setSelectedBook({name:b.n, data:b.d}); setStartNo(1); setEndNo(Math.min(b.d.length, 100)); setStep('highschool-setup'); }}>{b.n}</button>
               ))}
             </div>
