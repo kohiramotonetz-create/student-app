@@ -116,7 +116,6 @@ function App() {
 
   const submitQuizAnswer = () => {
     const item = quizItems[qIndex];
-    // 書き単の場合は品詞を問題に含める（そのまま維持）
     const prefix = (selectedBook.name === '書き単') ? `[${item.part}] ` : "";
     const qText = prefix + ((mode === 'ja-en') ? item.ja : item.en);
     const rawC = (mode === 'ja-en') ? item.en : item.ja;
@@ -124,16 +123,18 @@ function App() {
     // お掃除関数：記号や空白を消す
     const clean = (s) => s ? s.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
 
-    // カッコとその中身を取り除く関数（全角・半角両対応）
+    // カッコとその中身を取り除く関数
     const removeParentheses = (s) => s ? s.replace(/\（.*?\）|\(.*?\)/g, "") : "";
 
-    // スラッシュ（全角・半角）で区切って判定
+    // ユーザーの入力を先にお掃除
+    const userInput = clean(currentInput);
+
+    // スラッシュで区切って判定
     const isCorrect = rawC.split(/[/／]/).some(ans => {
-      const userInput = clean(currentInput);
-      const correctAns = clean(ans);
+      // ✅ 修正ポイント：CSV側の各選択肢からもスペースや記号を消してから比較する
+      const correctAns = clean(ans); 
       const correctAnsNoParen = clean(removeParentheses(ans)); 
 
-      // 「そのまま一致」or「カッコなしで一致」なら正解
       return userInput === correctAns || (correctAnsNoParen !== "" && userInput === correctAnsNoParen);
     });
 
