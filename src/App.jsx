@@ -401,7 +401,7 @@ function App() {
           <div style={{marginBottom:'20px'}}>
             <h3 style={{color:'#333', marginBottom:'10px'}}>🎓 高校生英単語</h3>
             <div className="button-grid">
-              {[{ n: 'ターゲット1900', d: targetData }, { n: 'ターゲット1200', d: targetminiData }, { n: '速読英単語', d: sokudokuData }, { n: 'ドラゴンイングリッシュ', d: dragonData }, { n: 'ユメタン', d: yumetannData },].map((b) => (
+              {[{ n: 'ターゲット1900', d: targetData }, { n: 'ターゲット1200', d: targetminiData }, { n: '速読英単語', d: sokudokuData }, { n: 'ドラゴンイングリッシュ', d: dragonData }, { n: 'ユメタン', d: yumetannData },{ n: 'キクタン準2級', d: kikutanData },].map((b) => (
                 <button key={b.n} className="nav-btn" onClick={() => { setIsKobunMode(false); setSelectedBook({name:b.n, data:b.d}); setStartNo(1); setEndNo(Math.min(b.d.length, 100)); setStep('highschool-setup'); }}>{b.n}</button>
               ))}
             </div>
