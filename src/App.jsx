@@ -121,7 +121,7 @@ function App() {
     const qText = prefix + ((mode === 'ja-en') ? item.ja : item.en);
     const rawC = (mode === 'ja-en') ? item.en : item.ja;
     const clean = (s) => s ? s.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
-    const isCorrect = rawC.split('/').some(ans => clean(currentInput) === clean(ans));
+    const isCorrect = rawC.split(/[/／]/).some(ans => clean(currentInput) === clean(ans));
     const record = { q: qText, a: currentInput, correct: rawC, en: item.en || "", ok: isCorrect, rawItem: item };
     setQuizAnswers(prev => [...prev, record]); setQuizReview({ visible: true, record });
   };
