@@ -222,9 +222,9 @@ function App() {
       password 
       };
 
-      const response = await axios.post(GAS_URL, JSON.stringify({ action: "login", userId, password }), {
-        headers: { 'Content-Type': 'text/plain' }
-      });
+      const response = await axios.post(GAS_URL, JSON.stringify(payload), { // ← payload を使う
+  　　headers: { 'Content-Type': 'text/plain' }
+});
       if (response.data.result === "success") { 
         setUserName(response.data.name); 
         if (response.data.isInitial) setStep('change-password');
@@ -246,9 +246,9 @@ function App() {
       newPassword 
     };
 
-      const response = await axios.post(GAS_URL, JSON.stringify({ action: "changePassword", userId, newPassword }), {
-        headers: { 'Content-Type': 'text/plain' }
-      });
+      const response = await axios.post(GAS_URL, JSON.stringify(payload), { // ← payload を使う
+  　　headers: { 'Content-Type': 'text/plain' }
+　　　});
       if (response.data.result === "success") { alert("更新完了"); setStep('menu'); await loadCsv(); }
       else alert("更新失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
