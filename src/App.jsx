@@ -5,6 +5,7 @@ import './App.css'
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
+const API_KEY = import.meta.env.VITE_API_KEY; // ← これを追加
 const QUESTION_COUNT = 20;
 
 function App() {
@@ -213,6 +214,14 @@ function App() {
     if (!userId || !password) return alert("入力してください");
     setLoading(true);
     try {
+      // payloadにapiKeyを追加
+      const payload = { 
+      apiKey: API_KEY, // ← 追加
+      action: "login", 
+      userId, 
+      password 
+      };
+
       const response = await axios.post(GAS_URL, JSON.stringify({ action: "login", userId, password }), {
         headers: { 'Content-Type': 'text/plain' }
       });
@@ -229,6 +238,14 @@ function App() {
     if (!newPassword) return alert("入力してください");
     setLoading(true);
     try {
+      // payloadにapiKeyを追加
+      const payload = { 
+      apiKey: API_KEY, // ← 追加
+      action: "changePassword", 
+      userId, 
+      newPassword 
+    };
+
       const response = await axios.post(GAS_URL, JSON.stringify({ action: "changePassword", userId, newPassword }), {
         headers: { 'Content-Type': 'text/plain' }
       });
