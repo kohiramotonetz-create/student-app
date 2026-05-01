@@ -53,6 +53,103 @@ function App() {
   const [selectedParts, setSelectedParts] = useState([]); 
   const [showPaperAnswers, setShowPaperAnswers] = useState(false);
 
+  // 2. loadCsv をここに移動（useEffectより先に定義する）
+  const loadCsv = async () => {
+    setLoading(true);
+    try {
+      const fetchAndParse = async (url) => {
+        const res = await fetch(url + '?v=' + new Date().getTime());
+        const text = await res.text();
+        return new Promise(resolve => Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => resolve(results.data) }));
+      };
+      const data = await fetchAndParse('/wordlist.csv');
+      setAllData(data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
+      const dataF = await fetchAndParse('/wordlist-fukisoku.csv');
+      setFukisokuData(dataF.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
+      const dataK = await fetchAndParse('/wordlist-junior_high_school-kobun.csv');
+      setKobunData(dataK.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
+      
+      // ✅ 書き単CSV読み込み
+      const dataKakitan = await fetchAndParse('/kakitan1000.csv');
+      setKakitanData(dataKakitan.map(d => ({
+        en: d["英単語"],
+        pron: d["発音"],
+        part: d["品詞"],
+        ja: d["日本語訳"],
+        detailPron: d["細かい発音"],
+        unit: d["単元"]
+      })).filter(d => d.en));
+
+      const hsFiles = [
+        { n: 'target1900.csv', s: setTargetData }, { n: 'target1200.csv', s: setTargetminiData },
+        { n: 'sokudoku.csv', s: setSokudokuData }, { n: 'dragon.csv', s: setDragonData }, { n: 'yumetann.csv', s: setYumetannData },
+        { n: 'kakushin351.csv', s: setKakushinData }, { n: 'kobunn315.csv', s: setKobun315Data },
+        { n: 'kikutan_j2.csv', s: setKikutanData },   { n: 'iroha.csv', s: setIrohaData },
+        { n: 'kobun325.csv', s: setKobun325Data },    { n: 'formula600.csv', s: setFormulaData },
+      ];
+      for (const f of hsFiles) {
+        const d = await fetchAndParse('/' + f.n);
+        f.s(d.map((x, index) => ({
+          no: parseInt(x["No"] || x["問題番号"] || (index + 1)),
+          en: x["古文"] || x["英語"] || x["単語"] || x["en"],
+          ja: x["現代語訳"] || x["日本語訳"] || x["日本語"] || x["ja"],
+          part: x["品詞"] || "", unit: x["単元"] || ""
+        })).filter(x => x.en));
+      }
+      setStep('menu');
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
+
+  // 自動ログイン（SSO）用のエフェクト
+  useEffect(() => {
+    const initAuth = async () => {
+      // URLの後ろについている ?uid=...&tk=... を読み取る
+      const params = new URLSearchParams(window.location.search);
+      const uid = params.get('uid');
+      const tk = params.get('tk');
+
+      // 両方そろっている時だけ自動ログインを実行
+      if (uid && tk) {
+        setLoading(true);
+        try {
+          const payload = {
+            apiKey: API_KEY,
+            action: "validateToken",
+            userId: uid,
+            token: tk
+          };
+
+          const response = await axios.post(GAS_URL, JSON.stringify(payload), {
+            headers: { 'Content-Type': 'text/plain' }
+          });
+
+          if (response.data.result === "success") {
+            // GASがOKと言ったら、ユーザー情報をセットしてログイン状態にする
+            setUserId(uid);
+            setUserName(response.data.name);
+            if (response.data.school) setSchool(response.data.school);
+            
+            // パラメータをURLから消す（リロード対策）
+            window.history.replaceState({}, '', window.location.pathname);
+            
+            // メニューに進むためにCSVを読み込む
+            await loadCsv(); 
+          } else {
+            console.error("自動ログイン失敗:", response.data.message);
+          }
+        } catch (e) {
+          console.error("SSO通信エラー:", e);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    initAuth();
+  }, []); // 最初の1回だけ実行
+
+// --- ここまで貼り付け ---
+
   const [quizItems, setQuizItems] = useState([]);
   const [qIndex, setQIndex] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState([]);
@@ -162,52 +259,6 @@ function App() {
     uttr.lang = 'en-US'; 
     uttr.rate = 0.9;
     window.speechSynthesis.speak(uttr);
-  };
-
-  const loadCsv = async () => {
-    setLoading(true);
-    try {
-      const fetchAndParse = async (url) => {
-        const res = await fetch(url + '?v=' + new Date().getTime());
-        const text = await res.text();
-        return new Promise(resolve => Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => resolve(results.data) }));
-      };
-      const data = await fetchAndParse('/wordlist.csv');
-      setAllData(data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
-      const dataF = await fetchAndParse('/wordlist-fukisoku.csv');
-      setFukisokuData(dataF.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
-      const dataK = await fetchAndParse('/wordlist-junior_high_school-kobun.csv');
-      setKobunData(dataK.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
-      
-      // ✅ 書き単CSV読み込み
-      const dataKakitan = await fetchAndParse('/kakitan1000.csv');
-      setKakitanData(dataKakitan.map(d => ({
-        en: d["英単語"],
-        pron: d["発音"],
-        part: d["品詞"],
-        ja: d["日本語訳"],
-        detailPron: d["細かい発音"],
-        unit: d["単元"]
-      })).filter(d => d.en));
-
-      const hsFiles = [
-        { n: 'target1900.csv', s: setTargetData }, { n: 'target1200.csv', s: setTargetminiData },
-        { n: 'sokudoku.csv', s: setSokudokuData }, { n: 'dragon.csv', s: setDragonData }, { n: 'yumetann.csv', s: setYumetannData },
-        { n: 'kakushin351.csv', s: setKakushinData }, { n: 'kobunn315.csv', s: setKobun315Data },
-        { n: 'kikutan_j2.csv', s: setKikutanData },   { n: 'iroha.csv', s: setIrohaData },
-        { n: 'kobun325.csv', s: setKobun325Data },    { n: 'formula600.csv', s: setFormulaData },
-      ];
-      for (const f of hsFiles) {
-        const d = await fetchAndParse('/' + f.n);
-        f.s(d.map((x, index) => ({
-          no: parseInt(x["No"] || x["問題番号"] || (index + 1)),
-          en: x["古文"] || x["英語"] || x["単語"] || x["en"],
-          ja: x["現代語訳"] || x["日本語訳"] || x["日本語"] || x["ja"],
-          part: x["品詞"] || "", unit: x["単元"] || ""
-        })).filter(x => x.en));
-      }
-      setStep('menu');
-    } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
   const handleLogin = async () => {
