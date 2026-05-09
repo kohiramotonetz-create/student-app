@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import axios from 'axios'
 import Papa from 'papaparse'
 import './App.css'
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
-const API_KEY = import.meta.env.VITE_API_KEY; // ← これを追加
+const API_KEY = import.meta.env.VITE_API_KEY;
 const QUESTION_COUNT = 20;
 
 function App() {
@@ -53,7 +53,17 @@ function App() {
   const [selectedParts, setSelectedParts] = useState([]); 
   const [showPaperAnswers, setShowPaperAnswers] = useState(false);
 
-  // 2. loadCsv をここに移動（useEffectより先に定義する）
+  // --- 漢字テスト用のステート（App関数の内側へ移動） ---
+  const [kanjiList, setKanjiList] = useState([]);
+  const [selectedKanjiIds, setSelectedKanjiIds] = useState([]);
+  const [kanjiMode, setKanjiMode] = useState('page'); 
+  const [selectedText, setSelectedText] = useState(''); 
+  const [startPage, setStartPage] = useState('');
+  const [endPage, setEndPage] = useState('');
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [strokes, setStrokes] = useState([]); 
+
   const loadCsv = async () => {
     setLoading(true);
     try {
@@ -69,7 +79,6 @@ function App() {
       const dataK = await fetchAndParse('/wordlist-junior_high_school-kobun.csv');
       setKobunData(dataK.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
       
-      // ✅ 書き単CSV読み込み
       const dataKakitan = await fetchAndParse('/kakitan1000.csv');
       setKakitanData(dataKakitan.map(d => ({
         en: d["英単語"],
@@ -79,6 +88,15 @@ function App() {
         detailPron: d["細かい発音"],
         unit: d["単元"]
       })).filter(d => d.en));
+
+      // ✅ 漢字リストCSV読み込み（新しいヘッダー対応）
+      const dataKanji = await fetchAndParse('/kanjilist.csv');
+      setKanjiList(dataKanji.map(d => ({
+        textName: d["テキスト"], 
+        page: d["ページ"],
+        question: d["問題"],
+        answer: d["答え"]
+      })).filter(d => d.answer));
 
       const hsFiles = [
         { n: 'target1900.csv', s: setTargetData }, { n: 'target1200.csv', s: setTargetminiData },
@@ -100,15 +118,12 @@ function App() {
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  // 自動ログイン（SSO）用のエフェクト
   useEffect(() => {
     const initAuth = async () => {
-      // URLの後ろについている ?uid=...&tk=... を読み取る
       const params = new URLSearchParams(window.location.search);
       const uid = params.get('uid');
       const tk = params.get('tk');
 
-      // 両方そろっている時だけ自動ログインを実行
       if (uid && tk) {
         setLoading(true);
         try {
@@ -118,37 +133,22 @@ function App() {
             userId: uid,
             token: tk
           };
-
           const response = await axios.post(GAS_URL, JSON.stringify(payload), {
             headers: { 'Content-Type': 'text/plain' }
           });
-
           if (response.data.result === "success") {
-            // GASがOKと言ったら、ユーザー情報をセットしてログイン状態にする
             setUserId(uid);
             setUserName(response.data.name);
             if (response.data.school) setSchool(response.data.school);
-            
-            // パラメータをURLから消す（リロード対策）
             window.history.replaceState({}, '', window.location.pathname);
-            
-            // メニューに進むためにCSVを読み込む
             await loadCsv(); 
-          } else {
-            console.error("自動ログイン失敗:", response.data.message);
           }
-        } catch (e) {
-          console.error("SSO通信エラー:", e);
-        } finally {
-          setLoading(false);
-        }
+        } catch (e) { console.error("SSO通信エラー:", e);
+        } finally { setLoading(false); }
       }
     };
-
     initAuth();
-  }, []); // 最初の1回だけ実行
-
-// --- ここまで貼り付け ---
+  }, []);
 
   const [quizItems, setQuizItems] = useState([]);
   const [qIndex, setQIndex] = useState(0);
@@ -217,22 +217,13 @@ function App() {
     const prefix = (selectedBook.name === '書き単') ? `[${item.part}] ` : "";
     const qText = prefix + ((mode === 'ja-en') ? item.ja : item.en);
     const rawC = (mode === 'ja-en') ? item.en : item.ja;
-
-    // お掃除関数：記号や空白を消す
     const clean = (s) => s ? s.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
-
-    // カッコとその中身を取り除く関数
     const removeParentheses = (s) => s ? s.replace(/\（.*?\）|\(.*?\)/g, "") : "";
-
-    // ユーザーの入力を先にお掃除
     const userInput = clean(currentInput);
 
-    // スラッシュで区切って判定
     const isCorrect = rawC.split(/[/／]/).some(ans => {
-      // ✅ 修正ポイント：CSV側の各選択肢からもスペースや記号を消してから比較する
       const correctAns = clean(ans); 
       const correctAnsNoParen = clean(removeParentheses(ans)); 
-
       return userInput === correctAns || (correctAnsNoParen !== "" && userInput === correctAnsNoParen);
     });
 
@@ -242,35 +233,24 @@ function App() {
   };
 
   const finishPractice = () => {
-  const clean = (s) => s ? s.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
-  const removeParentheses = (s) => s ? s.replace(/\（.*?\）|\(.*?\)/g, "") : "";
-
-  const isCorrectPractice = quizReview.record.correct.split(/[/／]/).some(ans => {
-    const pInput = clean(practice);
-    const correctAns = clean(ans); 
-    const correctAnsNoParen = clean(removeParentheses(ans)); 
-
-    // カッコあり、またはカッコなしのどちらかに一致すればOK
-    return pInput === correctAns || (correctAnsNoParen !== "" && pInput === correctAnsNoParen);
-  });
-
-  if (isCorrectPractice) {
-    proceedToNext();
-  } else {
-    alert("正解を入力してください");
-  }
-};
+    const clean = (s) => s ? s.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
+    const removeParentheses = (s) => s ? s.replace(/\（.*?\）|\(.*?\)/g, "") : "";
+    const isCorrectPractice = quizReview.record.correct.split(/[/／]/).some(ans => {
+      const pInput = clean(practice);
+      const correctAns = clean(ans); 
+      const correctAnsNoParen = clean(removeParentheses(ans)); 
+      return pInput === correctAns || (correctAnsNoParen !== "" && pInput === correctAnsNoParen);
+    });
+    if (isCorrectPractice) proceedToNext(); else alert("正解を入力してください");
+  };
 
   const speakEn = (text) => {
     if (isKobunMode || !text) return; 
     window.speechSynthesis.cancel();
     const uttr = new SpeechSynthesisUtterance(text);
-    
-    // 利用可能な音声リストを取得し、英語の音声を探してセットする
     const voices = window.speechSynthesis.getVoices();
     const enVoice = voices.find(v => v.lang.startsWith('en')) || voices.find(v => v.lang.includes('en'));
     if (enVoice) uttr.voice = enVoice;
-
     uttr.lang = 'en-US'; 
     uttr.rate = 0.9;
     window.speechSynthesis.speak(uttr);
@@ -280,23 +260,12 @@ function App() {
     if (!userId || !password) return alert("入力してください");
     setLoading(true);
     try {
-      // payloadにapiKeyを追加
-      const payload = { 
-      apiKey: API_KEY, // ← 追加
-      action: "login", 
-      userId, 
-      password 
-      };
-
-      const response = await axios.post(GAS_URL, JSON.stringify(payload), { // ← payload を使う
-  　　headers: { 'Content-Type': 'text/plain' }
-});
+      const payload = { apiKey: API_KEY, action: "login", userId, password };
+      const response = await axios.post(GAS_URL, JSON.stringify(payload), { headers: { 'Content-Type': 'text/plain' }});
       if (response.data.result === "success") { 
         setUserName(response.data.name); 
-        if (response.data.isInitial) setStep('change-password');
-        else await loadCsv(); 
-      }
-      else alert("認証失敗");
+        if (response.data.isInitial) setStep('change-password'); else await loadCsv(); 
+      } else alert("認証失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
 
@@ -304,17 +273,8 @@ function App() {
     if (!newPassword) return alert("入力してください");
     setLoading(true);
     try {
-      // payloadにapiKeyを追加
-      const payload = { 
-      apiKey: API_KEY, // ← 追加
-      action: "changePassword", 
-      userId, 
-      newPassword 
-    };
-
-      const response = await axios.post(GAS_URL, JSON.stringify(payload), { // ← payload を使う
-  　　headers: { 'Content-Type': 'text/plain' }
-　　　});
+      const payload = { apiKey: API_KEY, action: "changePassword", userId, newPassword };
+      const response = await axios.post(GAS_URL, JSON.stringify(payload), { headers: { 'Content-Type': 'text/plain' }});
       if (response.data.result === "success") { alert("更新完了"); setStep('menu'); await loadCsv(); }
       else alert("更新失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
@@ -322,6 +282,143 @@ function App() {
 
   const gradeList = useMemo(() => [...new Set(allData.map(d => d.unitGroup.substring(0, 2)))].sort(), [allData]);
   const filteredUnits = useMemo(() => [...new Set(allData.filter(d => d.unitGroup.startsWith(selectedGrade)).map(d => d.unitGroup))], [allData, selectedGrade]);
+
+  // --- 漢字テスト用ロジック ---
+  // --- 漢字テスト用ロジック（完全版） ---
+
+  const toggleKanji = (idx) => {
+    setSelectedKanjiIds(prev => prev.includes(idx) ? prev.filter(id => id !== idx) : [...prev, idx]);
+  };
+
+  const startKanjiTest = () => {
+    let targetItems = [];
+    const toNum = (val) => parseInt(String(val).replace(/[^0-9]/g, "")) || 0;
+    const cleanText = (s) => s ? String(s).trim() : "";
+
+    if (kanjiMode === 'page') {
+      const sNum = toNum(startPage);
+      const eNum = toNum(endPage);
+      const selectedT = cleanText(selectedText);
+
+      targetItems = kanjiList.filter(k => {
+        const pNum = toNum(k.page);
+        const csvText = cleanText(k.textName);
+        return csvText === selectedT && pNum >= sNum && pNum <= eNum;
+      });
+    } else {
+      targetItems = selectedKanjiIds.map(id => kanjiList[id]);
+    }
+
+    if (targetItems.length === 0) return alert("問題が選択されていません");
+    
+    resetQuizState();
+    setQuizItems(targetItems.map(k => ({ 
+      ja: k.question, 
+      en: k.answer, 
+      page: k.page, 
+      textName: k.textName 
+    })).sort(() => 0.5 - Math.random()));
+    setStep('kanji-main');
+  };
+
+  const getCtx = () => canvasRef.current?.getContext('2d');
+
+  const clearKanjiCanvas = () => {
+    const ctx = getCtx();
+    if (ctx) {
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
+    setStrokes([]);
+  };
+
+  const startDrawing = (e) => {
+    setIsDrawing(true);
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+    const ctx = getCtx();
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    setStrokes(prev => [...prev, [{ x, y }]]);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+    const ctx = getCtx();
+    ctx.lineWidth = 5; // 縦長で見やすいよう少し太めに設定
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#333';
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    setStrokes(prev => {
+      const newStrokes = [...prev];
+      newStrokes[newStrokes.length - 1].push({ x, y });
+      return newStrokes;
+    });
+  };
+
+  const judgeKanji = async () => {
+    if (strokes.length === 0) return alert("文字を書いてください");
+    setLoading(true);
+    // Google API形式に変換
+    const formattedStrokes = strokes.map(s => [
+      s.map(p => Math.round(p.x)),
+      s.map(p => Math.round(p.y)),
+      []
+    ]);
+
+    try {
+      const response = await fetch('https://inputtools.google.com/request?itc=ja-t-i0-handwrit&app=test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          app_version: 0.4,
+          requests: [{ 
+            writing_guide: { 
+              writing_area_width: 270,  // ✅ 新しい幅
+              writing_area_height: 480  // ✅ 新しい高さ
+            }, 
+            ink: formattedStrokes, 
+            language: "ja" 
+          }]
+        })
+      });
+
+      const data = await response.json();
+      if (data[0] === "SUCCESS") {
+        const candidates = data[1][0][1];
+        const answer = quizItems[qIndex].en; // CSVの「答え」
+        const isOk = candidates.includes(answer);
+        
+        const record = { 
+          q: quizItems[qIndex].ja, 
+          a: candidates[0], 
+          correct: answer, 
+          ok: isOk, 
+          rawItem: quizItems[qIndex] 
+        };
+
+        setQuizAnswers(prev => [...prev, record]);
+        alert(isOk ? "⭕ 正解！" : `❌ 残念！ (あなたの書いた文字: ${candidates[0]})`);
+
+        if (qIndex + 1 < quizItems.length) {
+          setQIndex(qIndex + 1);
+          clearKanjiCanvas();
+        } else {
+          setStep('quiz-result');
+          sendResultToGAS([...quizAnswers, record], "漢字テスト");
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      alert("判定エラーが発生しました");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="container">
@@ -356,6 +453,7 @@ function App() {
             <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(true); setSelectedBook({ name: '', data: [] }); setStep('fukisoku-setup'); }}>🔄 英単語（不規則変化）</button>
             <button className="nav-btn" onClick={() => { setIsKobunMode(true); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('kobun-setup'); }}>📚 古文単語（自習）</button>
             <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生モード</button>
+            <button className="nav-btn" style={{backgroundColor: '#4A90E2', color: 'white'}} onClick={() => { setStep('kanji-setup'); }}>🖋 漢字書き取りテスト</button>
           </div>
           <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
         </div>
@@ -416,7 +514,6 @@ function App() {
         </div>
       )}
 
-      {/* ✅ 書き単設定画面 */}
       {step === 'kakitan-setup' && (
         <div className="quiz-container">
           <h2>✍️ 書き単 設定</h2>
@@ -577,8 +674,6 @@ function App() {
               <p className={quizReview.record.ok ? "txt-ok" : "txt-ng"} style={{textAlign: 'center'}}>
                 {quizReview.record.ok ? "✅ 正解！" : "❌ 不正解"}
               </p>
-              
-              {/* ✅ 書き単モードの不正解詳細表示 */}
               {!quizReview.record.ok && selectedBook.name === '書き単' ? (
                 <div style={{background: '#f8f9fa', padding: '10px', borderRadius: '8px', fontSize: '15px', marginBottom: '15px'}}>
                   <div>正解：<span style={{color: '#666'}}>[{quizReview.record.rawItem.part}]</span> <strong>{quizReview.record.correct}</strong> 　{quizReview.record.rawItem.pron}</div>
@@ -587,7 +682,6 @@ function App() {
               ) : (
                 !quizReview.record.ok && <p className="txt-ng" style={{textAlign: 'center', marginBottom: '15px'}}>正解: {quizReview.record.correct}</p>
               )}
-
               {quizReview.record.ok ? (
                 <button className="nav-btn" onClick={proceedToNext}>次へ進む</button>
               ) : (
@@ -606,16 +700,10 @@ function App() {
           <h2>結果発表</h2>
           <div style={{ fontSize: '32px', margin: '10px 0' }}>{quizAnswers.filter(a => a.ok).length} / {quizAnswers.length}</div>
           <div style={{maxHeight: '350px', overflowY: 'auto', width: '100%', border: '1px solid #eee'}}>
-            {/* ✅ 書き単モードの結果一覧 */}
             <table style={{width: '100%', fontSize: '12px', borderCollapse: 'collapse'}}>
               <thead style={{background: '#f8f9fa', position:'sticky', top:0}}>
                 <tr>
-                  <th>No</th>
-                  <th>問題</th>
-                  {selectedBook.name === '書き単' && <th>品詞</th>}
-                  <th>解答</th>
-                  {selectedBook.name === '書き単' && <th>発音</th>}
-                  <th>正誤</th>
+                  <th>No</th><th>問題</th>{selectedBook.name === '書き単' && <th>品詞</th>}<th>解答</th>{selectedBook.name === '書き単' && <th>発音</th>}<th>正誤</th>
                 </tr>
               </thead>
               <tbody>
@@ -633,6 +721,109 @@ function App() {
             </table>
           </div>
           <button className="secondary" onClick={() => { resetQuizState(); setSelectedBook({ name: '', data: [] }); setStep('menu'); }}>メニューへ戻る</button>
+        </div>
+      )}
+
+      {step === 'kanji-setup' && (
+        <div className="quiz-container">
+          <h2>🖋 漢字テスト 設定</h2>
+          <div className="config-group">
+            <label>出題方法:</label>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <button className="nav-btn" onClick={() => setKanjiMode('page')}>① ページで選択</button>
+              <button className="nav-btn" onClick={() => setKanjiMode('individual')}>② 1つずつ選ぶ</button>
+            </div>
+            {kanjiMode === 'page' ? (
+              <div style={{ padding: '15px', background: '#f8f9fa', borderRadius: '8px', textAlign: 'left' }}>
+                <label>1. テキストを選択:</label>
+                <select value={selectedText} onChange={(e) => {
+                    const text = e.target.value; setSelectedText(text);
+                    const pages = [...new Set(kanjiList.filter(k => k.textName === text).map(k => k.page))].sort((a,b)=>a-b);
+                    if(pages.length > 0) { setStartPage(pages[0]); setEndPage(pages[0]); }
+                  }} style={{ width: '100%', padding: '10px', marginBottom: '15px' }}>
+                  <option value="">-- テキストを選択 --</option>
+                  {[...new Set(kanjiList.map(k => k.textName))].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                {selectedText && (
+                  <>
+                    <label>2. ページ範囲を指定:</label>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                      <select value={startPage} onChange={(e) => setStartPage(e.target.value)} style={{flex:1, padding:'8px'}}>
+                        {[...new Set(kanjiList.filter(k => k.textName === selectedText).map(k => k.page))].sort((a,b)=>a-b).map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                      <span>〜</span>
+                      <select value={endPage} onChange={(e) => setEndPage(e.target.value)} style={{flex:1, padding:'8px'}}>
+                        {[...new Set(kanjiList.filter(k => k.textName === selectedText).map(k => k.page))].sort((a,b)=>a-b).map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div style={{ maxHeight: '350px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', background: 'white', borderRadius: '8px' }}>
+                <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>出題する漢字にチェック（{selectedKanjiIds.length}問選択中）</p>
+                {kanjiList.map((k, idx) => (
+                  <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0', borderBottom: '1px solid #eee', fontSize: '14px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={selectedKanjiIds.includes(idx)} onChange={() => toggleKanji(idx)} />
+                    <span>[{k.textName}] {k.page}p: <strong>{k.answer}</strong> ({k.question})</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button className="nav-btn" onClick={startKanjiTest} disabled={kanjiMode === 'page' && !selectedText} style={{ width: '100%' }}>🚀 テスト開始！</button>
+            <button className="secondary" onClick={() => setStep('menu')} style={{ width: '100%' }}>戻る</button>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ 漢字テスト実行画面（手書き画面） */}
+      {step === 'kanji-main' && quizItems[qIndex] && (
+        <div className="quiz-container">
+          <div className="q-header">漢字 Q {qIndex + 1} / {quizItems.length}</div>
+          
+          <div style={{ fontSize: '22px', marginBottom: '15px', fontWeight: 'bold' }}>
+            問題： 「{quizItems[qIndex].ja}」
+            <div style={{ fontSize: '14px', color: '#666', marginTop: '5px', fontWeight: 'normal' }}>
+              当てはまる漢字を枠内に書いてください
+            </div>
+          </div>
+
+          {/* ✅ キャンバス外枠：9:16（270x480）に合わせて調整 */}
+          <div style={{ 
+            background: 'white', 
+            border: '3px solid #4A90E2', 
+            borderRadius: '10px', 
+            overflow: 'hidden', 
+            width: '270px', 
+            height: '480px', 
+            margin: '0 auto 15px',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+          }}>
+            <canvas 
+              ref={canvasRef}
+              width="270" 
+              height="480" 
+              onMouseDown={startDrawing}
+              onMouseMove={draw}
+              onMouseUp={() => setIsDrawing(false)}
+              onMouseLeave={() => setIsDrawing(false)}
+              onTouchStart={startDrawing}
+              onTouchMove={draw}
+              onTouchEnd={() => setIsDrawing(false)}
+              style={{ touchAction: 'none', cursor: 'crosshair', display: 'block' }}
+            ></canvas>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '15px' }}>
+            <button className="secondary" onClick={clearKanjiCanvas} style={{ flex: 1 }}>消去</button>
+            <button className="nav-btn" onClick={judgeKanji} style={{ flex: 2 }}>判定する</button>
+          </div>
+          
+          <button className="secondary" style={{ width: '100%' }} onClick={() => { if(window.confirm("中断しますか？")) setStep('menu') }}>
+            中断してメニューに戻る
+          </button>
         </div>
       )}
     </div>
