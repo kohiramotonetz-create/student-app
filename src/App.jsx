@@ -242,9 +242,24 @@ function App() {
   };
 
   const finishPractice = () => {
-    const clean = (s) => s ? s.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
-    if (quizReview.record.correct.split('/').some(ans => clean(practice) === clean(ans))) proceedToNext(); else alert("正解を入力してください");
-  };
+  const clean = (s) => s ? s.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
+  const removeParentheses = (s) => s ? s.replace(/\（.*?\）|\(.*?\)/g, "") : "";
+
+  const isCorrectPractice = quizReview.record.correct.split(/[/／]/).some(ans => {
+    const pInput = clean(practice);
+    const correctAns = clean(ans); 
+    const correctAnsNoParen = clean(removeParentheses(ans)); 
+
+    // カッコあり、またはカッコなしのどちらかに一致すればOK
+    return pInput === correctAns || (correctAnsNoParen !== "" && pInput === correctAnsNoParen);
+  });
+
+  if (isCorrectPractice) {
+    proceedToNext();
+  } else {
+    alert("正解を入力してください");
+  }
+};
 
   const speakEn = (text) => {
     if (isKobunMode || !text) return; 
