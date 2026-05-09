@@ -784,21 +784,60 @@ function App() {
                 )}
               </div>
             ) : (
-              <div style={{ maxHeight: '350px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', background: 'white', borderRadius: '8px' }}>
-                <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>出題する漢字にチェック（{selectedKanjiIds.length}問選択中）</p>
-                {kanjiList.map((k, idx) => (
-                  <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0', borderBottom: '1px solid #eee', fontSize: '14px', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={selectedKanjiIds.includes(idx)} onChange={() => toggleKanji(idx)} />
-                    <span>[{k.textName}] {k.page}p: <strong>{k.answer}</strong> ({k.question})</span>
-                  </label>
-                ))}
+        /* ✅ 個別選択モードの改良版 */
+        <div style={{ textAlign: 'left' }}>
+          <label>1. テキストを選択して絞り込み:</label>
+          <select 
+            value={selectedText} 
+            onChange={(e) => setSelectedText(e.target.value)}
+            style={{ width: '100%', padding: '10px', marginBottom: '15px', borderRadius: '5px', border: '1px solid #ccc' }}
+          >
+            <option value="">-- すべて表示 --</option>
+            {[...new Set(kanjiList.map(k => k.textName))].map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+
+          <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
+            2. 出題する漢字にチェック（{selectedKanjiIds.length}問選択中）
+          </p>
+          
+          <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', padding: '5px', background: 'white', borderRadius: '8px' }}>
+            {kanjiList
+              .map((k, idx) => ({ ...k, originalIdx: idx })) 
+              .filter(k => !selectedText || k.textName === selectedText) 
+              .map((k) => (
+                <label key={k.originalIdx} style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  padding: '10px 5px', 
+                  borderBottom: '1px solid #eee', 
+                  cursor: 'pointer',
+                  WebkitUserSelect: 'none',
+                  userSelect: 'none'
+                }}>
+                  {/* チェックボックスを左端に固定 */}
+                  <div style={{ flex: '0 0 30px', display: 'flex', justifyContent: 'center' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedKanjiIds.includes(k.originalIdx)} 
+                      onChange={() => toggleKanji(k.originalIdx)} 
+                      style={{ transform: 'scale(1.2)' }}
+                    />
+                  </div>
+                  {/* 問題文スペースを広げて右側に配置 */}
+                  <div style={{ flex: 1, marginLeft: '10px', fontSize: '14px', lineHeight: '1.4' }}>
+                    <div style={{ color: '#888', fontSize: '11px' }}>{k.page}</div>
+                    <div><strong>{k.answer}</strong> <span style={{ color: '#666' }}>({k.question})</span></div>
+                  </div>
+                </label>
+              ))}
+              </div>
               </div>
             )}
-          </div>
-          <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            </div>
+            <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <button className="nav-btn" onClick={startKanjiTest} disabled={kanjiMode === 'page' && !selectedText} style={{ width: '100%' }}>🚀 テスト開始！</button>
             <button className="secondary" onClick={() => setStep('menu')} style={{ width: '100%' }}>戻る</button>
-          </div>
+            </div>
         </div>
       )}
 
