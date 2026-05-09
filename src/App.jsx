@@ -187,19 +187,34 @@ function App() {
     }
   }, [startUnit, endUnit, allData]);
 
-  const sendResultToGAS = (finalAnswers, sheetName) => {
+  // ✅ 修正版：第3引数 (customRange) を受け取れるように変更
+  const sendResultToGAS = (finalAnswers, sheetName, customRange = null) => {
     if (!sheetName || !LOG_GAS_URL) return;
-    const rangeLabel = (selectedBook && selectedBook.name) 
+
+    // ✅ customRange があればそれを使い、なければ従来の計算を行う
+    const rangeLabel = customRange || ((selectedBook && selectedBook.name) 
       ? `No.${startNo}～${endNo}${selectedParts.length > 0 ? `(${selectedParts.join('/')})` : ''}` 
-      : (isKobunMode ? "古文" : (isFukisokuMode ? "不規則" : `${startUnit}${startPart}～${endUnit}${endPart}`));
+      : (isKobunMode ? "古文" : (isFukisokuMode ? "不規則" : `${startUnit}${startPart}～${endUnit}${endPart}`)));
 
     const payload = {
-      action: "saveLog", sheetName, userName, testRange: rangeLabel, mode,
-      score: finalAnswers.filter(a => a.ok).length, total: finalAnswers.length,
+      action: "saveLog", 
+      sheetName, 
+      userName, 
+      testRange: rangeLabel, 
+      mode,
+      score: finalAnswers.filter(a => a.ok).length, 
+      total: finalAnswers.length,
       percentage: Math.round((finalAnswers.filter(a => a.ok).length / finalAnswers.length) * 100) + "%",
       history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
     };
-    fetch(LOG_GAS_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload), keepalive: true }).catch(e => console.error(e));
+
+    fetch(LOG_GAS_URL, { 
+      method: "POST", 
+      mode: "no-cors", 
+      headers: { "Content-Type": "text/plain" }, 
+      body: JSON.stringify(payload), 
+      keepalive: true 
+    }).catch(e => console.error(e));
   };
 
   const proceedToNext = () => {
@@ -409,7 +424,13 @@ function App() {
           clearKanjiCanvas();
         } else {
           setStep('quiz-result');
-          sendResultToGAS([...quizAnswers, record], "漢字テスト");
+          
+          // 1. 範囲ラベルを作成
+          const rangeLabel = `${selectedText} (${startPage}〜${endPage})`;
+          
+          // 2. GASに送信
+          // 第2引数に固定のシート名 "漢字テスト" を、第3引数に詳細な "範囲" を渡す
+          sendResultToGAS([...quizAnswers, record], "漢字テスト", rangeLabel); 
         }
       }
     } catch (e) {
