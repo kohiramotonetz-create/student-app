@@ -892,9 +892,20 @@ function App() {
             <button className="nav-btn" onClick={judgeKanji} style={{ flex: 2 }}>判定する</button>
           </div>
           
-          <button className="secondary" style={{ width: '100%' }} onClick={() => { if(window.confirm("中断しますか？")) setStep('menu') }}>
-            中断してメニューに戻る
-          </button>
+          <button 
+            className="secondary" 
+            style={{ width: '100%' }} 
+            onClick={() => { 
+              if(window.confirm("中断しますか？")) {
+                // ✅ 中断時に筆跡データと解答履歴をリセットする
+                setStrokes([]); 
+                clearKanjiCanvas();
+                setQuizAnswers([]); 
+                setStep('menu');
+              }
+            }}
+            > 中断してメニューに戻る
+            </button>
         </div>
       )}
     </div>
