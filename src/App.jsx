@@ -780,7 +780,11 @@ function App() {
 
       {/* ✅ 漢字テスト実行画面（手書き画面）修正版 */}
       {step === 'kanji-main' && quizItems[qIndex] && (
-        <div className="quiz-container">
+        <div className="quiz-container" style={{
+          WebkitUserSelect: 'none',   /* iPadコピー禁止 */
+          WebkitTouchCallout: 'none', /* iPad長押しメニュー禁止 */
+          userSelect: 'none'          /* 全般的な選択禁止 */
+          }}>
           <div className="q-header">漢字 Q {qIndex + 1} / {quizItems.length}</div>
           
           <div style={{ fontSize: '22px', marginBottom: '15px', fontWeight: 'bold' }}>
