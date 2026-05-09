@@ -778,7 +778,7 @@ function App() {
         </div>
       )}
 
-      {/* ✅ 漢字テスト実行画面（手書き画面） */}
+      {/* ✅ 漢字テスト実行画面（手書き画面）修正版 */}
       {step === 'kanji-main' && quizItems[qIndex] && (
         <div className="quiz-container">
           <div className="q-header">漢字 Q {qIndex + 1} / {quizItems.length}</div>
@@ -790,16 +790,19 @@ function App() {
             </div>
           </div>
 
-          {/* ✅ キャンバス外枠：9:16（270x480）に合わせて調整 */}
+          {/* ✅ 外枠：height を削除して、中の canvas に合わせるように変更 */}
+          {/* ✅ iPadでのコピー・選択禁止用スタイルを追加 */}
           <div style={{ 
             background: 'white', 
             border: '3px solid #4A90E2', 
             borderRadius: '10px', 
             overflow: 'hidden', 
             width: '270px', 
-            height: '480px', 
             margin: '0 auto 15px',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+            boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+            WebkitUserSelect: 'none',   /* iPadコピー禁止 */
+            WebkitTouchCallout: 'none', /* iPad長押しメニュー禁止 */
+            userSelect: 'none'          /* 選択禁止 */
           }}>
             <canvas 
               ref={canvasRef}
@@ -816,7 +819,8 @@ function App() {
             ></canvas>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '15px' }}>
+          {/* ✅ ボタンエリア：枠の外に出るようになります */}
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '15px', width: '270px', margin: '0 auto 15px' }}>
             <button className="secondary" onClick={clearKanjiCanvas} style={{ flex: 1 }}>消去</button>
             <button className="nav-btn" onClick={judgeKanji} style={{ flex: 2 }}>判定する</button>
           </div>
