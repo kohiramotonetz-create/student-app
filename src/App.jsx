@@ -424,6 +424,9 @@ function App() {
           clearKanjiCanvas();
         } else {
           setStep('quiz-result');
+
+          // ✅ 重要：テスト終了時に筆跡データを完全に空にする
+          setStrokes([]);
           
           // 1. 範囲ラベルを作成
           const rangeLabel = `${selectedText} (${startPage}〜${endPage})`;
