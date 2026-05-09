@@ -477,7 +477,7 @@ function App() {
             <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(true); setSelectedBook({ name: '', data: [] }); setStep('fukisoku-setup'); }}>🔄 英単語（不規則変化）</button>
             <button className="nav-btn" onClick={() => { setIsKobunMode(true); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('kobun-setup'); }}>📚 古文単語（自習）</button>
             <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生モード</button>
-            <button className="nav-btn" onClick={() => { setStep('kanji-setup'); }}>🖋 漢字書き取りテスト</button></div>
+            <button className="nav-btn" onClick={() => { setStep('kanji-setup'); }}>🖋 定期テスト 漢字対策！　←NEW!!</button></div>
           <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
         </div>
       )}
@@ -513,7 +513,7 @@ function App() {
           </div>
           <div className="preview-panel">
             <div className="test-paper">
-              <div className="header-area"><div className="header-left">氏名 ____________________</div><h1>英単語テスト</h1><div className="header-right">{school === 'custom' ? customSchool : school}</div></div>
+              <div className="header-area"><div className="header-left">氏名 ____________________</div><h1 style={{ color: '#333' }}>英単語テスト</h1><div className="header-right">{school === 'custom' ? customSchool : school}</div></div>
               <table className="paper-table">
                 <tbody>{testWords.map((d, i) => (
                   <tr key={i}>
@@ -574,7 +574,7 @@ function App() {
 
       {step === 'quiz-setup' && (
         <div className="quiz-container">
-          <h2>🚀 クイズ設定</h2>
+          <h2 style={{ color: '#333' }}>🚀 クイズ設定</h2>
           <div className="config-group">
             <label>学年:</label>
             <div className="grade-selector">{gradeList.map(g => (<button key={g} className={selectedGrade === g ? "grade-btn active" : "grade-btn"} onClick={() => setSelectedGrade(g)}>{g}</button>))}</div>
@@ -599,7 +599,7 @@ function App() {
 
       {(step === 'fukisoku-setup' || step === 'kobun-setup') && (
         <div className="quiz-container">
-          <h2>🚀 {isFukisokuMode ? "不規則変化" : "古文単語"} 設定</h2>
+          <h2 style={{ color: '#333' }}>🚀 {isFukisokuMode ? "不規則変化" : "古文単語"} 設定</h2>
           <div className="config-group">
             <label>形式:</label>
             <select value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -640,7 +640,7 @@ function App() {
 
       {step === 'highschool-setup' && (
         <div className="quiz-container">
-          <h2>🚀 {selectedBook.name}</h2>
+          <h2 style={{ color: '#333' }}>🚀 {selectedBook.name}</h2>
           <div className="config-group">
             <label>形式:</label>
             <select value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -749,7 +749,7 @@ function App() {
 
       {step === 'kanji-setup' && (
         <div className="quiz-container">
-          <h2>🖋 漢字テスト 設定</h2>
+          <h2 style={{ color: '#333' }}>🖋 漢字テスト 設定</h2>
           <div className="config-group">
             <label>出題方法:</label>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
