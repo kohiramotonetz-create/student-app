@@ -477,8 +477,7 @@ function App() {
             <button className="nav-btn" onClick={() => { setIsKobunMode(false); setIsFukisokuMode(true); setSelectedBook({ name: '', data: [] }); setStep('fukisoku-setup'); }}>🔄 英単語（不規則変化）</button>
             <button className="nav-btn" onClick={() => { setIsKobunMode(true); setIsFukisokuMode(false); setSelectedBook({ name: '', data: [] }); setStep('kobun-setup'); }}>📚 古文単語（自習）</button>
             <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生モード</button>
-            <button className="nav-btn" style={{backgroundColor: '#4A90E2', color: 'white'}} onClick={() => { setStep('kanji-setup'); }}>🖋 漢字書き取りテスト</button>
-          </div>
+            <button className="nav-btn" onClick={() => { setStep('kanji-setup'); }}>🖋 漢字書き取りテスト</button></div>
           <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
         </div>
       )}
