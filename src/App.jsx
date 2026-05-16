@@ -6,6 +6,7 @@ import './App.css'
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
 const API_KEY = import.meta.env.VITE_API_KEY;
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY; // ★これを通行証として追加
 const QUESTION_COUNT = 20;
 
 function App() {
@@ -227,7 +228,28 @@ function App() {
     }
   };
 
-  const submitQuizAnswer = () => {
+  const callAiJudge = async (word, correct, userAns) => {
+    try {
+      const response = await axios.post(GAS_URL, JSON.stringify({
+        action: "checkWithGemini", 
+        apiKey: GEMINI_API_KEY, 
+        word, correct, userAns
+      }), { headers: { 'Content-Type': 'text/plain' } });
+
+      const res = response.data.result;
+      // 🕵️ これで「何が返ってきて失敗しているのか」が100%わかります
+      console.log("🤖 Geminiからの生の回答:", res);
+
+      // 文字列の中に true が含まれていれば正解とみなす
+      return String(res).toLowerCase().includes("true");
+
+    } catch (e) {
+      console.error("AI判定通信エラー:", e);
+      return false; 
+    }
+  };
+
+  const submitQuizAnswer = async () => {
     const item = quizItems[qIndex];
     const prefix = (selectedBook.name === '書き単') ? `[${item.part}] ` : "";
     const qText = prefix + ((mode === 'ja-en') ? item.ja : item.en);
@@ -236,12 +258,35 @@ function App() {
     const removeParentheses = (s) => s ? s.replace(/\（.*?\）|\(.*?\)/g, "") : "";
     const userInput = clean(currentInput);
 
-    const isCorrect = rawC.split(/[/／]/).some(ans => {
+    // 1. まずは従来の文字一致チェック
+    let isCorrect = rawC.split(/[/／]/).some(ans => {
       const correctAns = clean(ans); 
       const correctAnsNoParen = clean(removeParentheses(ans)); 
       return userInput === correctAns || (correctAnsNoParen !== "" && userInput === correctAnsNoParen);
     });
 
+    // --- 🔍 判定プロセスをコンソールに表示 ---
+    console.log("--- 判定プロセス開始 ---");
+    console.log("問題:", item.en, " / 正解:", rawC, " / 入力:", currentInput);
+    console.log("① 文字一致判定の結果:", isCorrect);
+
+    // 2. 文字が違った場合のみ、AIに判定を依頼する
+    if (!isCorrect && currentInput.trim() !== "" && mode === 'en-ja') {
+      console.log("🚀 文字不一致のため、Gemini APIに問い合わせます..."); 
+      setLoading(true); 
+      try {
+        const aiResult = await callAiJudge(item.en, rawC, currentInput);
+        console.log("🤖 AI判定の結果:", aiResult); // true か false が返る
+        isCorrect = aiResult;
+      } catch (err) {
+        console.error("❌ AI呼び出し中にエラー:", err);
+      }
+      setLoading(false);
+    } else {
+      console.log("⏭️ AIは呼び出しませんでした (理由: 文字一致、空欄、またはja-enモード)");
+    }
+
+    // 3. 最終的な結果で記録を作成
     const record = { q: qText, a: currentInput, correct: rawC, en: item.en || "", ok: isCorrect, rawItem: item };
     setQuizAnswers(prev => [...prev, record]); 
     setQuizReview({ visible: true, record });
