@@ -719,10 +719,15 @@ function App() {
               <option value="en-ja">{isKobunMode ? "古文→現代語訳" : "英語→日本語"}</option>
               <option value="ja-en">{isKobunMode ? "現代語訳→古文" : "日本語→英語"}</option>
             </select>
-            <label>範囲(No.):</label>
-            <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
-              <input type="number" value={startNo} onChange={(e) => setStartNo(Number(e.target.value))} style={{width:'80px'}} />〜<input type="number" value={endNo} onChange={(e) => setEndNo(Number(e.target.value))} style={{width:'80px'}} />
-            </div>
+            {/* ✅ 定期対策_工芸 以外のときだけ No. の範囲選択を表示する */}
+            {selectedBook.name !== '定期対策_工芸' && (
+              <>
+                <label>範囲(No.):</label>
+                <div style={{display:'flex', gap:'10px', alignItems:'center', marginBottom: '15px'}}>
+                  <input type="number" value={startNo} onChange={(e) => setStartNo(Number(e.target.value))} style={{width:'80px'}} />〜<input type="number" value={endNo} onChange={(e) => setEndNo(Number(e.target.value))} style={{width:'80px'}} />
+                </div>
+              </>
+            )}
 
             {selectedBook.name === '古文単語315' && availableParts.length > 0 && (
               <div style={{marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px'}}>
@@ -756,17 +761,24 @@ function App() {
           </div>
 
           <button className="nav-btn" onClick={() => {
-            // 1. まずは指定された No. の範囲でフィルター 
-            let range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo);
-            
-            // 2. 古文315の絞り込み条件
-            if (selectedBook.name === '古文単語315' && selectedParts.length > 0) {
-              range = range.filter(d => selectedParts.includes(d.part));
-            }
-            
-            // ✅ 3. 定期対策_工芸で単元が選択されている場合の絞り込み条件を追加
-            if (selectedBook.name === '定期対策_工芸' && startDay !== "") {
-              range = range.filter(d => d.unit === startDay);
+            let range = [];
+
+            // ✅ 定期対策_工芸 の場合はNo.判定を完全に無視する専用ロジックを通す
+            if (selectedBook.name === '定期対策_工芸') {
+              // 初期値が 'DAY1' のまま、または空文字や「すべての単元」の時はフィルターをかけない
+              if (startDay === 'DAY1' || startDay === "" || startDay.includes("すべての単元")) {
+                range = selectedBook.data;
+              } else {
+                // 明示的に特定の単元（p10-11など）が選ばれているときだけ絞り込む
+                range = selectedBook.data.filter(d => d.unit === startDay);
+              }
+            } else {
+              // 従来の書籍（ターゲットや古文など）は今まで通りの判定を行う
+              range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo);
+              
+              if (selectedBook.name === '古文単語315' && selectedParts.length > 0) {
+                range = range.filter(d => selectedParts.includes(d.part));
+              }
             }
 
             if(range.length === 0) return alert("該当なし");
