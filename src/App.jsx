@@ -756,7 +756,7 @@ function App() {
           </div>
 
           <button className="nav-btn" onClick={() => {
-            // 1. まずは指定された No. の範囲でフィルター
+            // 1. まずは指定された No. の範囲でフィルター 
             let range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo);
             
             // 2. 古文315の絞り込み条件
