@@ -1,6 +1,8 @@
 # Logs
 logs
 *.log
+.env       ← ★ここに1行追記する（これで .env ファイル単体が完全に無視されます）
+*.local    ←（これは .env.local などの末尾が .local のファイルを無視する設定です）
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
