@@ -31,6 +31,7 @@ function App() {
   const [irohaData, setIrohaData] = useState([]);
   const [kobun325Data, setKobun325Data] = useState([]);
   const [formulaData, setFormulaData] = useState([]);
+  const [kougeiData, setKougeiData] = useState([]);
 
   // ✅ 書き単用のステート追加
   const [kakitanData, setKakitanData] = useState([]);
@@ -105,6 +106,7 @@ function App() {
         { n: 'kakushin351.csv', s: setKakushinData }, { n: 'kobunn315.csv', s: setKobun315Data },
         { n: 'kikutan_j2.csv', s: setKikutanData },   { n: 'iroha.csv', s: setIrohaData },
         { n: 'kobun325.csv', s: setKobun325Data },    { n: 'formula600.csv', s: setFormulaData },
+        { n: 'kougei.csv', s: setKougeiData },
       ];
       for (const f of hsFiles) {
         const d = await fetchAndParse('/' + f.n);
@@ -165,6 +167,12 @@ function App() {
   const availableParts = useMemo(() => {
     if (selectedBook.name !== '古文単語315') return [];
     return [...new Set(selectedBook.data.map(d => d.part))].filter(p => p).sort();
+  }, [selectedBook]);
+
+  // ✅ 定期対策_工芸用の単元リストを自動抽出
+  const availableKougeiUnits = useMemo(() => {
+    if (selectedBook.name !== '定期対策_工芸') return [];
+    return [...new Set(selectedBook.data.map(d => d.unit))].filter(u => u).sort();
   }, [selectedBook]);
 
   useEffect(() => {
@@ -679,6 +687,25 @@ function App() {
               ))}
             </div>
           </div>
+          {/* ✅ 定期対策_工芸 セクションを追加 */}
+          <div style={{marginTop:'20px', borderTop:'2px dashed #eee', paddingTop:'10px'}}>
+            <h3 style={{color:'#333', marginBottom:'10px'}}>🎨 定期対策</h3>
+            <div className="button-grid">
+              <button 
+                className="nav-btn" 
+                style={{ backgroundColor: '#2ecc71', color: 'white' }} 
+                onClick={() => { 
+                  setIsKobunMode(false); // 音声再生等を考慮（不要ならtrueでも可）
+                  setSelectedBook({ name: '定期対策_工芸', data: kougeiData }); 
+                  setStartNo(1); 
+                  setEndNo(Math.min(kougeiData.length, 100)); 
+                  setStep('highschool-setup'); 
+                }}
+              >
+                定期対策_工芸
+              </button>
+            </div>
+          </div>
           <button className="secondary" style={{marginTop:'20px'}} onClick={() => setStep('menu')}>戻る</button>
         </div>
       )}
@@ -710,10 +737,38 @@ function App() {
                 {selectedParts.length > 0 && <button onClick={() => setSelectedParts([])} style={{fontSize:'11px', color:'gray', background:'none', border:'none', marginTop:'5px', cursor:'pointer'}}>全解除</button>}
               </div>
             )}
+          {/* ✅ 定期対策_工芸 のときだけ単元選択セレクトボックスを表示 */}
+            {selectedBook.name === '定期対策_工芸' && availableKougeiUnits.length > 0 && (
+              <div style={{marginTop:'15px', borderTop:'1px solid #eee', paddingTop:'10px'}}>
+                <label>単元選択:</label>
+                <select 
+                  value={startDay} 
+                  onChange={(e) => setStartDay(e.target.value)} 
+                  style={{width: '100%', padding: '8px', marginTop: '5px'}}
+                >
+                  <option value="">-- すべての単元 --</option>
+                  {availableKougeiUnits.map(unit => (
+                    <option key={unit} value={unit}>{unit}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
+
           <button className="nav-btn" onClick={() => {
+            // 1. まずは指定された No. の範囲でフィルター
             let range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo);
-            if (selectedBook.name === '古文単語315' && selectedParts.length > 0) range = range.filter(d => selectedParts.includes(d.part));
+            
+            // 2. 古文315の絞り込み条件
+            if (selectedBook.name === '古文単語315' && selectedParts.length > 0) {
+              range = range.filter(d => selectedParts.includes(d.part));
+            }
+            
+            // ✅ 3. 定期対策_工芸で単元が選択されている場合の絞り込み条件を追加
+            if (selectedBook.name === '定期対策_工芸' && startDay !== "") {
+              range = range.filter(d => d.unit === startDay);
+            }
+
             if(range.length === 0) return alert("該当なし");
             resetQuizState(); setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); setStep('quiz-main');
           }}>スタート！</button>
