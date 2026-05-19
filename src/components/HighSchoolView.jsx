@@ -33,7 +33,12 @@ function HighSchoolView({
   resetQuizState,
   setQuizItems,
   QUESTION_COUNT,
-  isKobunMode
+  isKobunMode,
+  // 【追加箇所】間違えたものリスト用のPropsを受け取る
+  fetchAndFilterWrongWords,
+  showWrongList,
+  setShowWrongList,
+  wrongWordsList
 }) {
   if (step !== 'highschool-menu' && step !== 'highschool-setup') return null;
 
@@ -170,6 +175,28 @@ function HighSchoolView({
             )}
           </div>
 
+          {/* 【修正箇所】高校生モード用の「間違えたものリスト」ボタンを追加 */}
+          <button className="nav-btn" style={{ backgroundColor: '#dc3545', marginBottom: '10px' }} onClick={() => {
+            let range = [];
+            if (selectedBook.name === '定期対策_工芸') {
+              if (startDay === 'DAY1' || startDay === "" || startDay.includes("すべての単元")) {
+                range = selectedBook.data;
+              } else {
+                range = selectedBook.data.filter(d => d.unit === startDay);
+              }
+            } else {
+              range = selectedBook.data.filter(d => d.no >= startNo && d.no <= endNo);
+              if (selectedBook.name === '古文単語315' && selectedParts.length > 0) {
+                range = range.filter(d => selectedParts.includes(d.part));
+              }
+            }
+
+            if (range.length === 0) return alert("選択した範囲のデータが見つかりません");
+
+            // 現在選択されている単語帳の名前（selectedBook.name）をそのままシート名として渡す
+            fetchAndFilterWrongWords(selectedBook.name, range);
+          }}>🔍 過去の間違えたものリストを表示</button>
+
           <button className="nav-btn" onClick={() => {
             let range = [];
             if (selectedBook.name === '定期対策_工芸') {
@@ -191,7 +218,43 @@ function HighSchoolView({
             setStep('quiz-main');
           }}>スタート！</button>
           
-          <button className="secondary" onClick={() => { setStep('highschool-menu'); setSelectedParts([]); }}>戻る</button>
+          <button className="secondary" onClick={() => { setStep('highschool-menu'); setSelectedParts([]); setShowWrongList(false); }}>戻る</button>
+
+          {/* 高校生モード用の要復習リストテーブル表示エリア */}
+          {showWrongList && wrongWordsList.length > 0 && step === 'highschool-setup' && (
+            <div style={{ marginTop: '20px', borderTop: '2px solid #dc3545', paddingTop: '20px', textAlign: 'left' }}>
+              <h3 style={{ color: '#dc3545', marginBottom: '10px' }}>⚠️ 要復習リスト（残り {wrongWordsList.length} 問）</h3>
+              
+              <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid #eee', background: '#fff', borderRadius: '6px', marginBottom: '15px' }}>
+                <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
+                  <thead style={{ background: '#f8f9fa', position: 'sticky', top: 0 }}>
+                    <tr style={{ borderBottom: '2px solid #eee' }}>
+                      <th style={{ padding: '8px' }}>No.</th>
+                      <th style={{ padding: '8px' }}>問題</th>
+                      <th style={{ padding: '8px' }}>答え</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {wrongWordsList.map((item, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '8px', color: '#666' }}>{item.rawItem.no || idx + 1}</td>
+                        <td style={{ padding: '8px', fontWeight: 'bold' }}>{item.q}</td>
+                        <td style={{ padding: '8px' }}>{item.a}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <button className="nav-btn" style={{ backgroundColor: '#28a745' }} onClick={() => {
+                const targetItems = wrongWordsList.map(w => w.rawItem);
+                resetQuizState();
+                setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));
+                setShowWrongList(false);
+                setStep('quiz-main');
+              }}>🔥 間違えた問題のみトライ！</button>
+            </div>
+          )}
         </div>
       )}
     </>

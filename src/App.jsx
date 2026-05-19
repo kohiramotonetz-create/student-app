@@ -701,7 +701,7 @@ function App() {
         wrongWordsList={wrongWordsList}
       />
 
-      {/* 【修正箇所】書き単、不規則変化、古文自習の設定UIをコンポーネント化 */}
+      {/* 【修正】親から子へ、必要な関数や状態をすべて仕送りする */}
       <OtherSetupsView 
         step={step}
         setStep={setStep}
@@ -719,6 +719,10 @@ function App() {
         QUESTION_COUNT={QUESTION_COUNT}
         isFukisokuMode={isFukisokuMode}
         isKobunMode={isKobunMode}
+        fetchAndFilterWrongWords={fetchAndFilterWrongWords}
+        showWrongList={showWrongList}
+        setShowWrongList={setShowWrongList}
+        wrongWordsList={wrongWordsList}
       />
 
       {/* 【修正箇所】高校生モードのメニュー＆設定UIをコンポーネント化 */}
@@ -756,6 +760,11 @@ function App() {
         setQuizItems={setQuizItems}
         QUESTION_COUNT={QUESTION_COUNT}
         isKobunMode={isKobunMode}
+        // 【追加箇所】親から子へ必要な関数や状態を仕送りする
+        fetchAndFilterWrongWords={fetchAndFilterWrongWords}
+        showWrongList={showWrongList}
+        setShowWrongList={setShowWrongList}
+        wrongWordsList={wrongWordsList}
       />
       {/* 【修正箇所】テストを解く画面 ＆ 結果画面をコンポーネント化 */}
       <QuizPlayView 
