@@ -24,7 +24,12 @@ function KanjiTestView({
   clearKanjiCanvas,
   judgeKanji,
   setStrokes,
-  setQuizAnswers
+  setQuizAnswers,
+  // 【追加箇所】間違えたものリスト用のPropsを受け取る
+  fetchAndFilterWrongWords,
+  showWrongList,
+  setShowWrongList,
+  wrongWordsList
 }) {
   if (step !== 'kanji-setup' && step !== 'kanji-main') return null;
 
@@ -112,9 +117,86 @@ function KanjiTestView({
             )}
           </div>
           <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            
+            {/* 【修正箇所】漢字テスト用の「間違えたものリスト」ボタンを追加 */}
+            <button 
+              className="nav-btn" 
+              style={{ backgroundColor: '#dc3545', width: '100%' }} 
+              disabled={kanjiMode === 'page' && !selectedText}
+              onClick={() => {
+                let range = [];
+                if (kanjiMode === 'page') {
+                  // ① ページ範囲選択の場合の抽出（"p" を除外して数字として比較できるように修正）
+                  const sNum = Number(String(startPage).replace(/[^\d]/g, ''));
+                  const eNum = Number(String(endPage).replace(/[^\d]/g, ''));
+                  const startNum = Math.min(sNum, eNum);
+                  const endNum = Math.max(sNum, eNum);
+
+                  range = kanjiList.filter(k => {
+                    if (k.textName !== selectedText) return false;
+                    // アプリ内のデータ（k.page）が "p3" や "3" のどちらでも対応できるようにする
+                    const kNum = Number(String(k.page).replace(/[^\d]/g, ''));
+                    return kNum >= startNum && kNum <= endNum;
+                  });
+                } else {
+                  // ② 1つずつ個別選択の場合の抽出
+                  range = kanjiList.filter((_, idx) => selectedKanjiIds.includes(idx));
+                }
+
+                if (range.length === 0) return alert("選択された範囲に漢字データがありません");
+
+                // ⭕️ 親の保存シート名「漢字テスト」と完全に一致させる
+                fetchAndFilterWrongWords("漢字テスト", range);
+              }}
+            >
+              🔍 過去の間違えたものリストを表示
+            </button>
+
             <button className="nav-btn" onClick={startKanjiTest} disabled={kanjiMode === 'page' && !selectedText} style={{ width: '100%' }}>🚀 テスト開始！</button>
-            <button className="secondary" onClick={() => setStep('menu')} style={{ width: '100%' }}>戻る</button>
+            <button className="secondary" onClick={() => { setStep('menu'); setShowWrongList(false); }} style={{ width: '100%' }}>戻る</button>
           </div>
+
+          {/* ──────────────────────────────────────────────────────── */}
+          {/* 【新設】漢字テスト用の間違えた問題の一覧表示 ＆ リトライUI */}
+          {/* ──────────────────────────────────────────────────────── */}
+          {showWrongList && wrongWordsList.length > 0 && step === 'kanji-setup' && (
+            <div style={{ marginTop: '20px', borderTop: '2px solid #dc3545', paddingTop: '20px', textAlign: 'left' }}>
+              <h3 style={{ color: '#dc3545', marginBottom: '10px' }}>⚠️ 要復習リスト（残り {wrongWordsList.length} 問）</h3>
+              
+              <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid #eee', background: '#fff', borderRadius: '6px', marginBottom: '15px' }}>
+                <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
+                  <thead style={{ background: '#f8f9fa', position: 'sticky', top: 0 }}>
+                    <tr style={{ borderBottom: '2px solid #eee' }}>
+                      <th style={{ padding: '8px' }}>ページ</th>
+                      <th style={{ padding: '8px' }}>問題 (よみ)</th>
+                      <th style={{ padding: '8px' }}>答え (漢字)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {wrongWordsList.map((item, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '8px', color: '#666' }}>{item.unit || "個別"}</td>
+                        <td style={{ padding: '8px', fontWeight: 'bold' }}>{item.q}</td>
+                        <td style={{ padding: '8px' }}>{item.a}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <button className="nav-btn" style={{ backgroundColor: '#28a745', width: '100%' }} onClick={() => {
+                const targetItems = wrongWordsList.map(w => w.rawItem);
+                
+                // 漢字テスト専用のクイズ初期化処理
+                setStrokes([]);
+                setQuizAnswers([]);
+                // 間違えた問題のみをランダムにセットして手書きテストへ進む
+                setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));
+                setShowWrongList(false);
+                setStep('kanji-main');
+              }}>🔥 間違えた問題のみトライ！</button>
+            </div>
+          )}
         </div>
       )}
 

@@ -224,26 +224,25 @@ function App() {
 
       const pastLogs = response.data; // 最新順のログ配列
       
-      // 今画面で選ばれている範囲の「問題（英語や漢字）」のリストを作成
-      const currentWordSet = new Set(currentRangeWords.map(w => w.en));
+      // 【完全隔離】漢字テストかどうかをシート名で厳密に判定
+      const isKanji = sheetName === "漢字テスト" || sheetName === "漢字対策";
+      
+      // 今画面で選ばれている範囲の「突合用キー（英語なら w.en、漢字なら元のデータの question）」のリストを作成
+      const currentWordSet = new Set(currentRangeWords.map(w => isKanji ? (w.question || w.ja) : w.en));
       
       // 問題ごとの正誤履歴を追跡するためのマップ（キー: 問題の文字列, 値: ○×の配列）
-      // 例: { "apple": ["○", "×", "○"], "banana": ["×"] }  ※インデックス0が最新
       const wordHistoryMap = {};
 
       // 2. 過去ログを解析して、各問題の最新からの正誤履歴を詰め込む
       pastLogs.forEach(log => {
         if (!log.history) return;
-        // 詳細履歴 「[1]apple(○), [2]banana(×)」 のような文字列をバラす
         const items = log.history.split(', ');
         items.forEach(item => {
-          // 正規表現で単語と○×を抽出
           const match = item.match(/\](.+?)\((○|×)\)/);
           if (match) {
-            const word = match[1]; // 例: "apple"
-            const result = match[2]; // "○" または "×"
+            const word = match[1].trim(); // 前後の空白を排除
+            const result = match[2];
             
-            // 今選んでいる範囲内の問題だけを対象にする
             if (currentWordSet.has(word)) {
               if (!wordHistoryMap[word]) {
                 wordHistoryMap[word] = [];
@@ -258,36 +257,33 @@ function App() {
       const wrongList = [];
       
       currentRangeWords.forEach(item => {
-        const history = wordHistoryMap[item.en];
+        // 【完全隔離】漢字のときは「よみ（question または ja）」、それ以外の英単語・古文は「item.en」をキーにする
+        const searchKey = isKanji ? (item.question || item.ja) : item.en;
+        const history = wordHistoryMap[searchKey];
         
         let isWrong = false;
 
         if (!history || history.length === 0) {
-          // パターン1: 過去に一度も解いたことがない問題 ➡ 今回は「間違えたものリスト」なので除外（対象外）
           isWrong = false;
         } else if (history[0] === '×') {
-          // パターン2: 直近（最新）で間違えている ➡ 絶対にリストに入れる
           isWrong = true;
         } else if (history[0] === '○') {
-          // パターン3: 直近は正解しているが、過去を遡る
           if (history.length === 1) {
-            // 過去に1回しか解いておらず、それが○ ➡ 合格（除外）
             isWrong = false;
           } else if (history[1] === '×') {
-            // 最新が○、その前が×（1回しか連続正解していない） ➡ まだ未合格（リストに入れる）
             isWrong = true;
           } else if (history[1] === '○') {
-            // 最新が○、その前も○（2回連続正解達成！） ➡ 合格（除外）
             isWrong = false;
           }
         }
 
-        // 要復習判定になった問題のみ、CSVのデータ（単元名、問題、答え）を結合してリストに追加
+        // 要復習判定になった問題のみリストに追加
         if (isWrong) {
           wrongList.push({
-            unit: item.unit || item.part || item.unitGroup || "選択範囲", // 単元名
-            q: item.en, // 問題
-            a: item.ja, // 答え
+            // 漢字の時は「テキスト名 (ページ)」、英語の時は従来の単元名にする
+            unit: isKanji ? `${item.textName} (${item.page})` : (item.unit || item.part || item.unitGroup || "選択範囲"),
+            q: isKanji ? item.question : item.en, // 画面表示用の問題
+            a: isKanji ? item.answer : item.ja,   // 画面表示用の答え
             rawItem: item // 再テスト時にそのまま使えるように元データも保持
           });
         }
@@ -304,7 +300,7 @@ function App() {
       console.error("ログ取得エラー:", e);
       alert("過去ログの取得に失敗しました");
     } finally {
-      setLoading(false);
+      setLoading(false); // シンプルにこれだけにします
     }
   };
 
@@ -814,6 +810,11 @@ function App() {
         judgeKanji={judgeKanji}
         setStrokes={setStrokes}
         setQuizAnswers={setQuizAnswers}
+        // 【追加箇所】親から子へ必要な関数や状態を仕送りする
+        fetchAndFilterWrongWords={fetchAndFilterWrongWords}
+        showWrongList={showWrongList}
+        setShowWrongList={setShowWrongList}
+        wrongWordsList={wrongWordsList}
       />
 
 
