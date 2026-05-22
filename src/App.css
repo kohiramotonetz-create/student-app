@@ -1,45 +1,6 @@
 /* --- 全体レイアウト --- */
-
-/* 1. ブラウザの根本のベースを画面ぴったり（ハミ出しなし）に固定 */
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden !important; /* 無駄なスクロールバーを徹底排除 */
-  background-color: #f0f2f5; /* 万が一の背景色もアプリの色と同期 */
-  overscroll-behavior: none; /* スマホの引っ張りバウンス防止 */
-}
-
-#root { 
-  width: 100%; 
-  height: 100%; 
-  margin: 0; 
-  padding: 0; 
-}
-
-/* 2. メインコンテナ（ここで黒枠の隙間を完全に潰します） */
-.container { 
-  display: flex; 
-  flex-direction: column;
-  justify-content: center; 
-  align-items: center; 
-  
-  /* 狂いの出ないパーセンテージで、画面最上部から最下部までを強制的に敷き詰める */
-  width: 100% !important; 
-  height: 100% !important; 
-  min-height: 100% !important;
-  
-  background-color: #f0f2f5; /* 👈 これで画面全体がこの薄いグレーで満たされます */
-  font-family: sans-serif; 
-  box-sizing: border-box;
-  overflow: hidden !important;
-}
-
-/* すべての要素のパディング計算バグを防ぐ保険 */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
+#root { width: 100%; margin: 0; padding: 0; }
+.container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f0f2f5; font-family: sans-serif; width: 100vw; }
 
 /* --- カード形式のコンテナ --- */
 .login-box, .menu-box, .quiz-container { 
