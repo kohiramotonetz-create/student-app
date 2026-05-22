@@ -1,3 +1,5 @@
+// QuizSetupView.jsx - クイズの設定画面を担当するコンポーネント
+
 import React from 'react';
 
 function QuizSetupView({

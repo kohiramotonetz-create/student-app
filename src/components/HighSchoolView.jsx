@@ -1,3 +1,5 @@
+// HighSchoolView.jsx - 高校生モードのメニューと設定画面を担当するコンポーネント
+
 import React from 'react';
 
 function HighSchoolView({

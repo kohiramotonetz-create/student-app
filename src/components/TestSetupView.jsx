@@ -1,3 +1,5 @@
+// TestSetupView.jsx - 英単語テスト作成画面のコンポーネント
+
 import React from 'react';
 
 function TestSetupView({

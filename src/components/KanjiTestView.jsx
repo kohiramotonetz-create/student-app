@@ -1,3 +1,5 @@
+// KanjiTestView.jsx - 漢字テストの設定画面と実行画面を担当するコンポーネント
+
 import React from 'react';
 
 function KanjiTestView({

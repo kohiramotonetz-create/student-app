@@ -1,6 +1,45 @@
 /* --- 全体レイアウト --- */
-#root { width: 100%; margin: 0; padding: 0; }
-.container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f0f2f5; font-family: sans-serif; width: 100vw; }
+
+/* 1. ブラウザの根本のベースを画面ぴったり（ハミ出しなし）に固定 */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden !important; /* 無駄なスクロールバーを徹底排除 */
+  background-color: #f0f2f5; /* 万が一の背景色もアプリの色と同期 */
+  overscroll-behavior: none; /* スマホの引っ張りバウンス防止 */
+}
+
+#root { 
+  width: 100%; 
+  height: 100%; 
+  margin: 0; 
+  padding: 0; 
+}
+
+/* 2. メインコンテナ（ここで黒枠の隙間を完全に潰します） */
+.container { 
+  display: flex; 
+  flex-direction: column;
+  justify-content: center; 
+  align-items: center; 
+  
+  /* 狂いの出ないパーセンテージで、画面最上部から最下部までを強制的に敷き詰める */
+  width: 100% !important; 
+  height: 100% !important; 
+  min-height: 100% !important;
+  
+  background-color: #f0f2f5; /* 👈 これで画面全体がこの薄いグレーで満たされます */
+  font-family: sans-serif; 
+  box-sizing: border-box;
+  overflow: hidden !important;
+}
+
+/* すべての要素のパディング計算バグを防ぐ保険 */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
 
 /* --- カード形式のコンテナ --- */
 .login-box, .menu-box, .quiz-container { 
@@ -166,4 +205,182 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
   z-index: -1; /* 文字の裏に配置 */
 }
 
-/* ★もしCSSに .loading-overlay::after が残っていたら、それは削除してください！ */
+/* キーボード全体を包むエリア */
+.chem-keyboard-container {
+  /* 親の制限を無視して、画面全体の横幅（View Width）の 90% に強制固定 */
+  width: 55vw !important; 
+  max-width: 700px !important; /* タブレットやPCで大きくなりすぎないストッパー */
+  
+  /* 画面中央に寄せるための魔法の処理 */
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  
+  margin: 20px 0 0 0;
+  box-sizing: border-box;
+}
+
+/* ボタンの中の文字も、大きくなった台座に合わせて少しサイズアップ */
+.chem-keyboard .key {
+  font-size: 1.3rem !important; /* 👈 文字も少し大きくして押しやすく */
+}
+.chem-keyboard .key-enter {
+  font-size: 1.4rem !important;
+}
+
+/* ★ 5:4の比率を維持するキーボードの台座 */
+.chem-keyboard {
+  background: #cbd5e1;
+  padding: 10px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  
+  display: flex !important;
+  flex-direction: column !important;
+  
+  /* 5:4 のアスペクト比を強制 */
+  aspect-ratio: 5 / 4 !important; 
+  box-sizing: border-box;
+}
+
+/* 各段の調整 */
+.chem-keyboard .keyboard-row {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: center;
+  width: 100%;
+  /* 縦スペースを均等に分けるため、固定ではなく flex を指定 */
+  flex: 1; 
+  margin-bottom: 5px;
+  gap: 4px;
+}
+
+/* 最後の段（Enter）の隙間をリセット */
+.chem-keyboard .keyboard-row:last-child {
+  margin-bottom: 0;
+}
+
+/* ボタン単体のスタイル（高さ自動調整） */
+.chem-keyboard .key {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  /* ★ 高さを100%にして、5:4の枠組みに追従させる */
+  height: 100% !important; 
+  background: #ffffff;
+  color: #1e293b;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 0 #94a3b8;
+  transition: background 0.05s, transform 0.05s;
+  user-select: none;
+  padding: 0;
+  
+  /* 文字をボタンの上下中央に配置 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chem-keyboard .key:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+/* 各種キーのカラーリング */
+.chem-keyboard .key-num {
+  background: #f8fafc;
+}
+
+.chem-keyboard .btn-mode,
+.chem-keyboard .key-shift,
+.chem-keyboard .key-backspace,
+.chem-keyboard .btn-util {
+  background: #64748b;
+  color: #ffffff;
+  font-size: 0.9rem;
+}
+
+.chem-keyboard .btn-mode.active,
+.chem-keyboard .key-shift.active {
+  background: #2563eb;
+  box-shadow: 0 2px 0 #1d4ed8;
+}
+
+/* 特殊キーの横幅比率 */
+.chem-keyboard .btn-mode {
+  flex: 2; 
+}
+
+.chem-keyboard .key-shift,
+.chem-keyboard .key-backspace {
+  flex: 1.5;
+  font-size: 1.1rem;
+}
+
+/* 確定ボタンのスタイル */
+.chem-keyboard .key-enter {
+  background: #10b981;
+  color: #ffffff;
+  flex: 1;
+  font-size: 1.2rem;
+  box-shadow: 0 2px 0 #059669;
+}
+
+/* 問題番号（問題 1 / 4）のスタイル */
+.quiz-progress {
+  font-size: 1.1rem !important;
+  color: #64748b; /* 落ち着いたグレー */
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+/* 問題文（硫酸イオン式は？）のスタイル */
+.quiz-question-text {
+  font-size: 2.2rem !important; /* 👈 ドカンと大きく */
+  font-weight: bold !important;
+  color: #0f172a; /* 濃いネイビー */
+  margin-bottom: 15px;
+  letter-spacing: 0.5px;
+}
+
+/* 生徒が入力した文字が表示されるエリア（SO） */
+.chem-input-display {
+  background: #f1f5f9;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 2.4rem !important; /* 👈 入力文字も超大きく */
+  font-weight: bold !important;
+  color: #1e293b;
+  min-height: 50px;
+  display: inline-block;
+  min-width: 250px;
+  margin: 10px auto 25px auto;
+  letter-spacing: 1px;
+}
+
+/* まだ何も入力していないときのプレースホルダー（ここに化学式が表示されます） */
+.chem-input-display .placeholder {
+  font-size: 1.2rem !important;
+  color: #94a3b8;
+  font-weight: normal;
+  letter-spacing: 0px;
+}
+
+/* 6段目のボタン比率調整（1:1で均等に並ぶようにする） */
+.chem-keyboard .key-unknown,
+.chem-keyboard .key-enter {
+  flex: 1 !important;
+  height: 48px;
+  font-size: 1.2rem !important;
+}
+
+/* わからないボタンのアクティブ時挙動 */
+.chem-keyboard .key-unknown:active {
+  transform: translateY(2px);
+  box-shadow: none !important;
+}

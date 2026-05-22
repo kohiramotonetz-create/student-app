@@ -53,6 +53,19 @@ function MenuView({
 
         <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生モード</button>
         <button className="nav-btn" onClick={() => setStep('kanji-setup')}>🖋 定期テスト 漢字対策！　←NEW!!</button>
+        {/* 【追加】化学式・イオン式テストの起動ボタン */}
+        <button 
+          className="nav-btn" 
+          style={{ backgroundColor: '#4f46e5', color: '#fff' }} 
+          onClick={() => { 
+            setIsKobunMode(false); 
+            setIsFukisokuMode(false); 
+            setSelectedBook({ name: '', data: [] }); 
+            setStep('chemistry-setup'); 
+          }}
+        >
+          🧪 化学式・イオン式
+        </button>
       </div>
       <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
     </div>

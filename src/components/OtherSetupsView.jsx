@@ -1,3 +1,5 @@
+// OtherSetupsView.jsx - 書き単・不規則変化・古文単語の設定画面を担当するコンポーネント
+
 import React from 'react';
 
 function OtherSetupsView({
@@ -119,15 +121,38 @@ function OtherSetupsView({
           <h2 style={{ color: '#333' }}>🚀 {isFukisokuMode ? "不規則変化" : "古文単語"} 設定</h2>
           <div className="config-group">
             <label>形式:</label>
-            <select value={mode} onChange={(e) => setMode(e.target.value)}>
-              <option value="en-ja">{isKobunMode ? "古文→現代語訳" : "英語→日本語"}</option>
-              <option value="ja-en">{isKobunMode ? "現代語訳→古文" : "日本語→英語"}</option>
-            </select>
+            
+            {/* 💡 不規則変化のときは「日本語→英語」、古文単語のときは「古文→現代語訳」でそれぞれ変更不可にする */}
+            {isFukisokuMode ? (
+              <select 
+                value="ja-en" 
+                disabled 
+                style={{ 
+                  backgroundColor: '#e2e8f0', 
+                  color: '#475569', 
+                  cursor: 'not-allowed', 
+                  fontWeight: 'bold' 
+                }}
+              >
+                <option value="ja-en">日本語 → 英語 (固定)</option>
+              </select>
+            ) : (
+              <select 
+                value="en-ja" 
+                disabled 
+                style={{ 
+                  backgroundColor: '#e2e8f0', 
+                  color: '#475569', 
+                  cursor: 'not-allowed', 
+                  fontWeight: 'bold' 
+                }}
+              >
+                <option value="en-ja">古文 → 現代語訳 (固定)</option>
+              </select>
+            )}
           </div>
 
-          {/* 【修正箇所】不規則変化・古文単語用の「間違えたものリスト」ボタンを追加 */}
           <button className="nav-btn" style={{ backgroundColor: '#dc3545', marginBottom: '10px' }} onClick={() => {
-            // モードに応じて、全データを取得し、GASへ送るシート名を切り替える
             const baseData = isFukisokuMode ? fukisokuData : kobunData;
             const sheetName = isFukisokuMode ? "英単語(不規則変化)" : "古文単語(自習)";
             
@@ -138,6 +163,14 @@ function OtherSetupsView({
             const baseData = isFukisokuMode ? fukisokuData : kobunData;
             resetQuizState(); 
             setQuizItems([...baseData].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); 
+            
+            {/* ★ スタートした瞬間、各モードに応じた正しい識別子を親ステートに強制同期 */}
+            if (isFukisokuMode) {
+              setMode('ja-en'); // 不規則変化は「日本語→英語」
+            } else {
+              setMode('en-ja'); // 古文単語は「古文→現代語訳」
+            }
+            
             setStep('quiz-main');
           }}>スタート！</button>
           <button className="secondary" onClick={() => { setStep('menu'); setShowWrongList(false); }}>戻る</button>
@@ -172,6 +205,14 @@ function OtherSetupsView({
                 const targetItems = wrongWordsList.map(w => w.rawItem);
                 resetQuizState();
                 setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));
+                
+                {/* ★ 間違えた問題のみトライで復習するときも、確実に各モードの固定形式を適用 */}
+                if (isFukisokuMode) {
+                  setMode('ja-en');
+                } else {
+                  setMode('en-ja');
+                }
+                
                 setShowWrongList(false);
                 setStep('quiz-main');
               }}>🔥 間違えた問題のみトライ！</button>

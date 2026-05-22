@@ -1,3 +1,6 @@
+// LoginView.jsx - ログイン画面とパスワード変更画面を担当するコンポーネント
+
+
 import React from 'react';
 
 function LoginView({ 

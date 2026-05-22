@@ -1,3 +1,5 @@
+// QuizPlayView.jsx - クイズの実行画面と結果表示を担当するコンポーネント
+
 import React from 'react';
 
 function QuizPlayView({
@@ -88,7 +90,14 @@ function QuizPlayView({
             <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
               <thead style={{ background: '#f8f9fa', position: 'sticky', top: 0 }}>
                 <tr>
-                  <th>No</th><th>問題</th>{selectedBook.name === '書き単' && <th>品詞</th>}<th>解答</th>{selectedBook.name === '書き単' && <th>発音</th>}<th>正誤</th>
+                  <th style={{ padding: '5px' }}>No</th>
+                  <th style={{ padding: '5px' }}>問題</th>
+                  {selectedBook.name === '書き単' && <th style={{ padding: '5px' }}>品詞</th>}
+                  <th style={{ padding: '5px' }}>解答</th>
+                  {selectedBook.name === '書き単' && <th style={{ padding: '5px' }}>発音</th>}
+                  {/* 【追加】「自分の回答」列のヘッダー */}
+                  <th style={{ padding: '5px' }}>自分の回答</th>
+                  <th style={{ padding: '5px' }}>正誤</th>
                 </tr>
               </thead>
               <tbody>
@@ -97,8 +106,12 @@ function QuizPlayView({
                     <td style={{ textAlign: 'center', padding: '5px' }}>{i + 1}</td>
                     <td style={{ padding: '5px' }}>{a.q}</td>
                     {selectedBook.name === '書き単' && <td style={{ padding: '5px' }}>{a.rawItem.part}</td>}
-                    <td style={{ padding: '5px' }}>{a.correct}</td>
+                    <td style={{ padding: '5px', fontWeight: '500' }}>{a.correct}</td>
                     {selectedBook.name === '書き単' && <td style={{ padding: '5px' }}>{a.rawItem.pron}</td>}
+                    {/* 【追加】生徒自身がタイピング、または選択した回答を出すセルを追加 */}
+                    <td style={{ padding: '5px', color: a.ok ? '#444' : '#ef4444' }}>
+                      {a.a || <span style={{ color: '#aaa', fontStyle: 'italic' }}>未入力</span>}
+                    </td>
                     <td style={{ color: a.ok ? 'green' : 'red', fontWeight: 'bold', textAlign: 'center', padding: '5px' }}>{a.ok ? '○' : '×'}</td>
                   </tr>
                 ))}
