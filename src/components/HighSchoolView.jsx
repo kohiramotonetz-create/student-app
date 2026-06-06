@@ -19,6 +19,7 @@ function HighSchoolView({
   kobun325Data,
   formulaData,
   kougeiData,
+  mikiData, // 【改善：新規追加】親から降りてくる三木高校のデータ
   selectedBook,
   setSelectedBook,
   setIsKobunMode,
@@ -36,13 +37,15 @@ function HighSchoolView({
   setQuizItems,
   QUESTION_COUNT,
   isKobunMode,
-  // 【追加箇所】間違えたものリスト用のPropsを受け取る
   fetchAndFilterWrongWords,
   showWrongList,
   setShowWrongList,
   wrongWordsList
 }) {
   if (step !== 'highschool-menu' && step !== 'highschool-setup') return null;
+
+  // 【改善：内部共通フラグ】定期テスト対策用の高校が選択されているかを判定するヘルパー
+  const isRegularExamBook = selectedBook.name === '高松工芸美術科' || selectedBook.name === '三木高校文理コース';
 
   return (
     <>
@@ -94,20 +97,36 @@ function HighSchoolView({
           </div>
           
           <div style={{ marginTop: '20px', borderTop: '2px dashed #eee', paddingTop: '10px' }}>
-            <h3 style={{ color: '#333', marginBottom: '10px' }}>🎨 定期対策</h3>
+            <h3 style={{ color: '#333', marginBottom: '10px' }}>🎨 定期テスト</h3>
             <div className="button-grid">
+              {/* 【改善：名称変更】定期対策_工芸 ➔ 高松工芸美術科 */}
               <button 
                 className="nav-btn" 
                 style={{ backgroundColor: '#2ecc71', color: 'white' }} 
                 onClick={() => { 
                   setIsKobunMode(false); 
-                  setSelectedBook({ name: '定期対策_工芸', data: kougeiData }); 
+                  setSelectedBook({ name: '高松工芸美術科', data: kougeiData }); 
                   setStartNo(1); 
                   setEndNo(Math.min(kougeiData.length, 100)); 
                   setStep('highschool-setup'); 
                 }}
               >
-                定期対策_工芸
+                高松工芸美術科
+              </button>
+
+              {/* 【改善：新規追加】三木高校文理コースボタン */}
+              <button 
+                className="nav-btn" 
+                style={{ backgroundColor: '#2ecc71', color: 'white' }} 
+                onClick={() => { 
+                  setIsKobunMode(false); 
+                  setSelectedBook({ name: '三木高校文理コース', data: mikiData }); 
+                  setStartNo(1); 
+                  setEndNo(Math.min(mikiData.length, 100)); 
+                  setStep('highschool-setup'); 
+                }}
+              >
+                三木高校文理コース
               </button>
             </div>
           </div>
@@ -126,7 +145,8 @@ function HighSchoolView({
               <option value="ja-en">{isKobunMode ? "現代語訳→古文" : "日本語→英語"}</option>
             </select>
             
-            {selectedBook.name !== '定期対策_工芸' && (
+            {/* 【改善：条件式変更】定期テスト枠の高校以外で範囲（No.）を出す */}
+            {!isRegularExamBook && (
               <>
                 <label>範囲(No.):</label>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '15px' }}>
@@ -160,9 +180,10 @@ function HighSchoolView({
               </div>
             )}
             
-            {selectedBook.name === '定期対策_工芸' && availableKougeiUnits.length > 0 && (
+            {/* 【改善：条件式変更】定期テスト枠の高校のときに単元セレクトボックスを表示 */}
+            {isRegularExamBook && availableKougeiUnits.length > 0 && (
               <div style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
-                <label>単元選択:</label>
+                <label>教科書ページ:</label>
                 <select 
                   value={startDay} 
                   onChange={(e) => setStartDay(e.target.value)} 
@@ -177,10 +198,10 @@ function HighSchoolView({
             )}
           </div>
 
-          {/* 【修正箇所】高校生モード用の「間違えたものリスト」ボタンを追加 */}
           <button className="nav-btn" style={{ backgroundColor: '#dc3545', marginBottom: '10px' }} onClick={() => {
             let range = [];
-            if (selectedBook.name === '定期対策_工芸') {
+            {/* 【改善：条件式変更】定期テスト枠の高校データのスコープ判定 */}
+            if (isRegularExamBook) {
               if (startDay === 'DAY1' || startDay === "" || startDay.includes("すべての単元")) {
                 range = selectedBook.data;
               } else {
@@ -195,13 +216,13 @@ function HighSchoolView({
 
             if (range.length === 0) return alert("選択した範囲のデータが見つかりません");
 
-            // 現在選択されている単語帳の名前（selectedBook.name）をそのままシート名として渡す
             fetchAndFilterWrongWords(selectedBook.name, range);
           }}>🔍 過去の間違えたものリストを表示</button>
 
           <button className="nav-btn" onClick={() => {
             let range = [];
-            if (selectedBook.name === '定期対策_工芸') {
+            {/* 【改善：条件式変更】定期テスト枠の高校データのスコープ判定 */}
+            if (isRegularExamBook) {
               if (startDay === 'DAY1' || startDay === "" || startDay.includes("すべての単元")) {
                 range = selectedBook.data;
               } else {
