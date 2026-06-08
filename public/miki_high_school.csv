@@ -1,75 +1,95 @@
-﻿No,英語,日本語,単元
-1,aboard,乗って,p16
-2,journey,旅,p16
-3,preference,好きなこと,p16
-4,specialty,特質,p16
-5,be ready for ~,準備ができている,p16
-6,get to do,〜するようになる,p16
-7,at the same time,同時に,p16
-8,unique,独特な,p16
-9,strength,強み,p16
-10,prefer,むしろ、…のほうを好む,p16
-11,stage,期、宿場,p16
-12,level,水平、同じレベル,p16
-13,characteristics,特徴,p18
-14,rhythm,リズム/ダイアグラム,p18
-15,collaboratively,協力して,p18
-16,pattern,パターン/形式,p18
-17,pursue,追求する,p18
-18,curiosity,好奇心,p18
-19,visually,視覚的に,p18
-20,organize,整理する,p18
-21,spatially,空間的に,p18
-22,bullet,箇条書き/中黒,p18
-23,scale,スケール/尺度,p18
-24,radar,レーダー,p18
-25,express oneself,自分を表現する,p18
-26,prefer to do,〜することを好む,p18
-27,weakness,弱点/短所,p20
-28,totally,完全に,p20
-29,genius,天才,p20
-30,da Vinci,ダ・ヴィンチ,p20
-31,Einstein,アインシュタイン,p20
-32,struggle,苦闘する,p20
-33,Howard Gardner,ハワード・ガードナー,p20
-34,multiple,複数の/多数の,p20
-35,intelligence,知性/知能,p20
-36,uniqueness,独自性/唯一無二の,p20
-37,expand,拡大,p20
-38,as well as A,Aと同義に/Aだけでなく,p20
-39,in one's own way,自分なりの方法で,p20
-40,A as well as B,AだけでなくBも,p20
-41,stew,シチュー/煮込む,p30
-42,various,さまざまな,p30
-43,spice,スパイス,p30
-44,sauce,ソース,p30
-45,Tamil,タミル語,p30
-46,think of A,Aを思い浮かべる/Aを考える,p30
-47,be similar to A,Aに似ている,p30
-48,come from A,Aから来る/Aから,p30
-49,home of,発生の地,p30
-50,colony,植民地,p32
-51,Warren Hastings,ウォーレン・ヘイスティングズ（インド総督）,p32
-52,gradually,徐々に,p32
-53,powder,粉末,p32
-54,mix,混ぜる,p32
-55,popularity,人気,p32
-56,spread,広げる/広がる,p32
-57,in the past,過去に/昔は,p32
-58,bring back A,Aを復活させる/Aを返す/Aを持ちかえる,p32
-59,at the beginning of A,Aの始めに,p32
-60,to one's own taste,自分の好みに合わせて,p32
-61,sail,帆,p34
-62,era,紀元,p34
-63,import,輸入する,p34
-64,military,軍隊,p34
-65,adopt,採用する,p34
-66,soldier,軍人/兵士,p34
-67,ideal,理想の/理想的な,p34
-68,in those days,そのころ/その当時,p34
-69,it is because ~,これは〜だからだ,p34
-70,in large amounts,大量に,p34
-71,go back home,家に帰る,p34
-72,because of A,〜のために,p34
-73,that is because,これは〜だからだ,p34
-74,export,輸出する,p34
+﻿No,英語,日本語,単元,,,,,,,
+1,aboard,乗って,p16,,,,,,,
+2,journey,旅,p16,,,,,,,
+3,preference,好きなこと,p16,,,,,英単語 / 熟語,品詞,意味（手書き内容）
+4,specialty,特質,p16,,,,,more than,,〜よりも
+5,be ready for ~,準備ができている,p16,,,,,instruments,名,器具
+6,get to do,〜するようになる,p16,,,,,sense of rhythm,,リズム感
+7,at the same time,同時に,p16,,,,,express,動 / 名,考え
+8,unique,独特な,p16,,,,,social (soial),形,社交的
+9,strength,強み,p16,,,,,connect,動,つなぐ
+10,prefer,むしろ、…のほうを好む,p16,,,,,Then,副,そのうえ
+11,stage,期、宿場,p16,,,,,fill,動,満たす
+12,level,水平、同じレベル,p16,,,,,figure,名,数字
+13,characteristics,特徴,p18,,,,,celebrate,動,たたえる
+14,rhythm,リズム/ダイアグラム,p18,,,,,home of,,発祥の地
+15,collaboratively,協力して,p18,,,,,explain,動 / 名,説明
+16,pattern,パターン/形式,p18,,,,,come from,,〜に由来
+17,pursue,追求する,p18,,,,,a clerk,,事務員
+18,curiosity,好奇心,p18,,,,,After that,,その後
+19,visually,視覚的に,p18,,,,,across (across),前 / 副,その中に
+20,organize,整理する,p18,,,,,thicker,形,とろみのある
+21,spatially,空間的に,p18,,,,,serve,動,提供する
+22,bullet,箇条書き/中黒,p18,,,,,at once (at dice),,一度に
+23,scale,スケール/尺度,p18,,,,,as a food,,食べ物として
+24,radar,レーダー,p18,,,,,,,
+25,express oneself,自分を表現する,p18,,,,,,,
+26,prefer to do,〜することを好む,p18,,,,,,,
+27,weakness,弱点/短所,p20,,,,,,,
+28,totally,完全に,p20,,,,,,,
+29,genius,天才,p20,,,,,,,
+30,da Vinci,ダ・ヴィンチ,p20,,,,,,,
+31,Einstein,アインシュタイン,p20,,,,,,,
+32,struggle,苦闘する,p20,,,,,,,
+33,Howard Gardner,ハワード・ガードナー,p20,,,,,,,
+34,multiple,複数の/多数の,p20,,,,,,,
+35,intelligence,知性/知能,p20,,,,,,,
+36,uniqueness,独自性/唯一無二の,p20,,,,,,,
+37,expand,拡大,p20,,,,,,,
+38,as well as A,Aと同義に/Aだけでなく,p20,,,,,,,
+39,in one's own way,自分なりの方法で,p20,,,,,,,
+40,A as well as B,AだけでなくBも,p20,,,,,,,
+41,stew,シチュー/煮込む,p30,,,,,,,
+42,various,さまざまな,p30,,,,,,,
+43,spice,スパイス,p30,,,,,,,
+44,sauce,ソース,p30,,,,,,,
+45,Tamil,タミル語,p30,,,,,,,
+46,think of A,Aを思い浮かべる/Aを考える,p30,,,,,,,
+47,be similar to A,Aに似ている,p30,,,,,,,
+48,come from A,Aから来る/Aから,p30,,,,,,,
+49,home of,発生の地,p30,,,,,,,
+50,colony,植民地,p32,,,,,,,
+51,Warren Hastings,ウォーレン・ヘイスティングズ（インド総督）,p32,,,,,,,
+52,gradually,徐々に,p32,,,,,,,
+53,powder,粉末,p32,,,,,,,
+54,mix,混ぜる,p32,,,,,,,
+55,popularity,人気,p32,,,,,,,
+56,spread,広げる/広がる,p32,,,,,,,
+57,in the past,過去に/昔は,p32,,,,,,,
+58,bring back A,Aを復活させる/Aを返す/Aを持ちかえる,p32,,,,,,,
+59,at the beginning of A,Aの始めに,p32,,,,,,,
+60,to one's own taste,自分の好みに合わせて,p32,,,,,,,
+61,sail,帆,p34,,,,,,,
+62,era,紀元,p34,,,,,,,
+63,import,輸入する,p34,,,,,,,
+64,military,軍隊,p34,,,,,,,
+65,adopt,採用する,p34,,,,,,,
+66,soldier,軍人/兵士,p34,,,,,,,
+67,ideal,理想の/理想的な,p34,,,,,,,
+68,in those days,そのころ/その当時,p34,,,,,,,
+69,it is because ~,これは〜だからだ,p34,,,,,,,
+70,in large amounts,大量に,p34,,,,,,,
+71,go back home,家に帰る,p34,,,,,,,
+72,because of A,〜のために,p34,,,,,,,
+73,that is because,これは〜だからだ,p34,,,,,,,
+74,export,輸出する,p34,,,,,,,
+75,more than,〜よりも,p0,,,,,,,
+76,instruments,器具,p0,,,,,,,
+77,sense of rhythm,リズム感,p0,,,,,,,
+78,express,考え,p0,,,,,,,
+79,social (soial),社交的,p0,,,,,,,
+80,connect,つなぐ,p0,,,,,,,
+81,Then,そのうえ,p0,,,,,,,
+82,fill,満たす,p0,,,,,,,
+83,figure,数字,p0,,,,,,,
+84,celebrate,たたえる,p0,,,,,,,
+85,home of,発祥の地,p0,,,,,,,
+86,explain,説明,p0,,,,,,,
+87,come from,〜に由来,p0,,,,,,,
+88,a clerk,事務員,p0,,,,,,,
+89,After that,その後,p0,,,,,,,
+90,across (across),その中に,p0,,,,,,,
+91,thicker,とろみのある,p0,,,,,,,
+92,serve,提供する,p0,,,,,,,
+93,at once,一度に,p0,,,,,,,
+94,as a food,食べ物として,p0,,,,,,,
