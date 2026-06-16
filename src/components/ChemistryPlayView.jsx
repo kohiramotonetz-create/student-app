@@ -48,6 +48,14 @@ function ChemistryPlayView({ step, setStep, quizItems, qIndex, currentInput, set
   const [isShift, setIsShift] = useState(true); 
   const [inputMode, setInputMode] = useState('normal'); 
 
+  // ★ バグ修正：問題(qIndex)や現在の画面(step)が切り替わったタイミングで、キーボード状態を確実に通常モードにリセットする
+  useEffect(() => {
+    if (step === 'chemistry-play') {
+      setInputMode('normal');
+      setIsShift(true);
+    }
+  }, [qIndex, step]);
+
   if (step !== 'chemistry-play') return null;
 
   const currentItem = quizItems[qIndex];
@@ -128,8 +136,6 @@ function ChemistryPlayView({ step, setStep, quizItems, qIndex, currentInput, set
 
   const handleNext = () => {
     if (qIndex + 1 < quizItems.length) {
-      setInputMode('normal');
-      setIsShift(true);
       proceedToNext();
     } else {
       const finalAnswers = [...quizAnswers];
