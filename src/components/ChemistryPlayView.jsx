@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-// ASCII形式から表示用Unicodeへの変換ユーティリティ（完全にバグを解消した修正版）
+// ASCII形式から表示用Unicodeへの変換ユーティリティ
 export const convertToDisplayFormat = (rawStr) => {
   if (!rawStr) return '';
   
@@ -22,15 +22,15 @@ export const convertToDisplayFormat = (rawStr) => {
       if (superMap[char]) {
         result += superMap[char];
       } else {
-        // 上付き非対応の文字が来たら通常に戻す
+        // 上付き非対応の文字が来たら通常文字として処理
         if (subMap[char]) {
           result += subMap[char];
         } else {
           result += char;
         }
       }
-      // ★【重要】1文字処理したら上付きモードを一度リセットする。
-      // これにより、内部データ側で直前に「^」がある文字だけが確実に上付きになります。
+      // 【重要】1文字処理したら必ず上付きモードを解除。
+      // これにより、内部データ側で直前に「^」がある文字だけが確実に上付き表示されます。
       isSuper = false;
     } else {
       // 通常時：数字であれば下付き文字に変換、それ以外はそのまま
@@ -85,10 +85,10 @@ function ChemistryPlayView({ step, setStep, quizItems, qIndex, currentInput, set
       setInputMode('normal'); // アルファベット入力時は通常モードへ自動復帰
     }
 
-    // 上付きモードのロジック修正
+    // 【修正箇所】上付きモードのロジック
     if (inputMode === 'super') {
       setCurrentInput(prev => {
-        // 上付きモード中は、入力される全ての文字の直前に必ず「^」を1つずつ付与する
+        // 条件を挟まず、常時に入力文字の前に「^」を付与して結合する
         return prev + '^' + charToAdd;
       });
     } else {
