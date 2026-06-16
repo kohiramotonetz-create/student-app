@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-// ASCII形式から表示用Unicodeへの変換ユーティリティ
+// ASCII形式から表示用Unicodeへの変換ユーティリティ（常時^付与に対応した決定版）
 export const convertToDisplayFormat = (rawStr) => {
   if (!rawStr) return '';
   
@@ -13,27 +13,27 @@ export const convertToDisplayFormat = (rawStr) => {
   for (let i = 0; i < rawStr.length; i++) {
     const char = rawStr[i];
 
+    // ^ が現れたら上付きフラグを立てて、その文字自体はスキップ
     if (char === '^') {
       isSuper = true;
-      continue; // トリガー文字自体は表示しない
+      continue;
     }
 
     if (isSuper) {
       if (superMap[char]) {
         result += superMap[char];
       } else {
-        // 上付き非対応の文字が来たら通常文字として処理
+        // 万が一、上付き非対応の文字が来たら通常文字として処理
         if (subMap[char]) {
           result += subMap[char];
         } else {
           result += char;
         }
       }
-      // 【重要】1文字処理したら必ず上付きモードを解除。
-      // これにより、内部データ側で直前に「^」がある文字だけが確実に上付き表示されます。
+      // 1文字変換したら上付きフラグをリセット（次の文字の前に ^ がなければ通常文字に戻る）
       isSuper = false;
     } else {
-      // 通常時：数字であれば下付き文字に変換、それ以外はそのまま
+      // 通常モード：数字であれば下付き文字に変換、それ以外はそのまま
       if (subMap[char]) {
         result += subMap[char];
       } else {
@@ -85,10 +85,9 @@ function ChemistryPlayView({ step, setStep, quizItems, qIndex, currentInput, set
       setInputMode('normal'); // アルファベット入力時は通常モードへ自動復帰
     }
 
-    // 【修正箇所】上付きモードのロジック
+    // 上付きモードのロジック（常時文字の前に ^ を付与）
     if (inputMode === 'super') {
       setCurrentInput(prev => {
-        // 条件を挟まず、常時に入力文字の前に「^」を付与して結合する
         return prev + '^' + charToAdd;
       });
     } else {
@@ -151,10 +150,12 @@ function ChemistryPlayView({ step, setStep, quizItems, qIndex, currentInput, set
       <div className="quiz-progress">問題 {qIndex + 1} / {quizItems.length}</div>
       <div className="quiz-question-text">{currentItem.question}</div>
 
+      {/* 解答表示エリア */}
       <div className="chem-input-display">
         {displayInput || <span className="placeholder">ここに化学式が表示されます</span>}
       </div>
 
+      {/* 判定レビューエリア */}
       {quizReview.visible && (
         <div className={`review-box ${quizReview.record.ok ? 'correct' : 'wrong'}`}>
           <div className="result-mark">{quizReview.record.ok ? '⭕ 正解！' : '❌ 不正解'}</div>
@@ -173,6 +174,7 @@ function ChemistryPlayView({ step, setStep, quizItems, qIndex, currentInput, set
         </div>
       )}
 
+      {/* 専用化学カスタムキーボード */}
       {!quizReview.visible && (
         <div className="chem-keyboard-container">
           <div className="chem-keyboard">
