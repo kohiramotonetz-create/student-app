@@ -20,6 +20,7 @@ function HighSchoolView({
   formulaData,
   kougeiData,
   mikiData, // 【改善：新規追加】親から降りてくる三木高校のデータ
+  higashiData, // 💡【新規追加】親から降りてくる高松東高校のデータ
   selectedBook,
   setSelectedBook,
   setIsKobunMode,
@@ -45,7 +46,7 @@ function HighSchoolView({
   if (step !== 'highschool-menu' && step !== 'highschool-setup') return null;
 
   // 【改善：内部共通フラグ】定期テスト対策用の高校が選択されているかを判定するヘルパー
-  const isRegularExamBook = selectedBook.name === '高松工芸美術科' || selectedBook.name === '三木高校文理コース';
+  const isRegularExamBook = selectedBook.name === '高松工芸美術科' || selectedBook.name === '三木高校文理コース' || selectedBook.name === '高松東高校２年人文コース';
 
   return (
     <>
@@ -127,6 +128,21 @@ function HighSchoolView({
                 }}
               >
                 三木高校文理コース
+              </button>
+
+              {/* 💡【新規追加】高松東高校２年人文コースボタン */}
+              <button 
+                className="nav-btn" 
+                style={{ backgroundColor: '#2ecc71', color: 'white' }} 
+                onClick={() => { 
+                  setIsKobunMode(false); 
+                  setSelectedBook({ name: '高松東高校２年人文コース', data: higashiData }); 
+                  setStartNo(1); 
+                  setEndNo(Math.min(higashiData.length, 100)); 
+                  setStep('highschool-setup'); 
+                }}
+              >
+                高松東高校２年人文コース
               </button>
             </div>
           </div>
