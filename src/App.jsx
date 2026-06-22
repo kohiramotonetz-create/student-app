@@ -45,6 +45,7 @@ function App() {
   const [kougeiData, setKougeiData] = useState([]);
   // 【改善：新規追加】三木高校文理コース用のデータステート
   const [mikiData, setMikiData] = useState([]);
+  const [higasiData, setHigasiData] = useState([]);
 
   const [kakitanData, setKakitanData] = useState([]);
   const [startDay, setStartDay] = useState('DAY1');
@@ -130,6 +131,7 @@ function App() {
         { n: 'kobun325.csv', s: setKobun325Data },    { n: 'formula600.csv', s: setFormulaData },
         { n: 'kougei.csv', s: setKougeiData },
         { n: 'miki_high_school.csv', s: setMikiData }, // public 直下としてロード
+        { n: 'takamatsu-higasi.csv', s: setHigasiData }, // 👈 この行を追加（※関数名は環境に合わせてください）
       ];
       for (const f of hsFiles) {
         const d = await fetchAndParse('/' + f.n);
@@ -715,6 +717,7 @@ function App() {
         formulaData={formulaData}
         kougeiData={kougeiData}
         mikiData={mikiData} // 【追加】
+        higasiData={higasiData} // 💡【新規追加】子コンポーネントへデータを引き渡す
         selectedBook={selectedBook}
         setSelectedBook={setSelectedBook}
         setIsKobunMode={setIsKobunMode}
