@@ -194,7 +194,8 @@ function App() {
 
   // ✅ 【改善：修正】高松工芸美術科、または三木高校文理コースが選択された際に単元リストを自動抽出
   const availableKougeiUnits = useMemo(() => {
-    if (selectedBook.name !== '高松工芸美術科' && selectedBook.name !== '三木高校文理コース') return [];
+    // 【修正】高松東高校など、定期テスト系の本が選択されていれば自動で単元を抽出する
+    if (!selectedBook?.data) return [];
     return [...new Set(selectedBook.data.map(d => d.unit))].filter(u => u).sort();
   }, [selectedBook]);
 

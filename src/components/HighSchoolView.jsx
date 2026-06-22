@@ -46,7 +46,10 @@ function HighSchoolView({
   if (step !== 'highschool-menu' && step !== 'highschool-setup') return null;
 
   // 【改善：内部共通フラグ】定期テスト対策用の高校が選択されているかを判定するヘルパー
-  const isRegularExamBook = selectedBook.name === '高松工芸美術科' || selectedBook.name === '三木高校文理コース' || selectedBook.name === '高松東高校２年人文コース';
+  const isRegularExamBook = 
+    selectedBook.name === '高松工芸美術科' || 
+    selectedBook.name === '三木高校文理コース' || 
+    selectedBook.name === '高松東高校２年人文コース';
 
   return (
     <>
