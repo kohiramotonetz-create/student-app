@@ -29,7 +29,9 @@ function TestSetupView({
   showPaperAnswers,
   setShowPaperAnswers,
   speakEn,
-  QUESTION_COUNT
+  QUESTION_COUNT,
+  canStartContent,
+  contentId
 }) {
   if (step !== 'test-setup') return null;
 
@@ -89,6 +91,7 @@ function TestSetupView({
         </div>
         
         <button className="nav-btn" onClick={() => {
+          if (!canStartContent(contentId)) return;
           const sKey = startUnit + startPart; const eKey = endUnit + endPart;
           const sIdx = allData.findIndex(d => d.key === sKey); const eIdx = allData.findLastIndex(d => d.key === eKey);
           if (sIdx === -1 || eIdx === -1) return alert("選択した範囲のデータが見つかりません");

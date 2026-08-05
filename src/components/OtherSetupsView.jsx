@@ -1,6 +1,7 @@
 // OtherSetupsView.jsx - 書き単・不規則変化・古文単語の設定画面を担当するコンポーネント
 
 import React from 'react';
+import { CONTENT_IDS, getContentDefinition } from '../constants/sukimakunContents';
 
 function OtherSetupsView({
   step,
@@ -22,7 +23,8 @@ function OtherSetupsView({
   fetchAndFilterWrongWords,
   showWrongList,
   setShowWrongList,
-  wrongWordsList
+  wrongWordsList,
+  canStartContent
 }) {
   if (
     step !== 'kakitan-setup' && 
@@ -62,10 +64,11 @@ function OtherSetupsView({
             const range = kakitanData.filter(d => targetUnits.includes(d.unit));
             if (range.length === 0) return alert("該当データがありません");
 
-            fetchAndFilterWrongWords("書き単", range);
+            fetchAndFilterWrongWords(getContentDefinition(CONTENT_IDS.kakitan).logSheetName, range);
           }}>🔍 過去の間違えたものリストを表示</button>
 
           <button className="nav-btn" onClick={() => {
+            if (!canStartContent(CONTENT_IDS.kakitan)) return;
             const units = [...new Set(kakitanData.map(d => d.unit))];
             const sIdx = units.indexOf(startDay);
             const eIdx = units.indexOf(endDay);
@@ -104,6 +107,7 @@ function OtherSetupsView({
               </div>
 
               <button className="nav-btn" style={{ backgroundColor: '#28a745' }} onClick={() => {
+                if (!canStartContent(CONTENT_IDS.kakitan)) return;
                 const targetItems = wrongWordsList.map(w => w.rawItem);
                 resetQuizState();
                 setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));
@@ -154,12 +158,15 @@ function OtherSetupsView({
 
           <button className="nav-btn" style={{ backgroundColor: '#dc3545', marginBottom: '10px' }} onClick={() => {
             const baseData = isFukisokuMode ? fukisokuData : kobunData;
-            const sheetName = isFukisokuMode ? "英単語(不規則変化)" : "古文単語(自習)";
+            const contentId = isFukisokuMode ? CONTENT_IDS.irregular_verbs : CONTENT_IDS.junior_kobun;
+            const sheetName = getContentDefinition(contentId).logSheetName;
             
             fetchAndFilterWrongWords(sheetName, baseData);
           }}>🔍 過去の間違えたものリストを表示</button>
 
           <button className="nav-btn" onClick={() => {
+            const contentId = isFukisokuMode ? CONTENT_IDS.irregular_verbs : CONTENT_IDS.junior_kobun;
+            if (!canStartContent(contentId)) return;
             const baseData = isFukisokuMode ? fukisokuData : kobunData;
             resetQuizState(); 
             setQuizItems([...baseData].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); 
@@ -202,6 +209,8 @@ function OtherSetupsView({
               </div>
 
               <button className="nav-btn" style={{ backgroundColor: '#28a745' }} onClick={() => {
+                const contentId = isFukisokuMode ? CONTENT_IDS.irregular_verbs : CONTENT_IDS.junior_kobun;
+                if (!canStartContent(contentId)) return;
                 const targetItems = wrongWordsList.map(w => w.rawItem);
                 resetQuizState();
                 setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));

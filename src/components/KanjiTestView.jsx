@@ -1,6 +1,7 @@
 // KanjiTestView.jsx - 漢字テストの設定画面と実行画面を担当するコンポーネント
 
 import React from 'react';
+import { CONTENT_IDS, getContentDefinition } from '../constants/sukimakunContents';
 
 function KanjiTestView({
   step,
@@ -26,12 +27,14 @@ function KanjiTestView({
   clearKanjiCanvas,
   judgeKanji,
   setStrokes,
+  setQuizItems,
   setQuizAnswers,
   // 【追加箇所】間違えたものリスト用のPropsを受け取る
   fetchAndFilterWrongWords,
   showWrongList,
   setShowWrongList,
-  wrongWordsList
+  wrongWordsList,
+  canStartContent
 }) {
   if (step !== 'kanji-setup' && step !== 'kanji-main') return null;
 
@@ -148,7 +151,7 @@ function KanjiTestView({
                 if (range.length === 0) return alert("選択された範囲に漢字データがありません");
 
                 // ⭕️ 親の保存シート名「漢字テスト」と完全に一致させる
-                fetchAndFilterWrongWords("漢字テスト", range);
+                fetchAndFilterWrongWords(getContentDefinition(CONTENT_IDS.kanji_test).logSheetName, range);
               }}
             >
               🔍 過去の間違えたものリストを表示
@@ -187,6 +190,7 @@ function KanjiTestView({
               </div>
 
               <button className="nav-btn" style={{ backgroundColor: '#28a745', width: '100%' }} onClick={() => {
+                if (!canStartContent(CONTENT_IDS.kanji_test)) return;
                 const targetItems = wrongWordsList.map(w => w.rawItem);
                 
                 // 漢字テスト専用のクイズ初期化処理

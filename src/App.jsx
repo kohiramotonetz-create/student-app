@@ -12,6 +12,12 @@ import QuizPlayView from './components/QuizPlayView';
 import KanjiTestView from './components/KanjiTestView'; 
 import ChemistrySetupView from './components/ChemistrySetupView';
 import ChemistryPlayView from './components/ChemistryPlayView';
+import {
+  ALL_CONTENT_IDS,
+  CONTENT_IDS,
+  HIGH_SCHOOL_CONTENTS,
+  getContentDefinition
+} from './constants/sukimakunContents';
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
@@ -26,7 +32,10 @@ function App() {
   const [newPassword, setNewPassword] = useState('');
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [userBranch, setUserBranch] = useState('未設定校');
+  const [allowedContentIds, setAllowedContentIds] = useState([]);
+  const [permissionsInitialized, setPermissionsInitialized] = useState(false);
+  const [activeContentId, setActiveContentId] = useState(null);
+  const [permissionError, setPermissionError] = useState('');
   
   const [allData, setAllData] = useState([]); 
   const [fukisokuData, setFukisokuData] = useState([]);
@@ -79,6 +88,47 @@ function App() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [strokes, setStrokes] = useState([]); 
 
+  const isContentAllowed = (contentId) =>
+    Boolean(contentId) && allowedContentIds.includes(contentId);
+
+  const openContent = (contentId, nextStep) => {
+    if (!contentId || !getContentDefinition(contentId) || !isContentAllowed(contentId)) {
+      setPermissionError('このコンテンツは利用できません。');
+      return false;
+    }
+    setPermissionError('');
+    setActiveContentId(contentId);
+    setStep(nextStep);
+    return true;
+  };
+
+  const canStartContent = (contentId) => {
+    if (isContentAllowed(contentId)) return true;
+    setPermissionError('このコンテンツは利用できません。メニューから利用可能なコンテンツを選択してください。');
+    return false;
+  };
+
+  const applyPermissionResponse = (data, { allowLegacyLogin = false } = {}) => {
+    if (Array.isArray(data.allowedContentIds)) {
+      setAllowedContentIds([...new Set(data.allowedContentIds)]);
+      setPermissionsInitialized(data.permissionsInitialized === true);
+      setPermissionError('');
+      return true;
+    }
+
+    if (allowLegacyLogin && typeof data.allowedContentIds === 'undefined') {
+      setAllowedContentIds([...ALL_CONTENT_IDS]);
+      setPermissionsInitialized(false);
+      setPermissionError('');
+      return true;
+    }
+
+    setAllowedContentIds([]);
+    setPermissionsInitialized(false);
+    setPermissionError('利用可能コンテンツの取得に失敗しました。再度ログインしてください。');
+    return false;
+  };
+
   const loadCsv = async () => {
     setLoading(true);
     try {
@@ -87,14 +137,14 @@ function App() {
         const text = await res.text();
         return new Promise(resolve => Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => resolve(results.data) }));
       };
-      const data = await fetchAndParse('/wordlist.csv');
+      const data = await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.paper_english_test).dataFile);
       setAllData(data.map(d => ({ key: d["学年ユニット単元"], unitGroup: d["学年ユニット"], part: d["単元"], en: d["英語"], ja: d["日本語"] })).filter(d => d.en));
-      const dataF = await fetchAndParse('/wordlist-fukisoku.csv');
+      const dataF = await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.irregular_verbs).dataFile);
       setFukisokuData(dataF.map(d => ({ ja: d["日本語"], en: d["英語"] })).filter(d => d.en));
-      const dataK = await fetchAndParse('/wordlist-junior_high_school-kobun.csv');
+      const dataK = await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.junior_kobun).dataFile);
       setKobunData(dataK.map(d => ({ en: d["古文"], ja: d["現代語訳"] })).filter(d => d.en));
       
-      const dataKakitan = await fetchAndParse('/kakitan1000.csv');
+      const dataKakitan = await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.kakitan).dataFile);
       setKakitanData(dataKakitan.map(d => ({
         en: d["英単語"],
         pron: d["発音"],
@@ -104,7 +154,7 @@ function App() {
         unit: d["単元"]
       })).filter(d => d.en));
 
-      const dataKanji = await fetchAndParse('/kanjilist.csv');
+      const dataKanji = await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.kanji_test).dataFile);
       setKanjiList(dataKanji.map(d => ({
         textName: d["テキスト"], 
         page: d["ページ"],
@@ -112,7 +162,7 @@ function App() {
         answer: d["答え"]
       })).filter(d => d.answer));
 
-      const dataChem = await fetchAndParse('/chemistry.csv');
+      const dataChem = await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.chemistry_formulas).dataFile);
       setChemistryData(dataChem.map(d => ({
         id: d["id"],
         question: d["question"],
@@ -124,14 +174,20 @@ function App() {
 
       // 【改善：修正と追加】hsFilesマッピングへmiki_high_school.csvを追加
       const hsFiles = [
-        { n: 'target1900.csv', s: setTargetData }, { n: 'target1200.csv', s: setTargetminiData },
-        { n: 'sokudoku.csv', s: setSokudokuData }, { n: 'dragon.csv', s: setDragonData }, { n: 'yumetann.csv', s: setYumetannData },
-        { n: 'kakushin351.csv', s: setKakushinData }, { n: 'kobunn315.csv', s: setKobun315Data },
-        { n: 'kikutan_j2.csv', s: setKikutanData },   { n: 'iroha.csv', s: setIrohaData },
-        { n: 'kobun325.csv', s: setKobun325Data },    { n: 'formula600.csv', s: setFormulaData },
-        { n: 'kougei.csv', s: setKougeiData },
-        { n: 'miki_high_school.csv', s: setMikiData }, // public 直下としてロード
-        { n: 'takamatsu-higasi.csv', s: setHigasiData }, // 👈 この行を追加（※関数名は環境に合わせてください）
+        { n: getContentDefinition(CONTENT_IDS.target_1900).dataFile, s: setTargetData },
+        { n: getContentDefinition(CONTENT_IDS.target_1200).dataFile, s: setTargetminiData },
+        { n: getContentDefinition(CONTENT_IDS.sokudoku_english).dataFile, s: setSokudokuData },
+        { n: getContentDefinition(CONTENT_IDS.dragon_english).dataFile, s: setDragonData },
+        { n: getContentDefinition(CONTENT_IDS.yumetan).dataFile, s: setYumetannData },
+        { n: getContentDefinition(CONTENT_IDS.kakushin_kobun_351).dataFile, s: setKakushinData },
+        { n: getContentDefinition(CONTENT_IDS.kobun_315).dataFile, s: setKobun315Data },
+        { n: getContentDefinition(CONTENT_IDS.kikutan_pre2).dataFile, s: setKikutanData },
+        { n: getContentDefinition(CONTENT_IDS.iroha_nihoheto).dataFile, s: setIrohaData },
+        { n: getContentDefinition(CONTENT_IDS.kobun_325).dataFile, s: setKobun325Data },
+        { n: getContentDefinition(CONTENT_IDS.formula_600).dataFile, s: setFormulaData },
+        { n: getContentDefinition(CONTENT_IDS.kougei_art).dataFile, s: setKougeiData },
+        { n: getContentDefinition(CONTENT_IDS.miki_bunri).dataFile, s: setMikiData },
+        { n: getContentDefinition(CONTENT_IDS.takamatsu_higashi_humanities).dataFile, s: setHigasiData },
       ];
       for (const f of hsFiles) {
         const d = await fetchAndParse('/' + f.n);
@@ -165,6 +221,7 @@ function App() {
             headers: { 'Content-Type': 'text/plain' }
           });
           if (response.data.result === "success") {
+            if (!applyPermissionResponse(response.data)) return;
             setUserId(uid);
             setUserName(response.data.name);
             if (response.data.school) setSchool(response.data.school);
@@ -187,6 +244,30 @@ function App() {
 
   const resetQuizState = () => {
     setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setPractice(""); setQuizReview({ visible: false, record: null });
+  };
+
+  const handleLogout = () => {
+    setUserId('');
+    setPassword('');
+    setNewPassword('');
+    setUserName('');
+    setSchool('木太中');
+    setCustomSchool('');
+    setAllowedContentIds([]);
+    setPermissionsInitialized(false);
+    setActiveContentId(null);
+    setPermissionError('');
+    setSelectedBook({ name: '', data: [] });
+    setIsKobunMode(false);
+    setIsFukisokuMode(false);
+    setTestWords([]);
+    setSelectedKanjiIds([]);
+    setStrokes([]);
+    setShowWrongList(false);
+    setWrongWordsList([]);
+    resetQuizState();
+    setQuizItems([]);
+    setStep('login');
   };
 
   const availableParts = useMemo(() => {
@@ -308,8 +389,8 @@ function App() {
     }
   };
 
-  const sendResultToGAS = (finalAnswers, sheetName, customRange = null) => {
-    if (!sheetName || !LOG_GAS_URL) return;
+  const sendResultToGAS = (finalAnswers, sheetName, customRange = null, contentId = activeContentId) => {
+    if (!sheetName || !LOG_GAS_URL || !contentId || !getContentDefinition(contentId) || !isContentAllowed(contentId)) return;
 
     const rangeLabel = customRange || ((selectedBook && selectedBook.name) 
       ? `No.${startNo}～${endNo}${selectedParts.length > 0 ? `(${selectedParts.join('/')})` : ''}` 
@@ -317,6 +398,7 @@ function App() {
 
     const payload = {
       action: "saveLog", 
+      contentId,
       sheetName, 
       school,
       studentId: userId, 
@@ -343,8 +425,8 @@ function App() {
     if (qIndex + 1 < quizItems.length) {
       setQIndex(qIndex + 1); setQuizReview({ visible: false, record: null }); setCurrentInput(""); setPractice("");
     } else {
-      let dSheet = selectedBook.name || (isFukisokuMode ? "英単語（不規則変化）" : (isKobunMode ? "古文単語（自習）" : "1問ずつテスト(自習)"));
-      setStep('quiz-result'); sendResultToGAS(finalAnswers, dSheet);
+      const dSheet = getContentDefinition(activeContentId)?.logSheetName;
+      setStep('quiz-result'); sendResultToGAS(finalAnswers, dSheet, null, activeContentId);
     }
   };
 
@@ -435,6 +517,7 @@ function App() {
       const payload = { apiKey: API_KEY, action: "login", userId, password };
       const response = await axios.post(GAS_URL, JSON.stringify(payload), { headers: { 'Content-Type': 'text/plain' }});
       if (response.data.result === "success") { 
+        if (!applyPermissionResponse(response.data, { allowLegacyLogin: true })) return;
         setUserName(response.data.name); 
         if (response.data.school) setSchool(response.data.school); 
         
@@ -462,6 +545,7 @@ function App() {
   };
 
   const startKanjiTest = () => {
+    if (!canStartContent(CONTENT_IDS.kanji_test)) return;
     let targetItems = [];
     const toNum = (val) => parseInt(String(val).replace(/[^0-9]/g, "")) || 0;
     const cleanText = (s) => s ? String(s).trim() : "";
@@ -581,7 +665,12 @@ function App() {
           setStep('quiz-result');
           setStrokes([]);
           const rangeLabel = `${selectedText} (${startPage}〜${endPage})`;
-          sendResultToGAS([...quizAnswers, record], "漢字テスト", rangeLabel); 
+          sendResultToGAS(
+            [...quizAnswers, record],
+            getContentDefinition(CONTENT_IDS.kanji_test).logSheetName,
+            rangeLabel,
+            CONTENT_IDS.kanji_test
+          );
         }
       }
     } catch (e) {
@@ -595,6 +684,11 @@ function App() {
   return (
     <div className="container">
       {loading && <div className="loading-overlay">通信中...</div>}
+      {permissionError && (
+        <div role="alert" style={{ marginBottom: '12px', padding: '12px', borderRadius: '8px', background: '#fff3cd', color: '#664d03' }}>
+          {permissionError}
+        </div>
+      )}
       
       <LoginView 
         step={step}
@@ -606,16 +700,20 @@ function App() {
         setNewPassword={setNewPassword}
         handleLogin={handleLogin}
         handleChangePassword={handleChangePassword}
+        permissionError={permissionError}
       />
 
       <MenuView 
         step={step}
         userName={userName}
-        setStep={setStep}
+        openContent={openContent}
+        isContentAllowed={isContentAllowed}
         setIsKobunMode={setIsKobunMode}
         setIsFukisokuMode={setIsFukisokuMode}
         setSelectedBook={setSelectedBook}
         kakitanData={kakitanData}
+        handleLogout={handleLogout}
+        permissionsInitialized={permissionsInitialized}
       />
 
       <TestSetupView 
@@ -646,6 +744,8 @@ function App() {
         setShowPaperAnswers={setShowPaperAnswers}
         speakEn={speakEn}
         QUESTION_COUNT={QUESTION_COUNT}
+        canStartContent={canStartContent}
+        contentId={CONTENT_IDS.paper_english_test}
       />
 
       <QuizSetupView 
@@ -673,6 +773,8 @@ function App() {
         showWrongList={showWrongList}
         setShowWrongList={setShowWrongList}
         wrongWordsList={wrongWordsList}
+        canStartContent={canStartContent}
+        contentId={CONTENT_IDS.junior_english_quiz}
       />
 
       <OtherSetupsView 
@@ -696,28 +798,14 @@ function App() {
         showWrongList={showWrongList}
         setShowWrongList={setShowWrongList}
         wrongWordsList={wrongWordsList}
+        canStartContent={canStartContent}
       />
 
-      {/* 【改善：修正】仕送りPropsにmikiDataを追加 */}
       <HighSchoolView 
         step={step}
         setStep={setStep}
         mode={mode}
         setMode={setMode}
-        targetData={targetData}
-        targetminiData={targetminiData}
-        sokudokuData={sokudokuData}
-        dragonData={dragonData}
-        yumetannData={yumetannData}
-        kikutanData={kikutanData}
-        kakushinData={kakushinData}
-        kobun315Data={kobun315Data}
-        irohaData={irohaData}
-        kobun325Data={kobun325Data}
-        formulaData={formulaData}
-        kougeiData={kougeiData}
-        mikiData={mikiData} // 【追加】
-        higasiData={higasiData} // 💡【新規追加】子コンポーネントへデータを引き渡す
         selectedBook={selectedBook}
         setSelectedBook={setSelectedBook}
         setIsKobunMode={setIsKobunMode}
@@ -739,6 +827,15 @@ function App() {
         showWrongList={showWrongList}
         setShowWrongList={setShowWrongList}
         wrongWordsList={wrongWordsList}
+        highSchoolContents={HIGH_SCHOOL_CONTENTS}
+        highSchoolData={{
+          targetData, targetminiData, sokudokuData, dragonData, yumetannData,
+          kikutanData, kakushinData, kobun315Data, irohaData, kobun325Data,
+          formulaData, kougeiData, mikiData, higasiData
+        }}
+        isContentAllowed={isContentAllowed}
+        openContent={openContent}
+        canStartContent={canStartContent}
       />
 
       <QuizPlayView 
@@ -787,11 +884,13 @@ function App() {
         clearKanjiCanvas={clearKanjiCanvas}
         judgeKanji={judgeKanji}
         setStrokes={setStrokes}
+        setQuizItems={setQuizItems}
         setQuizAnswers={setQuizAnswers}
         fetchAndFilterWrongWords={fetchAndFilterWrongWords}
         showWrongList={showWrongList}
         setShowWrongList={setShowWrongList}
         wrongWordsList={wrongWordsList}
+        canStartContent={canStartContent}
       />
 
       <ChemistrySetupView 
@@ -801,6 +900,8 @@ function App() {
         resetQuizState={resetQuizState}
         setQuizItems={setQuizItems}
         QUESTION_COUNT={QUESTION_COUNT}
+        canStartContent={canStartContent}
+        contentId={CONTENT_IDS.chemistry_formulas}
       />
 
       <ChemistryPlayView 
@@ -818,6 +919,8 @@ function App() {
         proceedToNext={proceedToNext}
         quizAnswers={quizAnswers}
         sendResultToGAS={sendResultToGAS}
+        contentId={CONTENT_IDS.chemistry_formulas}
+        logSheetName={getContentDefinition(CONTENT_IDS.chemistry_formulas).logSheetName}
       />
     </div>
   );

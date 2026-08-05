@@ -1,6 +1,7 @@
 // QuizSetupView.jsx - クイズの設定画面を担当するコンポーネント
 
 import React from 'react';
+import { getContentDefinition } from '../constants/sukimakunContents';
 
 function QuizSetupView({
   step,
@@ -26,7 +27,9 @@ function QuizSetupView({
   fetchAndFilterWrongWords,
   showWrongList,
   setShowWrongList,
-  wrongWordsList
+  wrongWordsList,
+  canStartContent,
+  contentId
 }) {
   if (step !== 'quiz-setup') return null;
 
@@ -81,13 +84,14 @@ function QuizSetupView({
           const sIdx = allData.findIndex(d => d.key === sKey); const eIdx = allData.findLastIndex(d => d.key === eKey);
           if (sIdx === -1 || eIdx === -1) return alert("選択した範囲のデータが見つかりません");
           const range = allData.slice(Math.min(sIdx, eIdx), Math.max(sIdx, eIdx) + 1);
-          fetchAndFilterWrongWords("1問ずつテスト(自習)", range);
+          fetchAndFilterWrongWords(getContentDefinition(contentId).logSheetName, range);
         }}
       >
         🔍 過去の間違えたものリストを表示
       </button>
 
       <button className="nav-btn" onClick={() => {
+        if (!canStartContent(contentId)) return;
         const sKey = startUnit + startPart; const eKey = endUnit + endPart;
         const sIdx = allData.findIndex(d => d.key === sKey); const eIdx = allData.findLastIndex(d => d.key === eKey);
         if (sIdx === -1 || eIdx === -1) return alert("選択した範囲のデータが見つかりません");
@@ -129,6 +133,7 @@ function QuizSetupView({
           </div>
 
           <button className="nav-btn" style={{ backgroundColor: '#28a745' }} onClick={() => {
+            if (!canStartContent(contentId)) return;
             const targetItems = wrongWordsList.map(w => w.rawItem);
             resetQuizState();
             setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));

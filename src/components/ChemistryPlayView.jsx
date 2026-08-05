@@ -44,7 +44,7 @@ export const convertToDisplayFormat = (rawStr) => {
   return result;
 };
 
-function ChemistryPlayView({ step, setStep, quizItems, qIndex, currentInput, setCurrentInput, quizReview, submitQuizAnswer, proceedToNext, quizAnswers, sendResultToGAS }) {
+function ChemistryPlayView({ step, setStep, quizItems, qIndex, currentInput, setCurrentInput, quizReview, submitQuizAnswer, proceedToNext, quizAnswers, sendResultToGAS, contentId, logSheetName }) {
   const [isShift, setIsShift] = useState(true); 
   const [inputMode, setInputMode] = useState('normal'); 
 
@@ -141,7 +141,7 @@ function ChemistryPlayView({ step, setStep, quizItems, qIndex, currentInput, set
       const finalAnswers = [...quizAnswers];
       setStep('quiz-result');
       if (sendResultToGAS) {
-        sendResultToGAS(finalAnswers, "化学式・イオン式テスト");
+        sendResultToGAS(finalAnswers, logSheetName, null, contentId);
       }
     }
   };

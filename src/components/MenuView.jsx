@@ -1,73 +1,91 @@
 import React from 'react';
+import { CONTENT_IDS, HIGH_SCHOOL_CONTENTS, MAIN_MENU_CONTENTS } from '../constants/sukimakunContents';
 
 function MenuView({
   step,
   userName,
-  setStep,
+  openContent,
+  isContentAllowed,
   setIsKobunMode,
   setIsFukisokuMode,
   setSelectedBook,
-  kakitanData
+  kakitanData,
+  handleLogout,
+  permissionsInitialized
 }) {
   if (step !== 'menu') return null;
 
+  const visibleMainContents = MAIN_MENU_CONTENTS.filter(({ contentId }) => isContentAllowed(contentId));
+  const hasHighSchoolContent = HIGH_SCHOOL_CONTENTS.some(({ contentId }) => isContentAllowed(contentId));
+  const hasAnyContent = visibleMainContents.length > 0 || hasHighSchoolContent;
+
+  const handleMainContent = (content) => {
+    if (!openContent(content.contentId, content.step)) return;
+
+    setIsKobunMode(content.contentId === CONTENT_IDS.junior_kobun);
+    setIsFukisokuMode(content.contentId === CONTENT_IDS.irregular_verbs);
+    setSelectedBook(content.contentId === CONTENT_IDS.kakitan
+      ? { name: '書き単', data: kakitanData, contentId: content.contentId }
+      : { name: '', data: [], contentId: content.contentId });
+  };
+
   return (
-    <div className="menu-box">
+    <div className="menu-box" data-permissions-initialized={permissionsInitialized}>
       <h1>メニュー</h1>
       <p>ようこそ {userName} さん</p>
+
+      {!hasAnyContent && (
+        <div role="status" style={{ padding: '16px', margin: '16px 0', borderRadius: '8px', background: '#f8f9fa', color: '#555' }}>
+          利用可能なコンテンツがありません。
+        </div>
+      )}
+
       <div className="button-grid">
-        <button className="nav-btn" onClick={() => { 
-          setIsKobunMode(false); 
-          setIsFukisokuMode(false); 
-          setSelectedBook({ name: '', data: [] }); 
-          setStep('test-setup'); 
-        }}>📝 英単語テスト作成(紙)</button>
+        {visibleMainContents
+          .filter(({ contentId }) => contentId !== CONTENT_IDS.kanji_test && contentId !== CONTENT_IDS.chemistry_formulas)
+          .map((content) => (
+            <button
+              key={content.contentId}
+              className="nav-btn"
+              style={content.contentId === CONTENT_IDS.kakitan ? { backgroundColor: '#e67e22' } : undefined}
+              onClick={() => handleMainContent(content)}
+            >
+              {content.icon} {content.displayName}
+            </button>
+          ))}
 
-        <button className="nav-btn" onClick={() => { 
-          setIsKobunMode(false); 
-          setIsFukisokuMode(false); 
-          setSelectedBook({ name: '', data: [] }); 
-          setStep('quiz-setup'); 
-        }}>🚀 1問ずつテスト(自習)</button>
+        {hasHighSchoolContent && (
+          <button className="nav-btn" onClick={() => {
+            setIsKobunMode(false);
+            setIsFukisokuMode(false);
+            setSelectedBook({ name: '', data: [], contentId: null });
+            const firstAllowed = HIGH_SCHOOL_CONTENTS.find(({ contentId }) => isContentAllowed(contentId));
+            if (firstAllowed) openContent(firstAllowed.contentId, 'highschool-menu');
+          }}> 🎓 高校生モード</button>
+        )}
 
-        <button className="nav-btn" style={{ backgroundColor: '#e67e22' }} onClick={() => { 
-          setIsKobunMode(false); 
-          setIsFukisokuMode(false); 
-          setSelectedBook({ name: '書き単', data: kakitanData }); 
-          setStep('kakitan-setup'); 
-        }}>✍️ 書き単</button>
+        {visibleMainContents
+          .filter(({ contentId }) => contentId === CONTENT_IDS.kanji_test)
+          .map((content) => (
+            <button key={content.contentId} className="nav-btn" onClick={() => handleMainContent(content)}>
+              {content.icon} {content.displayName}
+            </button>
+          ))}
 
-        <button className="nav-btn" onClick={() => { 
-          setIsKobunMode(false); 
-          setIsFukisokuMode(true); 
-          setSelectedBook({ name: '', data: [] }); 
-          setStep('fukisoku-setup'); 
-        }}>🔄 英単語（不規則変化）</button>
-
-        <button className="nav-btn" onClick={() => { 
-          setIsKobunMode(true); 
-          setIsFukisokuMode(false); 
-          setSelectedBook({ name: '', data: [] }); 
-          setStep('kobun-setup'); 
-        }}>📚 古文単語（自習）</button>
-
-        <button className="nav-btn" onClick={() => setStep('highschool-menu')}> 🎓 高校生モード</button>
-        <button className="nav-btn" onClick={() => setStep('kanji-setup')}>🖋 定期テスト 漢字対策！　←NEW!!</button>
-        {/* 【追加】化学式・イオン式テストの起動ボタン */}
-        <button 
-          className="nav-btn" 
-          style={{ backgroundColor: '#4f46e5', color: '#fff' }} 
-          onClick={() => { 
-            setIsKobunMode(false); 
-            setIsFukisokuMode(false); 
-            setSelectedBook({ name: '', data: [] }); 
-            setStep('chemistry-setup'); 
-          }}
-        >
-          🧪 化学式・イオン式
-        </button>
+        {visibleMainContents
+          .filter(({ contentId }) => contentId === CONTENT_IDS.chemistry_formulas)
+          .map((content) => (
+            <button
+              key={content.contentId}
+              className="nav-btn"
+              style={{ backgroundColor: '#4f46e5', color: '#fff' }}
+              onClick={() => handleMainContent(content)}
+            >
+              {content.icon} {content.displayName}
+            </button>
+          ))}
       </div>
-      <button className="secondary" onClick={() => setStep('login')}>ログアウト</button>
+      <button className="secondary" onClick={handleLogout}>ログアウト</button>
     </div>
   );
 }
