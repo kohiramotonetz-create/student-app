@@ -34,17 +34,27 @@ function KanjiTestView({
   showWrongList,
   setShowWrongList,
   wrongWordsList,
-  canStartContent
+  canStartContent,
+  contentId = CONTENT_IDS.kanji_test,
+  setupStep = 'kanji-setup',
+  mainStep = 'kanji-main',
+  returnStep = 'menu',
+  title = '漢字テスト 設定',
+  randomAllCount = null
 }) {
-  if (step !== 'kanji-setup' && step !== 'kanji-main') return null;
+  if (step !== setupStep && step !== mainStep) return null;
 
   return (
     <>
       {/* 🖋 漢字テスト 設定画面 */}
-      {step === 'kanji-setup' && (
+      {step === setupStep && (
         <div className="quiz-container">
-          <h2 style={{ color: '#333' }}>🚀 漢字テスト 設定</h2>
-          <div className="config-group">
+          <h2 style={{ color: '#333' }}>🚀 {title}</h2>
+          {randomAllCount ? (
+            <div className="config-group">
+              <p>全{kanjiList.length}問からランダムで{Math.min(randomAllCount, kanjiList.length)}問を出題します。</p>
+            </div>
+          ) : <div className="config-group">
             <label>出題方法:</label>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <button className="nav-btn" onClick={() => setKanjiMode('page')}>① ページで選択</button>
@@ -120,11 +130,11 @@ function KanjiTestView({
                 </div>
               </div>
             )}
-          </div>
+          </div>}
           <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             
             {/* 【修正箇所】漢字テスト用の「間違えたものリスト」ボタンを追加 */}
-            <button 
+            {!randomAllCount && <button
               className="nav-btn" 
               style={{ backgroundColor: '#dc3545', width: '100%' }} 
               disabled={kanjiMode === 'page' && !selectedText}
@@ -151,20 +161,20 @@ function KanjiTestView({
                 if (range.length === 0) return alert("選択された範囲に漢字データがありません");
 
                 // ⭕️ 親の保存シート名「漢字テスト」と完全に一致させる
-                fetchAndFilterWrongWords(getContentDefinition(CONTENT_IDS.kanji_test).logSheetName, range);
+                fetchAndFilterWrongWords(getContentDefinition(contentId).logSheetName, range);
               }}
             >
               🔍 過去の間違えたものリストを表示
-            </button>
+            </button>}
 
-            <button className="nav-btn" onClick={startKanjiTest} disabled={kanjiMode === 'page' && !selectedText} style={{ width: '100%' }}>🚀 テスト開始！</button>
-            <button className="secondary" onClick={() => { setStep('menu'); setShowWrongList(false); }} style={{ width: '100%' }}>戻る</button>
+            <button className="nav-btn" onClick={startKanjiTest} disabled={!randomAllCount && kanjiMode === 'page' && !selectedText} style={{ width: '100%' }}>🚀 テスト開始！</button>
+            <button className="secondary" onClick={() => { setStep(returnStep); setShowWrongList(false); }} style={{ width: '100%' }}>戻る</button>
           </div>
 
           {/* ──────────────────────────────────────────────────────── */}
           {/* 【新設】漢字テスト用の間違えた問題の一覧表示 ＆ リトライUI */}
           {/* ──────────────────────────────────────────────────────── */}
-          {showWrongList && wrongWordsList.length > 0 && step === 'kanji-setup' && (
+          {!randomAllCount && showWrongList && wrongWordsList.length > 0 && step === setupStep && (
             <div style={{ marginTop: '20px', borderTop: '2px solid #dc3545', paddingTop: '20px', textAlign: 'left' }}>
               <h3 style={{ color: '#dc3545', marginBottom: '10px' }}>⚠️ 要復習リスト（残り {wrongWordsList.length} 問）</h3>
               
@@ -190,7 +200,7 @@ function KanjiTestView({
               </div>
 
               <button className="nav-btn" style={{ backgroundColor: '#28a745', width: '100%' }} onClick={() => {
-                if (!canStartContent(CONTENT_IDS.kanji_test)) return;
+                if (!canStartContent(contentId)) return;
                 const targetItems = wrongWordsList.map(w => w.rawItem);
                 
                 // 漢字テスト専用のクイズ初期化処理
@@ -199,7 +209,7 @@ function KanjiTestView({
                 // 間違えた問題のみをランダムにセットして手書きテストへ進む
                 setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));
                 setShowWrongList(false);
-                setStep('kanji-main');
+                setStep(mainStep);
               }}>🔥 間違えた問題のみトライ！</button>
             </div>
           )}
@@ -207,7 +217,7 @@ function KanjiTestView({
       )}
 
       {/* 実行画面（手書き画面） */}
-      {step === 'kanji-main' && quizItems[qIndex] && (
+      {step === mainStep && quizItems[qIndex] && (
         <div className="quiz-container" style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none', userSelect: 'none' }}>
           <div className="q-header">漢字 Q {qIndex + 1} / {quizItems.length}</div>
           
@@ -250,7 +260,7 @@ function KanjiTestView({
                 setStrokes([]); 
                 clearKanjiCanvas();
                 setQuizAnswers([]); 
-                setStep('menu');
+                setStep(returnStep);
               }
             }}
           >

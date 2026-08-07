@@ -12,6 +12,7 @@ import QuizPlayView from './components/QuizPlayView';
 import KanjiTestView from './components/KanjiTestView'; 
 import ChemistrySetupView from './components/ChemistrySetupView';
 import ChemistryPlayView from './components/ChemistryPlayView';
+import CampView from './components/CampView';
 import {
   ALL_CONTENT_IDS,
   CONTENT_IDS,
@@ -24,6 +25,17 @@ const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
 const API_KEY = import.meta.env.VITE_API_KEY;
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY; 
 const QUESTION_COUNT = 20;
+
+const normalizeQuizAnswer = (value) => value ? value
+  .normalize('NFKC')
+  .replace(/[₀₁₂₃₄₅₆₇₈₉]/g, char => '0123456789'['₀₁₂₃₄₅₆₇₈₉'.indexOf(char)])
+  .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, char => '0123456789'['⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(char)])
+  .replace(/[⁺＋]/g, '+')
+  .replace(/[⁻‐‑‒–—−－]/g, '-')
+  .replace(/\^/g, '')
+  .replace(/[…\.\.\.～~？?！!。、,]/g, '')
+  .replace(/\s+/g, '')
+  .toLowerCase() : '';
 
 function App() {
   const [step, setStep] = useState('login'); 
@@ -77,6 +89,9 @@ function App() {
   const [selectedParts, setSelectedParts] = useState([]); 
   const [showPaperAnswers, setShowPaperAnswers] = useState(false);
   const [chemistryData, setChemistryData] = useState([]); 
+  const [campKanjiData, setCampKanjiData] = useState([]);
+  const [campScienceData, setCampScienceData] = useState([]);
+  const [campSocialData, setCampSocialData] = useState([]);
 
   const [kanjiList, setKanjiList] = useState([]);
   const [selectedKanjiIds, setSelectedKanjiIds] = useState([]);
@@ -171,6 +186,27 @@ function App() {
         grade: d["grade"],
         category: d["category"]
       })).filter(d => d.answer_raw));
+
+      const mapCampRows = (rows) => rows.map((d, index) => {
+        const columns = Object.values(d);
+        return {
+          id: d.id || String(index + 1),
+          subject: String(d["歴史or地理"] || '').trim(),
+          genre: String(d["問題ジャンル"] || d["分野"] || d["ジャンル"] || d["時代"] || columns[0] || '').trim(),
+          en: String(d["問題内容"] || d["問題"] || columns[columns.length - 2] || '').trim(),
+          ja: String(d["回答"] || d["解答"] || d["答え"] || columns[columns.length - 1] || '').trim()
+        };
+      }).filter(d => d.genre && d.en && d.ja);
+      const dataCampKanji = await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.camp_kagawa_kanji).dataFile);
+      setCampKanjiData(dataCampKanji.map((d, index) => ({
+        id: d.id || String(index + 1),
+        textName: String(d["学年"] || d["ジャンル"] || '').trim(),
+        page: d.id || String(index + 1),
+        question: String(d["問題"] || '').trim(),
+        answer: String(d["答え"] || d["解答"] || '').trim()
+      })).filter(d => d.question && d.answer));
+      setCampScienceData(mapCampRows(await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.camp_science_qa).dataFile)));
+      setCampSocialData(mapCampRows(await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.camp_social_qa).dataFile)));
 
       // 【改善：修正と追加】hsFilesマッピングへmiki_high_school.csvを追加
       const hsFiles = [
@@ -452,7 +488,7 @@ function App() {
     const prefix = (selectedBook.name === '書き単') ? `[${item.part}] ` : "";
     const qText = prefix + ((mode === 'ja-en') ? item.ja : item.en);
     const rawC = (mode === 'ja-en') ? item.en : item.ja;
-    const clean = (s) => s ? s.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
+    const clean = normalizeQuizAnswer;
     const removeParentheses = (s) => s ? s.replace(/\（.*?\）|\(.*?\)/g, "") : "";
     const userInput = clean(currentInput);
 
@@ -487,7 +523,7 @@ function App() {
   };
 
   const finishPractice = () => {
-    const clean = (s) => s ? s.replace(/[…\.\.\.～~？?！!。、,]/g, "").replace(/\s+/g, "").toLowerCase() : "";
+    const clean = normalizeQuizAnswer;
     const removeParentheses = (s) => s ? s.replace(/\（.*?\）|\(.*?\)/g, "") : "";
     const isCorrectPractice = quizReview.record.correct.split(/[/／]/).some(ans => {
       const pInput = clean(practice);
@@ -545,23 +581,29 @@ function App() {
   };
 
   const startKanjiTest = () => {
-    if (!canStartContent(CONTENT_IDS.kanji_test)) return;
+    const contentId = activeContentId === CONTENT_IDS.camp_kagawa_kanji
+      ? CONTENT_IDS.camp_kagawa_kanji
+      : CONTENT_IDS.kanji_test;
+    const sourceList = contentId === CONTENT_IDS.camp_kagawa_kanji ? campKanjiData : kanjiList;
+    if (!canStartContent(contentId)) return;
     let targetItems = [];
     const toNum = (val) => parseInt(String(val).replace(/[^0-9]/g, "")) || 0;
     const cleanText = (s) => s ? String(s).trim() : "";
 
-    if (kanjiMode === 'page') {
+    if (contentId === CONTENT_IDS.camp_kagawa_kanji) {
+      targetItems = [...sourceList].sort(() => 0.5 - Math.random()).slice(0, 20);
+    } else if (kanjiMode === 'page') {
       const sNum = toNum(startPage);
       const eNum = toNum(endPage);
       const selectedT = cleanText(selectedText);
 
-      targetItems = kanjiList.filter(k => {
+      targetItems = sourceList.filter(k => {
         const pNum = toNum(k.page);
         const csvText = cleanText(k.textName);
         return csvText === selectedT && pNum >= sNum && pNum <= eNum;
       });
     } else {
-      targetItems = selectedKanjiIds.map(id => kanjiList[id]);
+      targetItems = selectedKanjiIds.map(id => sourceList[id]);
     }
 
     if (targetItems.length === 0) return alert("問題が選択されていません");
@@ -573,7 +615,7 @@ function App() {
       page: k.page, 
       textName: k.textName 
     })).sort(() => 0.5 - Math.random()));
-    setStep('kanji-main');
+    setStep(contentId === CONTENT_IDS.camp_kagawa_kanji ? 'camp-kanji-main' : 'kanji-main');
   };
 
   const getCtx = () => canvasRef.current?.getContext('2d');
@@ -664,12 +706,15 @@ function App() {
         } else {
           setStep('quiz-result');
           setStrokes([]);
+          const contentId = activeContentId === CONTENT_IDS.camp_kagawa_kanji
+            ? CONTENT_IDS.camp_kagawa_kanji
+            : CONTENT_IDS.kanji_test;
           const rangeLabel = `${selectedText} (${startPage}〜${endPage})`;
           sendResultToGAS(
             [...quizAnswers, record],
-            getContentDefinition(CONTENT_IDS.kanji_test).logSheetName,
+            getContentDefinition(contentId).logSheetName,
             rangeLabel,
-            CONTENT_IDS.kanji_test
+            contentId
           );
         }
       }
@@ -714,6 +759,21 @@ function App() {
         kakitanData={kakitanData}
         handleLogout={handleLogout}
         permissionsInitialized={permissionsInitialized}
+      />
+
+      <CampView
+        step={step}
+        setStep={setStep}
+        activeContentId={activeContentId}
+        openContent={openContent}
+        isContentAllowed={isContentAllowed}
+        campScienceData={campScienceData}
+        campSocialData={campSocialData}
+        resetQuizState={resetQuizState}
+        setQuizItems={setQuizItems}
+        setSelectedBook={setSelectedBook}
+        setMode={setMode}
+        questionCount={QUESTION_COUNT}
       />
 
       <TestSetupView 
@@ -871,7 +931,7 @@ function App() {
         setStartPage={setStartPage}
         endPage={endPage}
         setEndPage={setEndPage}
-        kanjiList={kanjiList}
+        kanjiList={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? campKanjiData : kanjiList}
         selectedKanjiIds={selectedKanjiIds}
         toggleKanji={toggleKanji}
         startKanjiTest={startKanjiTest}
@@ -891,6 +951,12 @@ function App() {
         setShowWrongList={setShowWrongList}
         wrongWordsList={wrongWordsList}
         canStartContent={canStartContent}
+        contentId={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? CONTENT_IDS.camp_kagawa_kanji : CONTENT_IDS.kanji_test}
+        setupStep={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 'camp-kanji-setup' : 'kanji-setup'}
+        mainStep={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 'camp-kanji-main' : 'kanji-main'}
+        returnStep={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 'camp-menu' : 'menu'}
+        title={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? '香川県　覚えるべき漢字（書きver.）' : '漢字テスト 設定'}
+        randomAllCount={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 20 : null}
       />
 
       <ChemistrySetupView 

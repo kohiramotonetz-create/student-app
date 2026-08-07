@@ -189,6 +189,7 @@ function ChemistryPlayView({ step, setStep, quizItems, qIndex, currentInput, set
               <button className={`key btn-mode ${inputMode === 'super' ? 'active' : ''}`} onClick={() => handleKeyPress('SUPER_MODE')}>上付き</button>
               <button className="key btn-util" onClick={() => handleKeyPress('+')}>＋</button>
               <button className="key btn-util" onClick={() => handleKeyPress('-')}>－</button>
+              <button className="key btn-util" onClick={() => handleKeyPress('→')}>→</button>
               <button className="key btn-util bracket-key" onClick={() => handleKeyPress('(')}>(</button>
               <button className="key btn-util bracket-key" onClick={() => handleKeyPress(')')}>)</button>
             </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CONTENT_IDS, HIGH_SCHOOL_CONTENTS, MAIN_MENU_CONTENTS } from '../constants/sukimakunContents';
+import { CAMP_CONTENTS, CONTENT_IDS, HIGH_SCHOOL_CONTENTS, MAIN_MENU_CONTENTS } from '../constants/sukimakunContents';
 
 function MenuView({
   step,
@@ -17,7 +17,8 @@ function MenuView({
 
   const visibleMainContents = MAIN_MENU_CONTENTS.filter(({ contentId }) => isContentAllowed(contentId));
   const hasHighSchoolContent = HIGH_SCHOOL_CONTENTS.some(({ contentId }) => isContentAllowed(contentId));
-  const hasAnyContent = visibleMainContents.length > 0 || hasHighSchoolContent;
+  const hasCampContent = CAMP_CONTENTS.some(({ contentId }) => isContentAllowed(contentId));
+  const hasAnyContent = visibleMainContents.length > 0 || hasHighSchoolContent || hasCampContent;
 
   const handleMainContent = (content) => {
     if (!openContent(content.contentId, content.step)) return;
@@ -62,6 +63,16 @@ function MenuView({
             const firstAllowed = HIGH_SCHOOL_CONTENTS.find(({ contentId }) => isContentAllowed(contentId));
             if (firstAllowed) openContent(firstAllowed.contentId, 'highschool-menu');
           }}> 🎓 高校生モード</button>
+        )}
+
+        {hasCampContent && (
+          <button className="nav-btn" style={{ backgroundColor: '#0f766e', color: '#fff' }} onClick={() => {
+            setIsKobunMode(true);
+            setIsFukisokuMode(false);
+            setSelectedBook({ name: '', data: [], contentId: null });
+            const firstAllowed = CAMP_CONTENTS.find(({ contentId }) => isContentAllowed(contentId));
+            if (firstAllowed) openContent(firstAllowed.contentId, 'camp-menu');
+          }}>🏕️ 合宿</button>
         )}
 
         {visibleMainContents

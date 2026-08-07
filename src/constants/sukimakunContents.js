@@ -20,6 +20,9 @@ export const SUKIMAKUN_CONTENTS = [
   { contentId: 'takamatsu_higashi_humanities', displayName: '高松東高校２年人文コース', step: 'highschool-setup', dataKey: 'higasiData', dataFile: 'takamatsu-higasi.csv', logSheetName: '高松東高校２年人文コース', type: 'quiz', menuGroup: 'highschool-regular-exam', rangeType: 'unit' },
   { contentId: 'kanji_test', displayName: '定期テスト 漢字対策！　←NEW!!', step: 'kanji-setup', dataKey: 'kanjiList', dataFile: 'kanjilist.csv', logSheetName: '漢字テスト', type: 'handwriting-quiz', menuGroup: 'main', icon: '🖋' },
   { contentId: 'chemistry_formulas', displayName: '化学式・イオン式', step: 'chemistry-setup', dataKey: 'chemistryData', dataFile: 'chemistry.csv', logSheetName: '化学式・イオン式テスト', type: 'quiz', menuGroup: 'main', icon: '🧪' },
+  { contentId: 'camp_kagawa_kanji', displayName: '香川県　覚えるべき漢字（書きver.）', step: 'camp-kanji-setup', dataKey: 'campKanjiData', dataFile: 'camp-kagawa-kanji.csv', logSheetName: '合宿_香川県覚えるべき漢字', type: 'handwriting-quiz', menuGroup: 'camp', icon: '🖋' },
+  { contentId: 'camp_science_qa', displayName: '理科　一問一答', step: 'camp-qa-setup', dataKey: 'campScienceData', dataFile: 'camp-science.csv', logSheetName: '合宿_理科一問一答', type: 'quiz', menuGroup: 'camp', icon: '🔬' },
+  { contentId: 'camp_social_qa', displayName: '社会　一問一答', step: 'camp-qa-setup', dataKey: 'campSocialData', dataFile: 'camp-social.csv', logSheetName: '合宿_社会一問一答', type: 'quiz', menuGroup: 'camp', icon: '🌏' },
 ];
 
 export const CONTENT_IDS = Object.freeze(
@@ -31,6 +34,8 @@ export const ALL_CONTENT_IDS = Object.freeze(SUKIMAKUN_CONTENTS.map(({ contentId
 export const MAIN_MENU_CONTENTS = SUKIMAKUN_CONTENTS.filter(({ menuGroup }) => menuGroup === 'main');
 
 export const HIGH_SCHOOL_CONTENTS = SUKIMAKUN_CONTENTS.filter(({ menuGroup }) => menuGroup.startsWith('highschool-'));
+
+export const CAMP_CONTENTS = SUKIMAKUN_CONTENTS.filter(({ menuGroup }) => menuGroup === 'camp');
 
 export const getContentDefinition = (contentId) =>
   SUKIMAKUN_CONTENTS.find((content) => content.contentId === contentId);

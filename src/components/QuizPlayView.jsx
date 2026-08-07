@@ -1,6 +1,7 @@
 // QuizPlayView.jsx - クイズの実行画面と結果表示を担当するコンポーネント
 
 import React from 'react';
+import ScienceFormulaKeyboard from './ScienceFormulaKeyboard';
 
 function QuizPlayView({
   step,
@@ -24,6 +25,9 @@ function QuizPlayView({
   setSelectedBook
 }) {
   if (step !== 'quiz-main' && step !== 'quiz-result') return null;
+  const currentItem = quizItems[qIndex];
+  const usesFormulaKeyboard = selectedBook.contentId === 'camp_science_qa'
+    && /化学(?:反応)?式/.test(currentItem?.en || '');
 
   return (
     <>
@@ -43,16 +47,24 @@ function QuizPlayView({
             </div>
           </div>
           
-          <input 
-            className="q-input" 
-            value={currentInput} 
-            onChange={(e) => setCurrentInput(e.target.value)} 
-            onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()} 
-            autoFocus 
-            placeholder="答えを入力..." 
-          />
+          {usesFormulaKeyboard && !quizReview.visible ? (
+            <ScienceFormulaKeyboard
+              value={currentInput}
+              onChange={setCurrentInput}
+              onSubmit={submitQuizAnswer}
+            />
+          ) : (
+            <input
+              className="q-input"
+              value={currentInput}
+              onChange={(e) => setCurrentInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()}
+              autoFocus
+              placeholder="答えを入力..."
+            />
+          )}
           
-          {!quizReview.visible && <button className="nav-btn" onClick={submitQuizAnswer}>回答する</button>}
+          {!quizReview.visible && !usesFormulaKeyboard && <button className="nav-btn" onClick={submitQuizAnswer}>回答する</button>}
           
           {quizReview.visible && (
             <div className="review-box" style={{ textAlign: 'left' }}>
@@ -61,7 +73,7 @@ function QuizPlayView({
               </p>
               {!quizReview.record.ok && selectedBook.name === '書き単' ? (
                 <div style={{ background: '#f8f9fa', padding: '10px', borderRadius: '8px', fontSize: '15px', marginBottom: '15px' }}>
-                  <div>正解：<span style={{ color: '#666' }}>[{quizReview.record.rawItem.part}]</span> <strong>{quizReview.record.correct}</strong> 　{quizReview.record.rawItem.pron}</div>
+                  <div>正解：<span style={{ color: '#666' }}>[{quizReview.record.rawItem.part}]</span> <strong>{quizReview.record.correct}</strong> {' '}{quizReview.record.rawItem.pron}</div>
                   <div style={{ marginLeft: '45px', fontSize: '13px', color: '#888' }}>{quizReview.record.rawItem.detailPron}</div>
                 </div>
               ) : (
@@ -70,6 +82,12 @@ function QuizPlayView({
               
               {quizReview.record.ok ? (
                 <button className="nav-btn" onClick={proceedToNext}>次へ進む</button>
+              ) : usesFormulaKeyboard ? (
+                <ScienceFormulaKeyboard
+                  value={practice}
+                  onChange={setPractice}
+                  onSubmit={finishPractice}
+                />
               ) : (
                 <div className="practice-area">
                   <input className="p-input" value={practice} onChange={(e) => setPractice(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && finishPractice()} autoFocus />
@@ -118,7 +136,12 @@ function QuizPlayView({
               </tbody>
             </table>
           </div>
-          <button className="secondary" onClick={() => { resetQuizState(); setSelectedBook({ name: '', data: [] }); setStep('menu'); }}>メニューへ戻る</button>
+          <button className="secondary" onClick={() => {
+            const returnStep = selectedBook.contentId?.startsWith('camp_') ? 'camp-menu' : 'menu';
+            resetQuizState();
+            setSelectedBook({ name: '', data: [] });
+            setStep(returnStep);
+          }}>{selectedBook.contentId?.startsWith('camp_') ? '合宿メニューへ戻る' : 'メニューへ戻る'}</button>
         </div>
       )}
     </>
