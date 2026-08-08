@@ -23,8 +23,8 @@ import {
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
 const API_KEY = import.meta.env.VITE_API_KEY;
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY; 
 const QUESTION_COUNT = 20;
+const BATCH_GRADING_TIMEOUT_MS = 90000;
 
 const normalizeQuizAnswer = (value) => value ? value
   .normalize('NFKC')
@@ -490,15 +490,14 @@ function App() {
     try {
       const response = await axios.post(GAS_URL, JSON.stringify({
         action: "checkWithGemini", 
-        apiKey: GEMINI_API_KEY, 
+        apiKey: API_KEY,
         word, correct, userAns
       }), { headers: { 'Content-Type': 'text/plain' } });
 
       const res = response.data.result;
       console.log("🤖 Geminiからの生の回答:", res);
       return String(res).toLowerCase().includes("true");
-    } catch (e) {
-      console.error("AI判定通信エラー:", e);
+    } catch {
       return false; 
     }
   };
@@ -521,8 +520,15 @@ function App() {
   };
 
   const parseBatchGeminiResults = (data, expectedIndexes) => {
+    if (data?.result === 'error') {
+      const error = new Error(data.message || '採点に失敗しました。');
+      error.code = data.code || 'GEMINI_UNAVAILABLE';
+      throw error;
+    }
     if (data?.result !== 'success' || !Array.isArray(data.results)) {
-      throw new Error('Gemini一括判定のレスポンスが不正です。');
+      const error = new Error('Gemini一括判定のレスポンスが不正です。');
+      error.code = 'INVALID_RESPONSE';
+      throw error;
     }
     const expected = new Set(expectedIndexes);
     const seen = new Set();
@@ -530,13 +536,17 @@ function App() {
     data.results.forEach((item) => {
       const index = Number(item?.index);
       if (!Number.isInteger(index) || !expected.has(index) || seen.has(index) || typeof item?.isCorrect !== 'boolean') {
-        throw new Error('Gemini一括判定のindexまたは判定値が不正です。');
+        const error = new Error('Gemini一括判定のindexまたは判定値が不正です。');
+        error.code = 'INVALID_RESPONSE';
+        throw error;
       }
       seen.add(index);
       parsed.set(index, item.isCorrect);
     });
     if (seen.size !== expected.size || expectedIndexes.some((index) => !seen.has(index))) {
-      throw new Error('Gemini一括判定の結果が不足しています。');
+      const error = new Error('Gemini一括判定の結果が不足しています。');
+      error.code = 'INVALID_RESPONSE';
+      throw error;
     }
     return parsed;
   };
@@ -563,14 +573,14 @@ function App() {
       if (needsGemini.length > 0) {
         const response = await axios.post(GAS_URL, JSON.stringify({
           action: 'checkAnswersWithGemini',
-          apiKey: GEMINI_API_KEY,
+          apiKey: API_KEY,
           answers: needsGemini.map(({ index, item, userAnswer }) => ({
             index,
             question: item.en,
             correctAnswer: item.ja,
             userAnswer
           }))
-        }), { headers: { 'Content-Type': 'text/plain' }, timeout: 30000 });
+        }), { headers: { 'Content-Type': 'text/plain' }, timeout: BATCH_GRADING_TIMEOUT_MS });
         geminiResults = parseBatchGeminiResults(response.data, needsGemini.map(({ index }) => index));
       }
 
@@ -591,8 +601,16 @@ function App() {
         activeContentId
       );
     } catch (error) {
-      console.error('一括採点エラー:', error);
-      alert('採点に失敗しました。通信状態を確認して、もう一度「テストを終了して採点」を押してください。');
+      const code = error?.code === 'ECONNABORTED' ? 'TIMEOUT' : (error?.code || 'NETWORK_ERROR');
+      const messages = {
+        RATE_LIMIT: '採点リクエストが集中しています。少し待ってから、もう一度採点してください。',
+        GEMINI_UNAVAILABLE: '採点サービスが一時的に利用できません。少し待ってから、もう一度採点してください。',
+        INVALID_RESPONSE: '採点結果を正しく取得できませんでした。もう一度採点してください。',
+        TIMEOUT: '採点に時間がかかっています。回答は保存されていますので、もう一度採点してください。',
+        NETWORK_ERROR: '通信エラーが発生しました。通信状態を確認して、もう一度採点してください。'
+      };
+      console.error('一括採点エラー種別:', code);
+      alert(messages[code] || messages.NETWORK_ERROR);
     } finally {
       setIsCampGrading(false);
       campNavigationLockRef.current = false;
