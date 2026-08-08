@@ -691,7 +691,8 @@ function App() {
         setUserName(response.data.name); 
         if (response.data.school) setSchool(response.data.school); 
         
-        if (response.data.isInitial) setStep('change-password'); else await loadCsv(); 
+        const isStaffRole = ['admin', 'teacher', 'head-teacher'].includes(response.data.role);
+        if (response.data.isInitial === true && isStaffRole) setStep('change-password'); else await loadCsv();
       } else alert("認証失敗");
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
