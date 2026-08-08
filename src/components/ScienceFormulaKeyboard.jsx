@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { convertToDisplayFormat } from './ChemistryPlayView';
 
-function ScienceFormulaKeyboard({ value, onChange, onSubmit }) {
+function ScienceFormulaKeyboard({ value, onChange, onSubmit, disabled = false }) {
   const [isShift, setIsShift] = useState(true);
   const [inputMode, setInputMode] = useState('normal');
   const rows = [
@@ -12,6 +12,7 @@ function ScienceFormulaKeyboard({ value, onChange, onSubmit }) {
   const numbers = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
   const press = (key) => {
+    if (disabled) return;
     if (key === 'BACKSPACE') {
       onChange(value.endsWith('^') ? value.slice(0, -1) : value.slice(0, -1).replace(/\^$/, ''));
       return;
@@ -34,7 +35,7 @@ function ScienceFormulaKeyboard({ value, onChange, onSubmit }) {
   };
 
   return (
-    <div className="chem-keyboard-container">
+    <fieldset className="chem-keyboard-container" disabled={disabled} style={{ border: 0, padding: 0, margin: 0 }}>
       <div className="chem-input-display">
         {convertToDisplayFormat(value) || <span className="placeholder">ここに化学式が表示されます</span>}
       </div>
@@ -63,7 +64,7 @@ function ScienceFormulaKeyboard({ value, onChange, onSubmit }) {
           <button type="button" className="key key-enter" onClick={onSubmit}>確定 (Enter)</button>
         </div>
       </div>
-    </div>
+    </fieldset>
   );
 }
 

@@ -16,6 +16,7 @@
 - 合宿漢字は全問題からランダムで20問を出題します。
 - 社会は「歴史／地理」を選んだあとに「分野」を選択し、理科は「問題ジャンル」を選択して出題します。
 - 理科・社会は文字の正規化後に一致しなかった場合、既存のGemini判定APIで表記揺れ・類似表現を判定します。
+- 理科・社会は全問回答後に一括採点し、React側で判定できなかった空欄以外の回答だけを `checkAnswersWithGemini` で一括判定します。
 - 空欄の必須カラムを含む行は読み飛ばします。
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

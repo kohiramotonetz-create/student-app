@@ -22,12 +22,18 @@ function QuizPlayView({
   finishPractice,
   quizAnswers,
   resetQuizState,
-  setSelectedBook
+  setSelectedBook,
+  isCampBatchQuiz,
+  isCampGrading,
+  moveCampQuestion,
+  gradeCampQuiz
 }) {
   if (step !== 'quiz-main' && step !== 'quiz-result') return null;
   const currentItem = quizItems[qIndex];
   const usesFormulaKeyboard = selectedBook.contentId === 'camp_science_qa'
     && /化学(?:反応)?式/.test(currentItem?.en || '');
+  const isLastCampQuestion = isCampBatchQuiz && qIndex === quizItems.length - 1;
+  const handleCampSubmit = () => isLastCampQuestion ? gradeCampQuiz() : moveCampQuestion(1);
 
   return (
     <>
@@ -51,20 +57,42 @@ function QuizPlayView({
             <ScienceFormulaKeyboard
               value={currentInput}
               onChange={setCurrentInput}
-              onSubmit={submitQuizAnswer}
+              onSubmit={isCampBatchQuiz ? handleCampSubmit : submitQuizAnswer}
+              disabled={isCampBatchQuiz && isCampGrading}
             />
           ) : (
             <input
               className="q-input"
               value={currentInput}
               onChange={(e) => setCurrentInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !quizReview.visible && submitQuizAnswer()}
+              disabled={isCampBatchQuiz && isCampGrading}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' || quizReview.visible || isCampGrading) return;
+                if (isCampBatchQuiz) handleCampSubmit(); else submitQuizAnswer();
+              }}
               autoFocus
               placeholder="答えを入力..."
             />
           )}
           
-          {!quizReview.visible && !usesFormulaKeyboard && <button className="nav-btn" onClick={submitQuizAnswer}>回答する</button>}
+          {isCampBatchQuiz && (
+            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+              <button
+                className="secondary"
+                style={{ flex: 1 }}
+                disabled={qIndex === 0 || isCampGrading}
+                onClick={() => moveCampQuestion(-1)}
+              >前の問題へ</button>
+              <button
+                className="nav-btn"
+                style={{ flex: 2 }}
+                disabled={isCampGrading}
+                onClick={handleCampSubmit}
+              >{isCampGrading ? '採点中…' : isLastCampQuestion ? 'テストを終了して採点' : '次へ'}</button>
+            </div>
+          )}
+
+          {!isCampBatchQuiz && !quizReview.visible && !usesFormulaKeyboard && <button className="nav-btn" onClick={submitQuizAnswer}>回答する</button>}
           
           {quizReview.visible && (
             <div className="review-box" style={{ textAlign: 'left' }}>

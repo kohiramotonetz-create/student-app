@@ -33,9 +33,25 @@ const normalizeQuizAnswer = (value) => value ? value
   .replace(/[⁺＋]/g, '+')
   .replace(/[⁻‐‑‒–—−－]/g, '-')
   .replace(/\^/g, '')
-  .replace(/[…\.\.\.～~？?！!。、,]/g, '')
+  .replace(/[… .～~？?！!。、,]/g, '')
   .replace(/\s+/g, '')
   .toLowerCase() : '';
+
+const removeAnswerSupplement = (value) => value
+  ? value.normalize('NFKC').replace(/\([^)]*\)/g, '')
+  : '';
+
+const isLocallyCorrect = (userAnswer, correctAnswer) => {
+  const normalizedUserAnswer = normalizeQuizAnswer(userAnswer);
+  if (!normalizedUserAnswer) return false;
+
+  return String(correctAnswer || '').split(/[/／]/).some((candidate) => {
+    const normalizedCandidate = normalizeQuizAnswer(candidate);
+    const candidateWithoutSupplement = normalizeQuizAnswer(removeAnswerSupplement(candidate));
+    return normalizedUserAnswer === normalizedCandidate
+      || (candidateWithoutSupplement && normalizedUserAnswer === candidateWithoutSupplement);
+  });
+};
 
 function App() {
   const [step, setStep] = useState('login'); 
@@ -277,9 +293,13 @@ function App() {
   const [currentInput, setCurrentInput] = useState("");
   const [quizReview, setQuizReview] = useState({ visible: false, record: null });
   const [practice, setPractice] = useState("");
+  const [campDraftAnswers, setCampDraftAnswers] = useState([]);
+  const [isCampGrading, setIsCampGrading] = useState(false);
+  const campNavigationLockRef = useRef(false);
 
   const resetQuizState = () => {
     setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setPractice(""); setQuizReview({ visible: false, record: null });
+    setCampDraftAnswers([]); setIsCampGrading(false); campNavigationLockRef.current = false;
   };
 
   const handleLogout = () => {
@@ -480,6 +500,102 @@ function App() {
     } catch (e) {
       console.error("AI判定通信エラー:", e);
       return false; 
+    }
+  };
+
+  const isCampBatchQuiz = activeContentId === CONTENT_IDS.camp_science_qa
+    || activeContentId === CONTENT_IDS.camp_social_qa;
+
+  const moveCampQuestion = (direction) => {
+    if (!isCampBatchQuiz || isCampGrading || campNavigationLockRef.current) return;
+    const nextIndex = qIndex + direction;
+    if (nextIndex < 0 || nextIndex >= quizItems.length) return;
+
+    campNavigationLockRef.current = true;
+    const nextAnswers = [...campDraftAnswers];
+    nextAnswers[qIndex] = currentInput;
+    setCampDraftAnswers(nextAnswers);
+    setQIndex(nextIndex);
+    setCurrentInput(nextAnswers[nextIndex] || '');
+    window.setTimeout(() => { campNavigationLockRef.current = false; }, 250);
+  };
+
+  const parseBatchGeminiResults = (data, expectedIndexes) => {
+    if (data?.result !== 'success' || !Array.isArray(data.results)) {
+      throw new Error('Gemini一括判定のレスポンスが不正です。');
+    }
+    const expected = new Set(expectedIndexes);
+    const seen = new Set();
+    const parsed = new Map();
+    data.results.forEach((item) => {
+      const index = Number(item?.index);
+      if (!Number.isInteger(index) || !expected.has(index) || seen.has(index) || typeof item?.isCorrect !== 'boolean') {
+        throw new Error('Gemini一括判定のindexまたは判定値が不正です。');
+      }
+      seen.add(index);
+      parsed.set(index, item.isCorrect);
+    });
+    if (seen.size !== expected.size || expectedIndexes.some((index) => !seen.has(index))) {
+      throw new Error('Gemini一括判定の結果が不足しています。');
+    }
+    return parsed;
+  };
+
+  const gradeCampQuiz = async () => {
+    if (!isCampBatchQuiz || isCampGrading || campNavigationLockRef.current) return;
+    campNavigationLockRef.current = true;
+    setIsCampGrading(true);
+
+    const answers = [...campDraftAnswers];
+    answers[qIndex] = currentInput;
+    setCampDraftAnswers(answers);
+
+    const localResults = quizItems.map((item, index) => ({
+      index,
+      item,
+      userAnswer: answers[index] || '',
+      localCorrect: isLocallyCorrect(answers[index] || '', item.ja)
+    }));
+    const needsGemini = localResults.filter(({ userAnswer, localCorrect }) => userAnswer.trim() && !localCorrect);
+
+    try {
+      let geminiResults = new Map();
+      if (needsGemini.length > 0) {
+        const response = await axios.post(GAS_URL, JSON.stringify({
+          action: 'checkAnswersWithGemini',
+          apiKey: GEMINI_API_KEY,
+          answers: needsGemini.map(({ index, item, userAnswer }) => ({
+            index,
+            question: item.en,
+            correctAnswer: item.ja,
+            userAnswer
+          }))
+        }), { headers: { 'Content-Type': 'text/plain' }, timeout: 30000 });
+        geminiResults = parseBatchGeminiResults(response.data, needsGemini.map(({ index }) => index));
+      }
+
+      const finalAnswers = localResults.map(({ index, item, userAnswer, localCorrect }) => ({
+        q: item.en,
+        a: userAnswer,
+        correct: item.ja,
+        en: item.en,
+        ok: localCorrect || geminiResults.get(index) === true,
+        rawItem: item
+      }));
+      setQuizAnswers(finalAnswers);
+      setStep('quiz-result');
+      sendResultToGAS(
+        finalAnswers,
+        getContentDefinition(activeContentId)?.logSheetName,
+        null,
+        activeContentId
+      );
+    } catch (error) {
+      console.error('一括採点エラー:', error);
+      alert('採点に失敗しました。通信状態を確認して、もう一度「テストを終了して採点」を押してください。');
+    } finally {
+      setIsCampGrading(false);
+      campNavigationLockRef.current = false;
     }
   };
 
@@ -918,6 +1034,10 @@ function App() {
         quizAnswers={quizAnswers}
         resetQuizState={resetQuizState}
         setSelectedBook={setSelectedBook}
+        isCampBatchQuiz={isCampBatchQuiz}
+        isCampGrading={isCampGrading}
+        moveCampQuestion={moveCampQuestion}
+        gradeCampQuiz={gradeCampQuiz}
       />
 
       <KanjiTestView 
