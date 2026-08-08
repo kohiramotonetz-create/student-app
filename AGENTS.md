@@ -672,6 +672,20 @@ Version番号は利用者が管理します。Codexは勝手にVersion番号を�
 
 Issue完了時には、現在Versionと次Version候補を確認し、利用者へ確認してから更新してください。
 
+Version番号はCodexが決定しません。
+
+Issue完了時は、以下の形式で利用者へ提示してください。
+
+現在Version
+
+↓
+
+候補Version
+
+利用者の承認後にだけVersionを更新してください。
+
+Codexは勝手にVersion番号を変更しないでください。
+
 Versionは必ず以下2か所へ表示してください。
 
 ① ログイン画面の右下
