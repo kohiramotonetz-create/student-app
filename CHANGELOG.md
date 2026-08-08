@@ -29,6 +29,34 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### S-006A Gemini採点基盤（診断）
+
+- 状態: student-app側のReact診断実装・純粋関数テスト・build完了。GAS側診断基盤はgyoumu-appの `feature/g-008-gemini-diagnostics` で実装済み（この作業では未検証）。実通信、ローカル画面確認、本番確認は未実施
+- 変更内容:
+  - 理科・社会の `checkAnswersWithGemini` 1回ごとに個人情報を含まない `requestId` を生成し、GASリクエストへ追加
+  - GASから返る `GEMINI_RATE_LIMIT`、`GEMINI_UNAVAILABLE`、`GEMINI_HTTP_ERROR`、`GEMINI_JSON_PARSE_ERROR`、`GEMINI_INVALID_RESPONSE`、`GEMINI_TIMEOUT_OR_DELAY`、`INTERNAL_ERROR` を保持
+  - Axios timeoutを `CLIENT_TIMEOUT`、レスポンス未受信の通信失敗を `NETWORK_ERROR` として分類
+  - index欠落・重複・範囲外、boolean不正、件数不一致を `GEMINI_INVALID_RESPONSE` として不正解扱いにせず採点処理を停止
+  - 原因別の安全なメッセージ、エラーコード、requestIdを表示。採点失敗時の回答保持と再試行可能状態を維持
+  - 429、503、その他HTTPエラー、不正JSON、index欠落・重複、boolean不正、正常レスポンス、client timeout、network failureの純粋関数テストを追加
+- CSV影響: なし。列構成・データ変更なし
+- Gemini影響: 呼び出し回数・一括判定方式・90秒の既存timeout値は変更なし。外部Gemini API実通信なし
+- GAS影響: このリポジトリにGASソースがないため未変更。gyoumu-appの `feature/g-008-gemini-diagnostics` にGAS診断基盤を実装済みとの利用者確認あり。この作業ではGAS差分・連携動作は未検証
+- build結果: 2026-08-09 `npm run build` 成功
+- lint結果: 2026-08-09 `npm run lint` は既存8件で失敗（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）。今回追加コードの新規lintエラーなし
+- test結果: 2026-08-09 `npm test` 成功
+- `git diff --check`: 2026-08-09 成功
+- ローカル確認: ブラウザ確認未実施
+- 通常ログイン: 未確認
+- SSO: 未確認
+- Gemini: 実通信未実施
+- Commit: `feat: add Gemini grading diagnostics`（本コミット）
+- Push: 未実施
+- mainマージ: 未実施
+- Vercelデプロイ: 未実施。Vercel読み取り監査では既存main最新本番デプロイがREADY
+- 本番確認: 未実施
+- 関連gyoumu-appコミット / Issue: `feature/g-008-gemini-diagnostics` / G-008（コミットID未確認。この作業によるgyoumu-app変更なし）
+
 ### Issue #001 スキマ君利用権限管理の改善
 
 - 状態: student-app React変更は実装済み。GAS側実装・実通信はこのリポジトリでは未確認

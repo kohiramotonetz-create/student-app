@@ -14,6 +14,12 @@ import ChemistrySetupView from './components/ChemistrySetupView';
 import ChemistryPlayView from './components/ChemistryPlayView';
 import CampView from './components/CampView';
 import {
+  classifyBatchGradingError,
+  createBatchGradingRequestId,
+  formatBatchGradingErrorMessage,
+  parseBatchGeminiResults
+} from './utils/batchGradingDiagnostics';
+import {
   ALL_CONTENT_IDS,
   CONTENT_IDS,
   HIGH_SCHOOL_CONTENTS,
@@ -519,38 +525,6 @@ function App() {
     window.setTimeout(() => { campNavigationLockRef.current = false; }, 250);
   };
 
-  const parseBatchGeminiResults = (data, expectedIndexes) => {
-    if (data?.result === 'error') {
-      const error = new Error(data.message || '採点に失敗しました。');
-      error.code = data.code || 'GEMINI_UNAVAILABLE';
-      throw error;
-    }
-    if (data?.result !== 'success' || !Array.isArray(data.results)) {
-      const error = new Error('Gemini一括判定のレスポンスが不正です。');
-      error.code = 'INVALID_RESPONSE';
-      throw error;
-    }
-    const expected = new Set(expectedIndexes);
-    const seen = new Set();
-    const parsed = new Map();
-    data.results.forEach((item) => {
-      const index = Number(item?.index);
-      if (!Number.isInteger(index) || !expected.has(index) || seen.has(index) || typeof item?.isCorrect !== 'boolean') {
-        const error = new Error('Gemini一括判定のindexまたは判定値が不正です。');
-        error.code = 'INVALID_RESPONSE';
-        throw error;
-      }
-      seen.add(index);
-      parsed.set(index, item.isCorrect);
-    });
-    if (seen.size !== expected.size || expectedIndexes.some((index) => !seen.has(index))) {
-      const error = new Error('Gemini一括判定の結果が不足しています。');
-      error.code = 'INVALID_RESPONSE';
-      throw error;
-    }
-    return parsed;
-  };
-
   const gradeCampQuiz = async () => {
     if (!isCampBatchQuiz || isCampGrading || campNavigationLockRef.current) return;
     campNavigationLockRef.current = true;
@@ -568,11 +542,13 @@ function App() {
     }));
     const needsGemini = localResults.filter(({ userAnswer, localCorrect }) => userAnswer.trim() && !localCorrect);
 
+    const requestId = createBatchGradingRequestId();
     try {
       let geminiResults = new Map();
       if (needsGemini.length > 0) {
         const response = await axios.post(GAS_URL, JSON.stringify({
           action: 'checkAnswersWithGemini',
+          requestId,
           apiKey: API_KEY,
           answers: needsGemini.map(({ index, item, userAnswer }) => ({
             index,
@@ -581,7 +557,11 @@ function App() {
             userAnswer
           }))
         }), { headers: { 'Content-Type': 'text/plain' }, timeout: BATCH_GRADING_TIMEOUT_MS });
-        geminiResults = parseBatchGeminiResults(response.data, needsGemini.map(({ index }) => index));
+        geminiResults = parseBatchGeminiResults(
+          response.data,
+          needsGemini.map(({ index }) => index),
+          requestId
+        );
       }
 
       const finalAnswers = localResults.map(({ index, item, userAnswer, localCorrect }) => ({
@@ -601,16 +581,9 @@ function App() {
         activeContentId
       );
     } catch (error) {
-      const code = error?.code === 'ECONNABORTED' ? 'TIMEOUT' : (error?.code || 'NETWORK_ERROR');
-      const messages = {
-        RATE_LIMIT: '採点リクエストが集中しています。少し待ってから、もう一度採点してください。',
-        GEMINI_UNAVAILABLE: '採点サービスが一時的に利用できません。少し待ってから、もう一度採点してください。',
-        INVALID_RESPONSE: '採点結果を正しく取得できませんでした。もう一度採点してください。',
-        TIMEOUT: '採点に時間がかかっています。回答は保存されていますので、もう一度採点してください。',
-        NETWORK_ERROR: '通信エラーが発生しました。通信状態を確認して、もう一度採点してください。'
-      };
-      console.error('一括採点エラー種別:', code);
-      alert(messages[code] || messages.NETWORK_ERROR);
+      const diagnostic = classifyBatchGradingError(error, requestId);
+      console.error('一括採点診断:', diagnostic);
+      alert(formatBatchGradingErrorMessage(diagnostic.code, diagnostic.requestId));
     } finally {
       setIsCampGrading(false);
       campNavigationLockRef.current = false;
