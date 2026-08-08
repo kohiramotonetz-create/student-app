@@ -593,3 +593,59 @@ commit
 必要に応じてdeploy
 
 この順番を維持してください。
+
+==================================================
+
+# CHANGELOG更新ルール
+
+student-appに変更を加えたIssueを完了する場合、ユーザーから明示的な指示がなくても必ず `CHANGELOG.md` を更新してください。
+
+対象
+
+・student-appコード変更
+
+・student-appコンテンツ変更
+
+・student-appへ影響する権限仕様変更
+
+・gyoumu-app / GASとの連携変更
+
+student-appへ全く影響しないgyoumu-app固有Issueは追加不要です。
+
+Issue完了条件として `CHANGELOG.md` 更新を必須とします。該当する確認項目と合わせて、build、lint、ローカル確認、通常ログイン、SSO、Gemini、commit、push、mainマージ、Vercel確認の実施状況を記録してください。
+
+同一Issueについて重複項目を作らず、既存項目へ以下を追記・更新してください。
+
+・変更内容
+
+・build結果
+
+・lint結果
+
+・ローカル確認
+
+・本番確認
+
+・Commit
+
+・Vercelデプロイ
+
+・関連gyoumu-appコミット / Issue
+
+確認できた事実だけを記載し、未実施・未確認はその状態を明記してください。
+
+==================================================
+
+# Version History更新ルール
+
+CodexがVersion番号を推測して決めてはいけません。
+
+新Versionは、以下のいずれかを満たす場合だけ `CHANGELOG.md` のVersion Historyへ追加してください。
+
+・ユーザー指定がある
+
+・既存version変更がある
+
+・明確なリリース指示がある
+
+Version未確定の場合は、Issue Historyだけを先に更新して構いません。
