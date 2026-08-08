@@ -1,5 +1,6 @@
 import React from 'react';
 import { CAMP_CONTENTS, CONTENT_IDS, HIGH_SCHOOL_CONTENTS, MAIN_MENU_CONTENTS } from '../constants/sukimakunContents';
+import { APP_VERSION } from '../constants/version';
 
 function MenuView({
   step,
@@ -97,6 +98,7 @@ function MenuView({
           ))}
       </div>
       <button className="secondary" onClick={handleLogout}>ログアウト</button>
+      <span className="app-version">Version {APP_VERSION}</span>
     </div>
   );
 }

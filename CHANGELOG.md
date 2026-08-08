@@ -6,6 +6,14 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Version History
 
+### Version 4.2.1
+
+- Previous Version: 4.2.0
+- Date: 2026-08-08
+- Issue: Issue #005
+- Changes: 合宿コンテンツ3件を権限管理対象へ追加したIssue完了に伴い、アプリVersionを更新
+- Display: ログイン画面とログイン後メニューの右下へ共通定数からVersionを表示
+
 ### 関連リリース（gyoumu-app Version未確認）
 
 - Version: student-app独自Versionなし。gyoumu-app側Versionは未確認

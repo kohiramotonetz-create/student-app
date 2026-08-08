@@ -649,3 +649,113 @@ CodexがVersion番号を推測して決めてはいけません。
 ・明確なリリース指示がある
 
 Version未確定の場合は、Issue Historyだけを先に更新して構いません。
+
+==================================================
+
+# Version Management
+
+このプロジェクトでは、Issueが完了したらアプリのVersion更新要否を確認してください。
+
+Versionは `Major.Minor.Patch` 形式を利用します。
+
+例
+
+・4.0.0
+
+・4.0.1
+
+・4.1.0
+
+・5.0.0
+
+Version番号は利用者が管理します。Codexは勝手にVersion番号を決めないでください。
+
+Issue完了時には、現在Versionと次Version候補を確認し、利用者へ確認してから更新してください。
+
+Versionは必ず以下2か所へ表示してください。
+
+① ログイン画面の右下
+
+② ログイン後最初の画面の右下
+
+表示例
+
+`Version 4.1.0`
+
+Version表示位置は、ログイン画面とホーム画面のどちらも右下固定とします。
+
+既存UIを崩さず、文字サイズ・色は既存デザインへ合わせてください。
+
+Version表示のためだけに新しい画面部品を大量に追加しないでください。
+
+Version表示は必ず共通定数から取得してください。
+
+例
+
+`src/constants/version.js`
+
+```javascript
+export const APP_VERSION = "4.1.0";
+```
+
+複数画面へVersion文字列を直接書かないでください。
+
+Version更新手順
+
+① 利用者へVersion更新確認
+
+↓
+
+② Version共通定数更新
+
+↓
+
+③ ログイン画面右下確認
+
+↓
+
+④ ホーム画面右下確認
+
+↓
+
+⑤ CHANGELOG更新
+
+↓
+
+⑥ commit
+
+Version更新後は、必ず `CHANGELOG.md` に反映してください。
+
+Issue完了時には以下を確認してください。
+
+・現在Version
+
+・更新後Version
+
+・表示画面
+
+・CHANGELOG更新
+
+・Git commit対象
+
+Version変更漏れを防止してください。
+
+==================================================
+
+# Issue Completion
+
+Issue完了時は以下を必ず確認してください。
+
+・CHANGELOG更新
+
+・Version更新要否
+
+・Version表示更新
+
+・Git状態
+
+・commit要否
+
+Version更新は利用者確認後に行ってください。
+
+Codexが勝手にVersion番号を変更しないでください。

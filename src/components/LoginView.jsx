@@ -2,6 +2,7 @@
 
 
 import React from 'react';
+import { APP_VERSION } from '../constants/version';
 
 function LoginView({ 
   step, 
@@ -35,6 +36,7 @@ function LoginView({
             onChange={(e) => setPassword(e.target.value)} 
           />
           <button onClick={handleLogin}>ログイン</button>
+          <span className="app-version">Version {APP_VERSION}</span>
         </div>
       )}
 
