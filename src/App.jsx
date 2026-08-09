@@ -19,6 +19,7 @@ import {
   formatBatchGradingErrorMessage,
   parseBatchGeminiResults
 } from './utils/batchGradingDiagnostics';
+import { createLogHistory, getReviewLookupKeys } from './utils/reviewHistory';
 import {
   ALL_CONTENT_IDS,
   CONTENT_IDS,
@@ -209,24 +210,24 @@ function App() {
         category: d["category"]
       })).filter(d => d.answer_raw));
 
-      const mapCampRows = (rows) => rows.map((d, index) => {
+      const mapCampRows = (rows) => rows.map((d) => {
         const columns = Object.values(d);
         return {
-          id: d.id || String(index + 1),
+          id: String(d.id || '').trim(),
           subject: String(d["歴史or地理"] || '').trim(),
           genre: String(d["問題ジャンル"] || d["分野"] || d["ジャンル"] || d["時代"] || columns[0] || '').trim(),
           en: String(d["問題内容"] || d["問題"] || columns[columns.length - 2] || '').trim(),
           ja: String(d["回答"] || d["解答"] || d["答え"] || columns[columns.length - 1] || '').trim()
         };
-      }).filter(d => d.genre && d.en && d.ja);
+      }).filter(d => d.id && d.genre && d.en && d.ja);
       const dataCampKanji = await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.camp_kagawa_kanji).dataFile);
-      setCampKanjiData(dataCampKanji.map((d, index) => ({
-        id: d.id || String(index + 1),
+      setCampKanjiData(dataCampKanji.map((d) => ({
+        id: String(d.id || '').trim(),
         textName: String(d["学年"] || d["ジャンル"] || '').trim(),
-        page: d.id || String(index + 1),
+        page: '',
         question: String(d["問題"] || '').trim(),
         answer: String(d["答え"] || d["解答"] || '').trim()
-      })).filter(d => d.question && d.answer));
+      })).filter(d => d.id && d.question && d.answer));
       setCampScienceData(mapCampRows(await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.camp_science_qa).dataFile)));
       setCampSocialData(mapCampRows(await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.camp_social_qa).dataFile)));
 
@@ -367,25 +368,37 @@ function App() {
   const [wrongWordsList, setWrongWordsList] = useState([]);
   const [showWrongList, setShowWrongList] = useState(false);
 
-  const fetchAndFilterWrongWords = async (sheetName, currentRangeWords) => {
+  const fetchAndFilterWrongWords = async (sheetName, currentRangeWords, options = {}) => {
     if (!LOG_GAS_URL || !userId) return;
+    const {
+      keepWrongHistory = false,
+      isKanji: isKanjiOption = false,
+      contentId = null,
+      emptyMessage = "この範囲内に、過去に間違えてまだ合格していない問題はありません！"
+    } = options;
     setLoading(true);
     try {
       const response = await axios.post(LOG_GAS_URL, JSON.stringify({
         action: "getLogs",
         sheetName: sheetName,
-        studentId: userId
+        studentId: userId,
+        ...(contentId ? { contentId } : {})
       }), { headers: { 'Content-Type': 'text/plain' } });
 
       const pastLogs = response.data; 
       
-      const isKanji = sheetName === "漢字テスト" || sheetName === "漢字対策";
+      const isKanji = isKanjiOption || sheetName === "漢字テスト" || sheetName === "漢字対策";
       
-      const currentWordSet = new Set(currentRangeWords.map(w => isKanji ? (w.question || w.ja) : w.en));
+      const reviewItems = currentRangeWords.map((item) => ({
+        item,
+        keys: getReviewLookupKeys(item, { contentId, isKanji })
+      }));
+      const currentWordSet = new Set(reviewItems.flatMap(({ keys }) => keys));
       
       const wordHistoryMap = {};
 
       pastLogs.forEach(log => {
+        if (contentId && log.contentId && log.contentId !== contentId) return;
         if (!log.history) return;
         const items = log.history.split(', ');
         items.forEach(item => {
@@ -406,13 +419,14 @@ function App() {
 
       const wrongList = [];
       
-      currentRangeWords.forEach(item => {
-        const searchKey = isKanji ? (item.question || item.ja) : item.en;
-        const history = wordHistoryMap[searchKey];
+      reviewItems.forEach(({ item, keys }) => {
+        const history = keys.flatMap((key) => wordHistoryMap[key] || []);
         
         let isWrong = false;
 
-        if (!history || history.length === 0) {
+        if (keepWrongHistory) {
+          isWrong = Boolean(history?.includes('×'));
+        } else if (!history || history.length === 0) {
           isWrong = false;
         } else if (history[0] === '×') {
           isWrong = true;
@@ -440,7 +454,7 @@ function App() {
       setShowWrongList(true);
 
       if (wrongList.length === 0) {
-        alert("この範囲内に、過去に間違えてまだ合格していない問題はありません！");
+        alert(emptyMessage);
       }
 
     } catch (e) {
@@ -458,6 +472,14 @@ function App() {
       ? `No.${startNo}～${endNo}${selectedParts.length > 0 ? `(${selectedParts.join('/')})` : ''}` 
       : (isKobunMode ? "古文" : (isFukisokuMode ? "不規則" : `${startUnit}${startPart}～${endUnit}${endPart}`)));
 
+    let history;
+    try {
+      history = createLogHistory(finalAnswers, contentId);
+    } catch (error) {
+      console.error('学習ログ用questionIdの生成に失敗しました:', error);
+      return;
+    }
+
     const payload = {
       action: "saveLog", 
       contentId,
@@ -470,7 +492,7 @@ function App() {
       score: finalAnswers.filter(a => a.ok).length, 
       total: finalAnswers.length,
       percentage: Math.round((finalAnswers.filter(a => a.ok).length / finalAnswers.length) * 100) + "%",
-      history: finalAnswers.map((a, i) => `[${i + 1}]${a.q}(${a.ok ? '○' : '×'})`).join(', ')
+      history
     };
 
     fetch(LOG_GAS_URL, { 
@@ -718,6 +740,7 @@ function App() {
     
     resetQuizState();
     setQuizItems(targetItems.map(k => ({ 
+      id: k.id,
       ja: k.question, 
       en: k.answer, 
       page: k.page, 
@@ -882,6 +905,11 @@ function App() {
         setSelectedBook={setSelectedBook}
         setMode={setMode}
         questionCount={QUESTION_COUNT}
+        fetchAndFilterWrongWords={fetchAndFilterWrongWords}
+        showWrongList={showWrongList}
+        setShowWrongList={setShowWrongList}
+        wrongWordsList={wrongWordsList}
+        canStartContent={canStartContent}
       />
 
       <TestSetupView 
@@ -1069,6 +1097,7 @@ function App() {
         returnStep={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 'camp-menu' : 'menu'}
         title={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? '香川県　覚えるべき漢字（書きver.）' : '漢字テスト 設定'}
         randomAllCount={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 20 : null}
+        keepWrongHistory={activeContentId === CONTENT_IDS.camp_kagawa_kanji}
       />
 
       <ChemistrySetupView 
