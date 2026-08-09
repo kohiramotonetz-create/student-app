@@ -29,6 +29,34 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### S-006B Gemini採点基盤（429/503 Retry）
+
+- 状態: 完了。教室で12台同時利用試験を実施し、11台成功、1台は通信エラー。エラー端末ではGemini診断コードを取得できず、Gemini Retry対象とは確認できなかった。現時点では運用可能と判断し、監視を継続
+- 背景: 教室で5人同時利用時、Gemini一括採点で `GEMINI_UNAVAILABLE` を確認。一時的な503へ耐えられるようRetryを追加
+- 変更内容:
+  - 429と503のみを対象とする自動Retryを追加
+  - `Retry-After` に対応
+  - 指数バックオフとjitterを追加
+  - Retry中も同一の `requestId` を維持
+  - 診断ログを強化
+  - `durationMs` と `totalDurationMs` を追加
+- CSV影響: なし
+- Gemini影響: 429・503発生時のみ自動Retryを実施。その他のエラーはRetry対象外
+- GAS影響: Gemini一括採点の429・503 Retryおよび診断情報を変更
+- build結果: S-006B完了時の結果は未記載
+- lint結果: S-006B完了時の結果は未記載
+- ローカル確認: 未確認
+- 通常ログイン: 未確認
+- SSO: 未確認
+- Gemini: 12台同時利用試験で11台成功。1台は通信エラーだったがGemini診断コードを取得できず、Gemini Retry対象とは未確認
+- Commit: `docs: record S-006B completion`（本コミット）
+- Push: `main` へ本コミットをpush
+- mainマージ: 未確認
+- Vercelデプロイ: 未確認
+- 本番確認: 教室で12台同時利用試験を実施。現時点では運用可能と判断し、監視を継続
+- Version: 変更なし
+- 関連gyoumu-appコミット / Issue: 未確認
+
 ### S-006A Gemini採点基盤（診断）
 
 - 状態: student-app側のReact診断実装・純粋関数テスト・build完了。GAS側診断基盤はgyoumu-appの `feature/g-008-gemini-diagnostics` で実装済み（この作業では未検証）。実通信、ローカル画面確認、本番確認は未実施
