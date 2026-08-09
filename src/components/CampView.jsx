@@ -111,18 +111,19 @@ function CampView({
                 else setSelectedGenres([]);
               }}>全解除</button>
             </div>
-            <div style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '8px', background: '#fff', padding: '6px', textAlign: 'left' }}>
+            <div className="camp-genre-list">
               {(isSocial ? fields : genres).map((field) => {
                 const selected = isSocial ? selectedFields : selectedGenres;
                 const setSelected = isSocial ? setSelectedFields : setSelectedGenres;
                 return (
-                  <label key={field} style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '9px 6px', borderBottom: '1px solid #eee', cursor: 'pointer' }}>
+                  <label key={field} className="camp-genre-row">
                     <input
+                      className="camp-genre-checkbox"
                       type="checkbox"
                       checked={selected.includes(field)}
                       onChange={() => toggleSelection(field, selected, setSelected)}
                     />
-                    <span>{field}</span>
+                    <span className="camp-genre-name">{field}</span>
                   </label>
                 );
               })}
