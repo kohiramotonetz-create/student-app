@@ -60,9 +60,9 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 - SSO: 未確認
 - Gemini: 実通信未実施
 - Commit: `feat: add camp review mode and multi-category selection`（本コミット）
-- Push: 未実施
+- Push: 2026-08-09 `feature/s-007-camp-review` をGitHubへpush
 - mainマージ: 未実施
-- Vercelデプロイ: 未実施
+- Vercelデプロイ: 2026-08-09 Git連携によるPreviewデプロイ成功（READY）。本番デプロイ未実施
 - 本番確認: 未実施
 - Version: 変更なし（現在Version 4.2.1）
 - 関連gyoumu-appコミット / Issue: なし。gyoumu-app変更なし
