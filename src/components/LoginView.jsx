@@ -13,7 +13,7 @@ function LoginView({
   newPassword, 
   setNewPassword, 
   handleLogin, 
-  handleChangePassword 
+  handleChangePassword
 }) {
   // step が login でも change-password でもない場合は何も表示しない
   if (step !== 'login' && step !== 'change-password') return null;

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { CAMP_CONTENTS, CONTENT_IDS } from '../constants/sukimakunContents';
+import { selectQuizItems } from '../utils/campQuiz';
 
 function CampView({
   step,
@@ -76,11 +77,16 @@ function CampView({
     resetQuizState();
     setMode('en-ja');
     setSelectedBook({ name: content?.displayName || '', data: items, contentId: activeContentId });
-    const shuffledItems = [...items].sort(() => 0.5 - Math.random());
-    setQuizItems(limit === null ? shuffledItems : shuffledItems.slice(0, limit));
+    setQuizItems(selectQuizItems(items, limit));
     setShowWrongList(false);
     setStep('quiz-main');
   };
+
+  const buildRetryQuizItems = () => wrongWordsList.map(({ rawItem, q, a }) => ({
+    ...rawItem,
+    en: rawItem?.en || rawItem?.question || q,
+    ja: rawItem?.ja || rawItem?.answer || a
+  }));
 
   return (
     <div className="quiz-container">
@@ -165,7 +171,7 @@ function CampView({
             </table>
           </div>
           <button className="nav-btn" style={{ backgroundColor: '#28a745', width: '100%' }} onClick={() => {
-            startQuiz(wrongWordsList.map(({ rawItem }) => rawItem), null);
+            startQuiz(buildRetryQuizItems(), questionCount);
           }}>🔥 間違えた問題のみトライ！</button>
         </div>
       )}

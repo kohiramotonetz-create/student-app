@@ -32,6 +32,9 @@ const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
 const API_KEY = import.meta.env.VITE_API_KEY;
 const QUESTION_COUNT = 20;
 const BATCH_GRADING_TIMEOUT_MS = 90000;
+const hasAuthApiConfig = Boolean(GAS_URL && API_KEY);
+const hasLogApiConfig = Boolean(LOG_GAS_URL);
+const productionEnvErrorMessage = '本番環境の設定が不足しています。Vercelの環境変数を確認してください。';
 
 const normalizeQuizAnswer = (value) => value ? value
   .normalize('NFKC')
@@ -167,7 +170,7 @@ function App() {
     return false;
   };
 
-  const loadCsv = async () => {
+  const loadCsv = async (nextStep = 'menu') => {
     setLoading(true);
     try {
       const fetchAndParse = async (url) => {
@@ -257,7 +260,7 @@ function App() {
           part: x["品詞"] || "", unit: x["単元"] || ""
         })).filter(x => x.en));
       }
-      setStep('menu');
+      setStep(nextStep);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
@@ -266,6 +269,13 @@ function App() {
       const params = new URLSearchParams(window.location.search);
       const uid = params.get('uid');
       const tk = params.get('tk');
+
+      if (!hasAuthApiConfig) {
+        if (uid || tk) {
+          setPermissionError(productionEnvErrorMessage);
+        }
+        return;
+      }
 
       if (uid && tk) {
         setLoading(true);
@@ -369,13 +379,18 @@ function App() {
   const [showWrongList, setShowWrongList] = useState(false);
 
   const fetchAndFilterWrongWords = async (sheetName, currentRangeWords, options = {}) => {
-    if (!LOG_GAS_URL || !userId) return;
     const {
       keepWrongHistory = false,
       isKanji: isKanjiOption = false,
       contentId = null,
       emptyMessage = "この範囲内に、過去に間違えてまだ合格していない問題はありません！"
     } = options;
+
+    if (!hasLogApiConfig || !userId) {
+      alert('復習ログ機能の設定が不足しています。Vercelの環境変数を確認してください。');
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await axios.post(LOG_GAS_URL, JSON.stringify({
@@ -466,7 +481,7 @@ function App() {
   };
 
   const sendResultToGAS = (finalAnswers, sheetName, customRange = null, contentId = activeContentId) => {
-    if (!sheetName || !LOG_GAS_URL || !contentId || !getContentDefinition(contentId) || !isContentAllowed(contentId)) return;
+    if (!sheetName || !hasLogApiConfig || !contentId || !getContentDefinition(contentId) || !isContentAllowed(contentId)) return;
 
     const rangeLabel = customRange || ((selectedBook && selectedBook.name) 
       ? `No.${startNo}～${endNo}${selectedParts.length > 0 ? `(${selectedParts.join('/')})` : ''}` 
@@ -515,6 +530,7 @@ function App() {
   };
 
   const callAiJudge = async (word, correct, userAns) => {
+    if (!hasAuthApiConfig) return false;
     try {
       const response = await axios.post(GAS_URL, JSON.stringify({
         action: "checkWithGemini", 
@@ -568,6 +584,9 @@ function App() {
     try {
       let geminiResults = new Map();
       if (needsGemini.length > 0) {
+        if (!hasAuthApiConfig) {
+          throw new Error(productionEnvErrorMessage);
+        }
         const response = await axios.post(GAS_URL, JSON.stringify({
           action: 'checkAnswersWithGemini',
           requestId,
@@ -677,6 +696,10 @@ function App() {
 
   const handleLogin = async () => {
     if (!userId || !password) return alert("入力してください");
+    if (!hasAuthApiConfig) {
+      alert(productionEnvErrorMessage);
+      return;
+    }
     setLoading(true);
     try {
       const payload = { apiKey: API_KEY, action: "login", userId, password };
