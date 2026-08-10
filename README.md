@@ -19,6 +19,15 @@
 - 理科・社会は全問回答後に一括採点し、React側で判定できなかった空欄以外の回答だけを `checkAnswersWithGemini` で一括判定します。
 - 空欄の必須カラムを含む行は読み飛ばします。
 
+## Vercel deployment
+
+- VercelのProject Rootは `student-app` を指定してください。
+- Build Commandは `npm run build`、Output Directoryは `dist` です。`vercel.json` にも同じ設定を明記しています。
+- 本番利用に必要な環境変数:
+  - `VITE_GAS_URL`
+  - `VITE_LOG_GAS_URL`
+  - `VITE_API_KEY`
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
