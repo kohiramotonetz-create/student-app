@@ -26,6 +26,7 @@ import {
   HIGH_SCHOOL_CONTENTS,
   getContentDefinition
 } from './constants/sukimakunContents';
+import { reorderStrokesForKanjiRecognition } from './utils/kanjiRecognition';
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
@@ -814,7 +815,8 @@ function App() {
   const judgeKanji = async () => {
     if (strokes.length === 0) return alert("文字を書いてください");
     setLoading(true);
-    const formattedStrokes = strokes.map(s => [
+    const orderedStrokes = reorderStrokesForKanjiRecognition(strokes);
+    const formattedStrokes = orderedStrokes.map(s => [
       s.map(p => Math.round(p.x)),
       s.map(p => Math.round(p.y)),
       []
