@@ -10,6 +10,7 @@ const buildItems = (count) => Array.from({ length: count }, (_, index) => ({
 
 test('selectQuizItems keeps all items when there are fewer than the limit', () => {
   assert.equal(selectQuizItems(buildItems(8), 20).length, 8);
+  assert.equal(selectQuizItems(buildItems(17), 20).length, 17);
 });
 
 test('selectQuizItems keeps all items when count equals the limit', () => {

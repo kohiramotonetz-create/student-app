@@ -19,7 +19,12 @@ import {
   formatBatchGradingErrorMessage,
   parseBatchGeminiResults
 } from './utils/batchGradingDiagnostics';
-import { createLogHistory, getReviewLookupKeys } from './utils/reviewHistory';
+import {
+  createLogHistory,
+  getReviewLookupKeys,
+  isCampQuestionUnresolved,
+  parseLogHistory
+} from './utils/reviewHistory';
 import {
   ALL_CONTENT_IDS,
   CONTENT_IDS,
@@ -312,6 +317,7 @@ function App() {
   const [practice, setPractice] = useState("");
   const [campDraftAnswers, setCampDraftAnswers] = useState([]);
   const [isCampGrading, setIsCampGrading] = useState(false);
+  const [isCampReviewMode, setIsCampReviewMode] = useState(false);
   const campNavigationLockRef = useRef(false);
 
   const resetQuizState = () => {
@@ -338,6 +344,7 @@ function App() {
     setStrokes([]);
     setShowWrongList(false);
     setWrongWordsList([]);
+    setIsCampReviewMode(false);
     resetQuizState();
     setQuizItems([]);
     setStep('login');
@@ -380,7 +387,7 @@ function App() {
 
   const fetchAndFilterWrongWords = async (sheetName, currentRangeWords, options = {}) => {
     const {
-      keepWrongHistory = false,
+      useCampReviewState = false,
       isKanji: isKanjiOption = false,
       contentId = null,
       emptyMessage = "この範囲内に、過去に間違えてまだ合格していない問題はありません！"
@@ -412,35 +419,33 @@ function App() {
       
       const wordHistoryMap = {};
 
+      let historyOrder = 0;
       pastLogs.forEach(log => {
         if (contentId && log.contentId && log.contentId !== contentId) return;
         if (!log.history) return;
-        const items = log.history.split(', ');
-        items.forEach(item => {
-          const match = item.match(/\](.+?)\((○|×)\)/);
-          if (match) {
-            const word = match[1].trim(); 
-            const result = match[2];
-            
-            if (currentWordSet.has(word)) {
-              if (!wordHistoryMap[word]) {
-                wordHistoryMap[word] = [];
-              }
-              wordHistoryMap[word].push(result);
+        parseLogHistory(log.history).forEach(({ key, result }) => {
+          if (currentWordSet.has(key)) {
+            if (!wordHistoryMap[key]) {
+              wordHistoryMap[key] = [];
             }
+            wordHistoryMap[key].push({ result, order: historyOrder });
           }
+          historyOrder += 1;
         });
       });
 
       const wrongList = [];
       
       reviewItems.forEach(({ item, keys }) => {
-        const history = keys.flatMap((key) => wordHistoryMap[key] || []);
+        const history = keys
+          .flatMap((key) => wordHistoryMap[key] || [])
+          .sort((left, right) => left.order - right.order)
+          .map(({ result }) => result);
         
         let isWrong = false;
 
-        if (keepWrongHistory) {
-          isWrong = Boolean(history?.includes('×'));
+        if (useCampReviewState) {
+          isWrong = isCampQuestionUnresolved(history);
         } else if (!history || history.length === 0) {
           isWrong = false;
         } else if (history[0] === '×') {
@@ -489,7 +494,9 @@ function App() {
 
     let history;
     try {
-      history = createLogHistory(finalAnswers, contentId);
+      history = createLogHistory(finalAnswers, contentId, {
+        isReviewMode: isCampReviewMode
+      });
     } catch (error) {
       console.error('学習ログ用questionIdの生成に失敗しました:', error);
       return;
@@ -739,6 +746,7 @@ function App() {
       : CONTENT_IDS.kanji_test;
     const sourceList = contentId === CONTENT_IDS.camp_kagawa_kanji ? campKanjiData : kanjiList;
     if (!canStartContent(contentId)) return;
+    setIsCampReviewMode(false);
     let targetItems = [];
     const toNum = (val) => parseInt(String(val).replace(/[^0-9]/g, "")) || 0;
     const cleanText = (s) => s ? String(s).trim() : "";
@@ -932,6 +940,7 @@ function App() {
         showWrongList={showWrongList}
         setShowWrongList={setShowWrongList}
         wrongWordsList={wrongWordsList}
+        setIsCampReviewMode={setIsCampReviewMode}
         canStartContent={canStartContent}
       />
 
@@ -1120,7 +1129,8 @@ function App() {
         returnStep={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 'camp-menu' : 'menu'}
         title={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? '香川県　覚えるべき漢字（書きver.）' : '漢字テスト 設定'}
         randomAllCount={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 20 : null}
-        keepWrongHistory={activeContentId === CONTENT_IDS.camp_kagawa_kanji}
+        useCampReviewState={activeContentId === CONTENT_IDS.camp_kagawa_kanji}
+        setIsCampReviewMode={setIsCampReviewMode}
       />
 
       <ChemistrySetupView 
