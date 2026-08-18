@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { CONTENT_IDS, getContentDefinition } from '../constants/sukimakunContents';
+import { CAMP_REVIEW_EMPTY_MESSAGE } from '../utils/reviewHistory';
 
 function KanjiTestView({
   step,
@@ -41,7 +42,8 @@ function KanjiTestView({
   returnStep = 'menu',
   title = '漢字テスト 設定',
   randomAllCount = null,
-  keepWrongHistory = false
+  useCampReviewState = false,
+  setIsCampReviewMode
 }) {
   if (step !== setupStep && step !== mainStep) return null;
 
@@ -165,10 +167,10 @@ function KanjiTestView({
 
                 // ⭕️ 親の保存シート名「漢字テスト」と完全に一致させる
                 fetchAndFilterWrongWords(getContentDefinition(contentId).logSheetName, range, {
-                  keepWrongHistory,
+                  useCampReviewState,
                   isKanji: true,
-                  contentId: keepWrongHistory ? contentId : null,
-                  emptyMessage: keepWrongHistory ? '現在、間違えた問題はありません。' : undefined
+                  contentId: useCampReviewState ? contentId : null,
+                  emptyMessage: useCampReviewState ? CAMP_REVIEW_EMPTY_MESSAGE : undefined
                 });
               }}
             >
@@ -209,7 +211,7 @@ function KanjiTestView({
 
               <button className="nav-btn" style={{ backgroundColor: '#28a745', width: '100%' }} onClick={() => {
                 if (!canStartContent(contentId)) return;
-                const targetItems = wrongWordsList.map(w => keepWrongHistory ? {
+                const targetItems = wrongWordsList.map(w => useCampReviewState ? {
                   id: w.rawItem.id,
                   ja: w.rawItem.question,
                   en: w.rawItem.answer,
@@ -220,6 +222,7 @@ function KanjiTestView({
                 // 漢字テスト専用のクイズ初期化処理
                 setStrokes([]);
                 setQuizAnswers([]);
+                setIsCampReviewMode(useCampReviewState);
                 // 間違えた問題のみをランダムにセットして手書きテストへ進む
                 setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));
                 setShowWrongList(false);

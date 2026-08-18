@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { CAMP_CONTENTS, CONTENT_IDS } from '../constants/sukimakunContents';
+import { selectQuizItems } from '../utils/campQuiz';
+import { CAMP_REVIEW_EMPTY_MESSAGE } from '../utils/reviewHistory';
 
 function CampView({
   step,
@@ -18,6 +20,7 @@ function CampView({
   showWrongList,
   setShowWrongList,
   wrongWordsList,
+  setIsCampReviewMode,
   canStartContent
 }) {
   const [selectedGenre, setSelectedGenre] = useState('');
@@ -71,16 +74,22 @@ function CampView({
     : data.filter((item) => selectedGenres.includes(item.genre));
   const content = CAMP_CONTENTS.find(({ contentId }) => contentId === activeContentId);
 
-  const startQuiz = (items, limit = questionCount) => {
+  const startQuiz = (items, limit = questionCount, isReviewMode = false) => {
     if (!canStartContent(activeContentId)) return;
     resetQuizState();
+    setIsCampReviewMode(isReviewMode);
     setMode('en-ja');
     setSelectedBook({ name: content?.displayName || '', data: items, contentId: activeContentId });
-    const shuffledItems = [...items].sort(() => 0.5 - Math.random());
-    setQuizItems(limit === null ? shuffledItems : shuffledItems.slice(0, limit));
+    setQuizItems(selectQuizItems(items, limit));
     setShowWrongList(false);
     setStep('quiz-main');
   };
+
+  const buildRetryQuizItems = () => wrongWordsList.map(({ rawItem, q, a }) => ({
+    ...rawItem,
+    en: rawItem?.en || rawItem?.question || q,
+    ja: rawItem?.ja || rawItem?.answer || a
+  }));
 
   return (
     <div className="quiz-container">
@@ -140,9 +149,9 @@ function CampView({
         className="nav-btn"
         style={{ backgroundColor: '#dc3545' }}
         onClick={() => fetchAndFilterWrongWords(content?.logSheetName, data, {
-          keepWrongHistory: true,
+          useCampReviewState: true,
           contentId: activeContentId,
-          emptyMessage: '現在、間違えた問題はありません。'
+          emptyMessage: CAMP_REVIEW_EMPTY_MESSAGE
         })}
       >🔍 過去の間違えたものリストを表示</button>
       {showWrongList && wrongWordsList.length > 0 && (
@@ -165,7 +174,7 @@ function CampView({
             </table>
           </div>
           <button className="nav-btn" style={{ backgroundColor: '#28a745', width: '100%' }} onClick={() => {
-            startQuiz(wrongWordsList.map(({ rawItem }) => rawItem), null);
+            startQuiz(buildRetryQuizItems(), questionCount, true);
           }}>🔥 間違えた問題のみトライ！</button>
         </div>
       )}

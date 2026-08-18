@@ -19,7 +19,12 @@ import {
   formatBatchGradingErrorMessage,
   parseBatchGeminiResults
 } from './utils/batchGradingDiagnostics';
-import { createLogHistory, getReviewLookupKeys } from './utils/reviewHistory';
+import {
+  createLogHistory,
+  getReviewLookupKeys,
+  isCampQuestionUnresolved,
+  parseLogHistory
+} from './utils/reviewHistory';
 import {
   ALL_CONTENT_IDS,
   CONTENT_IDS,
@@ -32,6 +37,9 @@ const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
 const API_KEY = import.meta.env.VITE_API_KEY;
 const QUESTION_COUNT = 20;
 const BATCH_GRADING_TIMEOUT_MS = 90000;
+const hasAuthApiConfig = Boolean(GAS_URL && API_KEY);
+const hasLogApiConfig = Boolean(LOG_GAS_URL);
+const productionEnvErrorMessage = '本番環境の設定が不足しています。Vercelの環境変数を確認してください。';
 
 const normalizeQuizAnswer = (value) => value ? value
   .normalize('NFKC')
@@ -167,7 +175,7 @@ function App() {
     return false;
   };
 
-  const loadCsv = async () => {
+  const loadCsv = async (nextStep = 'menu') => {
     setLoading(true);
     try {
       const fetchAndParse = async (url) => {
@@ -257,7 +265,7 @@ function App() {
           part: x["品詞"] || "", unit: x["単元"] || ""
         })).filter(x => x.en));
       }
-      setStep('menu');
+      setStep(nextStep);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
@@ -266,6 +274,13 @@ function App() {
       const params = new URLSearchParams(window.location.search);
       const uid = params.get('uid');
       const tk = params.get('tk');
+
+      if (!hasAuthApiConfig) {
+        if (uid || tk) {
+          setPermissionError(productionEnvErrorMessage);
+        }
+        return;
+      }
 
       if (uid && tk) {
         setLoading(true);
@@ -302,6 +317,7 @@ function App() {
   const [practice, setPractice] = useState("");
   const [campDraftAnswers, setCampDraftAnswers] = useState([]);
   const [isCampGrading, setIsCampGrading] = useState(false);
+  const [isCampReviewMode, setIsCampReviewMode] = useState(false);
   const campNavigationLockRef = useRef(false);
 
   const resetQuizState = () => {
@@ -328,6 +344,7 @@ function App() {
     setStrokes([]);
     setShowWrongList(false);
     setWrongWordsList([]);
+    setIsCampReviewMode(false);
     resetQuizState();
     setQuizItems([]);
     setStep('login');
@@ -369,13 +386,18 @@ function App() {
   const [showWrongList, setShowWrongList] = useState(false);
 
   const fetchAndFilterWrongWords = async (sheetName, currentRangeWords, options = {}) => {
-    if (!LOG_GAS_URL || !userId) return;
     const {
-      keepWrongHistory = false,
+      useCampReviewState = false,
       isKanji: isKanjiOption = false,
       contentId = null,
       emptyMessage = "この範囲内に、過去に間違えてまだ合格していない問題はありません！"
     } = options;
+
+    if (!hasLogApiConfig || !userId) {
+      alert('復習ログ機能の設定が不足しています。Vercelの環境変数を確認してください。');
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await axios.post(LOG_GAS_URL, JSON.stringify({
@@ -397,35 +419,33 @@ function App() {
       
       const wordHistoryMap = {};
 
+      let historyOrder = 0;
       pastLogs.forEach(log => {
         if (contentId && log.contentId && log.contentId !== contentId) return;
         if (!log.history) return;
-        const items = log.history.split(', ');
-        items.forEach(item => {
-          const match = item.match(/\](.+?)\((○|×)\)/);
-          if (match) {
-            const word = match[1].trim(); 
-            const result = match[2];
-            
-            if (currentWordSet.has(word)) {
-              if (!wordHistoryMap[word]) {
-                wordHistoryMap[word] = [];
-              }
-              wordHistoryMap[word].push(result);
+        parseLogHistory(log.history).forEach(({ key, result }) => {
+          if (currentWordSet.has(key)) {
+            if (!wordHistoryMap[key]) {
+              wordHistoryMap[key] = [];
             }
+            wordHistoryMap[key].push({ result, order: historyOrder });
           }
+          historyOrder += 1;
         });
       });
 
       const wrongList = [];
       
       reviewItems.forEach(({ item, keys }) => {
-        const history = keys.flatMap((key) => wordHistoryMap[key] || []);
+        const history = keys
+          .flatMap((key) => wordHistoryMap[key] || [])
+          .sort((left, right) => left.order - right.order)
+          .map(({ result }) => result);
         
         let isWrong = false;
 
-        if (keepWrongHistory) {
-          isWrong = Boolean(history?.includes('×'));
+        if (useCampReviewState) {
+          isWrong = isCampQuestionUnresolved(history);
         } else if (!history || history.length === 0) {
           isWrong = false;
         } else if (history[0] === '×') {
@@ -466,7 +486,7 @@ function App() {
   };
 
   const sendResultToGAS = (finalAnswers, sheetName, customRange = null, contentId = activeContentId) => {
-    if (!sheetName || !LOG_GAS_URL || !contentId || !getContentDefinition(contentId) || !isContentAllowed(contentId)) return;
+    if (!sheetName || !hasLogApiConfig || !contentId || !getContentDefinition(contentId) || !isContentAllowed(contentId)) return;
 
     const rangeLabel = customRange || ((selectedBook && selectedBook.name) 
       ? `No.${startNo}～${endNo}${selectedParts.length > 0 ? `(${selectedParts.join('/')})` : ''}` 
@@ -474,7 +494,9 @@ function App() {
 
     let history;
     try {
-      history = createLogHistory(finalAnswers, contentId);
+      history = createLogHistory(finalAnswers, contentId, {
+        isReviewMode: isCampReviewMode
+      });
     } catch (error) {
       console.error('学習ログ用questionIdの生成に失敗しました:', error);
       return;
@@ -515,6 +537,7 @@ function App() {
   };
 
   const callAiJudge = async (word, correct, userAns) => {
+    if (!hasAuthApiConfig) return false;
     try {
       const response = await axios.post(GAS_URL, JSON.stringify({
         action: "checkWithGemini", 
@@ -568,6 +591,9 @@ function App() {
     try {
       let geminiResults = new Map();
       if (needsGemini.length > 0) {
+        if (!hasAuthApiConfig) {
+          throw new Error(productionEnvErrorMessage);
+        }
         const response = await axios.post(GAS_URL, JSON.stringify({
           action: 'checkAnswersWithGemini',
           requestId,
@@ -677,6 +703,10 @@ function App() {
 
   const handleLogin = async () => {
     if (!userId || !password) return alert("入力してください");
+    if (!hasAuthApiConfig) {
+      alert(productionEnvErrorMessage);
+      return;
+    }
     setLoading(true);
     try {
       const payload = { apiKey: API_KEY, action: "login", userId, password };
@@ -716,6 +746,7 @@ function App() {
       : CONTENT_IDS.kanji_test;
     const sourceList = contentId === CONTENT_IDS.camp_kagawa_kanji ? campKanjiData : kanjiList;
     if (!canStartContent(contentId)) return;
+    setIsCampReviewMode(false);
     let targetItems = [];
     const toNum = (val) => parseInt(String(val).replace(/[^0-9]/g, "")) || 0;
     const cleanText = (s) => s ? String(s).trim() : "";
@@ -909,6 +940,7 @@ function App() {
         showWrongList={showWrongList}
         setShowWrongList={setShowWrongList}
         wrongWordsList={wrongWordsList}
+        setIsCampReviewMode={setIsCampReviewMode}
         canStartContent={canStartContent}
       />
 
@@ -1097,7 +1129,8 @@ function App() {
         returnStep={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 'camp-menu' : 'menu'}
         title={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? '香川県　覚えるべき漢字（書きver.）' : '漢字テスト 設定'}
         randomAllCount={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 20 : null}
-        keepWrongHistory={activeContentId === CONTENT_IDS.camp_kagawa_kanji}
+        useCampReviewState={activeContentId === CONTENT_IDS.camp_kagawa_kanji}
+        setIsCampReviewMode={setIsCampReviewMode}
       />
 
       <ChemistrySetupView 
