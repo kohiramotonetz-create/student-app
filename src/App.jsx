@@ -13,19 +13,29 @@ import KanjiTestView from './components/KanjiTestView';
 import ChemistrySetupView from './components/ChemistrySetupView';
 import ChemistryPlayView from './components/ChemistryPlayView';
 import CampView from './components/CampView';
+import PrepositionTestView from './components/PrepositionTestView';
 import {
   classifyBatchGradingError,
   createBatchGradingRequestId,
   formatBatchGradingErrorMessage,
   parseBatchGeminiResults
 } from './utils/batchGradingDiagnostics';
-import { createLogHistory, getReviewLookupKeys } from './utils/reviewHistory';
+import {
+  createLogHistory,
+  getReviewLookupKeys,
+  isReviewQuestionUnresolved,
+  parseLogHistory
+} from './utils/reviewHistory';
 import {
   ALL_CONTENT_IDS,
   CONTENT_IDS,
   HIGH_SCHOOL_CONTENTS,
   getContentDefinition
 } from './constants/sukimakunContents';
+import {
+  getPrepositionModeLabel,
+  isPrepositionAnswerCorrect
+} from './utils/prepositionQuiz';
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
@@ -115,6 +125,7 @@ function App() {
   const [campKanjiData, setCampKanjiData] = useState([]);
   const [campScienceData, setCampScienceData] = useState([]);
   const [campSocialData, setCampSocialData] = useState([]);
+  const [prepositionData, setPrepositionData] = useState([]);
 
   const [kanjiList, setKanjiList] = useState([]);
   const [selectedKanjiIds, setSelectedKanjiIds] = useState([]);
@@ -230,6 +241,12 @@ function App() {
       })).filter(d => d.id && d.question && d.answer));
       setCampScienceData(mapCampRows(await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.camp_science_qa).dataFile)));
       setCampSocialData(mapCampRows(await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.camp_social_qa).dataFile)));
+      const dataPrepositions = await fetchAndParse('/' + getContentDefinition(CONTENT_IDS.preposition_test).dataFile);
+      setPrepositionData(dataPrepositions.map((d) => ({
+        id: String(d.id || '').trim(),
+        en: String(d.English || '').trim(),
+        ja: String(d['日本語'] || '').trim()
+      })).filter((d) => d.id && d.en && d.ja));
 
       // 【改善：修正と追加】hsFilesマッピングへmiki_high_school.csvを追加
       const hsFiles = [
@@ -302,6 +319,7 @@ function App() {
   const [practice, setPractice] = useState("");
   const [campDraftAnswers, setCampDraftAnswers] = useState([]);
   const [isCampGrading, setIsCampGrading] = useState(false);
+  const [isPrepositionReviewMode, setIsPrepositionReviewMode] = useState(false);
   const campNavigationLockRef = useRef(false);
 
   const resetQuizState = () => {
@@ -328,6 +346,7 @@ function App() {
     setStrokes([]);
     setShowWrongList(false);
     setWrongWordsList([]);
+    setIsPrepositionReviewMode(false);
     resetQuizState();
     setQuizItems([]);
     setStep('login');
@@ -372,6 +391,7 @@ function App() {
     if (!LOG_GAS_URL || !userId) return;
     const {
       keepWrongHistory = false,
+      resolveWithReviewSuccess = false,
       isKanji: isKanjiOption = false,
       contentId = null,
       emptyMessage = "この範囲内に、過去に間違えてまだ合格していない問題はありません！"
@@ -400,19 +420,10 @@ function App() {
       pastLogs.forEach(log => {
         if (contentId && log.contentId && log.contentId !== contentId) return;
         if (!log.history) return;
-        const items = log.history.split(', ');
-        items.forEach(item => {
-          const match = item.match(/\](.+?)\((○|×)\)/);
-          if (match) {
-            const word = match[1].trim(); 
-            const result = match[2];
-            
-            if (currentWordSet.has(word)) {
-              if (!wordHistoryMap[word]) {
-                wordHistoryMap[word] = [];
-              }
-              wordHistoryMap[word].push(result);
-            }
+        parseLogHistory(log.history).forEach(({ key, result }) => {
+          if (currentWordSet.has(key)) {
+            if (!wordHistoryMap[key]) wordHistoryMap[key] = [];
+            wordHistoryMap[key].push(result);
           }
         });
       });
@@ -424,7 +435,9 @@ function App() {
         
         let isWrong = false;
 
-        if (keepWrongHistory) {
+        if (resolveWithReviewSuccess) {
+          isWrong = isReviewQuestionUnresolved(history);
+        } else if (keepWrongHistory) {
           isWrong = Boolean(history?.includes('×'));
         } else if (!history || history.length === 0) {
           isWrong = false;
@@ -468,13 +481,17 @@ function App() {
   const sendResultToGAS = (finalAnswers, sheetName, customRange = null, contentId = activeContentId) => {
     if (!sheetName || !LOG_GAS_URL || !contentId || !getContentDefinition(contentId) || !isContentAllowed(contentId)) return;
 
-    const rangeLabel = customRange || ((selectedBook && selectedBook.name) 
+    const rangeLabel = customRange || (contentId === CONTENT_IDS.preposition_test
+      ? `${getPrepositionModeLabel(mode)} / ${isPrepositionReviewMode ? '復習' : '通常テスト'}`
+      : ((selectedBook && selectedBook.name)
       ? `No.${startNo}～${endNo}${selectedParts.length > 0 ? `(${selectedParts.join('/')})` : ''}` 
-      : (isKobunMode ? "古文" : (isFukisokuMode ? "不規則" : `${startUnit}${startPart}～${endUnit}${endPart}`)));
+      : (isKobunMode ? "古文" : (isFukisokuMode ? "不規則" : `${startUnit}${startPart}～${endUnit}${endPart}`))));
 
     let history;
     try {
-      history = createLogHistory(finalAnswers, contentId);
+      history = createLogHistory(finalAnswers, contentId, {
+        isReviewMode: contentId === CONTENT_IDS.preposition_test && isPrepositionReviewMode
+      });
     } catch (error) {
       console.error('学習ログ用questionIdの生成に失敗しました:', error);
       return;
@@ -492,7 +509,16 @@ function App() {
       score: finalAnswers.filter(a => a.ok).length, 
       total: finalAnswers.length,
       percentage: Math.round((finalAnswers.filter(a => a.ok).length / finalAnswers.length) * 100) + "%",
-      history
+      history,
+      ...(contentId === CONTENT_IDS.preposition_test ? {
+        answerDetails: finalAnswers.map((answer) => ({
+          questionId: answer.rawItem?.id || null,
+          question: answer.q,
+          answer: answer.a,
+          correctAnswer: answer.correct,
+          isCorrect: answer.ok
+        }))
+      } : {})
     };
 
     fetch(LOG_GAS_URL, { 
@@ -621,17 +647,20 @@ function App() {
     const removeParentheses = (s) => s ? s.replace(/\（.*?\）|\(.*?\)/g, "") : "";
     const userInput = clean(currentInput);
 
-    let isCorrect = rawC.split(/[/／]/).some(ans => {
-      const correctAns = clean(ans); 
-      const correctAnsNoParen = clean(removeParentheses(ans)); 
-      return userInput === correctAns || (correctAnsNoParen !== "" && userInput === correctAnsNoParen);
-    });
+    const isPrepositionQuiz = activeContentId === CONTENT_IDS.preposition_test;
+    let isCorrect = isPrepositionQuiz
+      ? isPrepositionAnswerCorrect(currentInput, rawC, mode)
+      : rawC.split(/[/／]/).some(ans => {
+        const correctAns = clean(ans);
+        const correctAnsNoParen = clean(removeParentheses(ans));
+        return userInput === correctAns || (correctAnsNoParen !== "" && userInput === correctAnsNoParen);
+      });
 
     console.log("--- 判定プロセス開始 ---");
     console.log("問題:", item.en, " / 正解:", rawC, " / 入力:", currentInput);
     console.log("① 文字一致判定の結果:", isCorrect);
 
-    if (!isCorrect && currentInput.trim() !== "" && mode === 'en-ja') {
+    if (!isPrepositionQuiz && !isCorrect && currentInput.trim() !== "" && mode === 'en-ja') {
       console.log("🚀 文字不一致のため、Gemini APIに問い合わせます..."); 
       setLoading(true); 
       try {
@@ -654,12 +683,14 @@ function App() {
   const finishPractice = () => {
     const clean = normalizeQuizAnswer;
     const removeParentheses = (s) => s ? s.replace(/\（.*?\）|\(.*?\)/g, "") : "";
-    const isCorrectPractice = quizReview.record.correct.split(/[/／]/).some(ans => {
-      const pInput = clean(practice);
-      const correctAns = clean(ans); 
-      const correctAnsNoParen = clean(removeParentheses(ans)); 
-      return pInput === correctAns || (correctAnsNoParen !== "" && pInput === correctAnsNoParen);
-    });
+    const isCorrectPractice = activeContentId === CONTENT_IDS.preposition_test
+      ? isPrepositionAnswerCorrect(practice, quizReview.record.correct, mode)
+      : quizReview.record.correct.split(/[/／]/).some(ans => {
+        const pInput = clean(practice);
+        const correctAns = clean(ans);
+        const correctAnsNoParen = clean(removeParentheses(ans));
+        return pInput === correctAns || (correctAnsNoParen !== "" && pInput === correctAnsNoParen);
+      });
     if (isCorrectPractice) proceedToNext(); else alert("正解を入力してください");
   };
 
@@ -909,6 +940,24 @@ function App() {
         showWrongList={showWrongList}
         setShowWrongList={setShowWrongList}
         wrongWordsList={wrongWordsList}
+        canStartContent={canStartContent}
+      />
+
+      <PrepositionTestView
+        step={step}
+        setStep={setStep}
+        contentId={CONTENT_IDS.preposition_test}
+        data={prepositionData}
+        mode={mode}
+        setMode={setMode}
+        resetQuizState={resetQuizState}
+        setQuizItems={setQuizItems}
+        setSelectedBook={setSelectedBook}
+        fetchAndFilterWrongWords={fetchAndFilterWrongWords}
+        showWrongList={showWrongList}
+        setShowWrongList={setShowWrongList}
+        wrongWordsList={wrongWordsList}
+        setIsReviewMode={setIsPrepositionReviewMode}
         canStartContent={canStartContent}
       />
 

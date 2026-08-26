@@ -9,8 +9,24 @@ export const getReviewLookupKeys = (item, { contentId = null, isKanji = false } 
   return [...new Set([stableKey, legacyQuestionKey].filter(Boolean))];
 };
 
-export const createLogHistory = (answers, contentId) => {
-  const usesStableQuestionIds = contentId?.startsWith('camp_');
+export const parseLogHistory = (history) => String(history || '')
+  .split(', ')
+  .map((entry) => {
+    const match = entry.match(/\](.+?)\((○|×|◎)\)/);
+    return match ? { key: match[1].trim(), result: match[2] } : null;
+  })
+  .filter(Boolean);
+
+export const isReviewQuestionUnresolved = (results) => {
+  for (const result of results) {
+    if (result === '×') return true;
+    if (result === '◎') return false;
+  }
+  return false;
+};
+
+export const createLogHistory = (answers, contentId, { isReviewMode = false } = {}) => {
+  const usesStableQuestionIds = contentId?.startsWith('camp_') || contentId === 'preposition_test';
 
   return answers.map((answer, index) => {
     const key = usesStableQuestionIds
@@ -21,6 +37,9 @@ export const createLogHistory = (answers, contentId) => {
       throw new Error(`Missing questionId for ${contentId || 'unknown content'}`);
     }
 
-    return `[${index + 1}]${key}(${answer.ok ? '○' : '×'})`;
+    const result = answer.ok && contentId === 'preposition_test' && isReviewMode
+      ? '◎'
+      : (answer.ok ? '○' : '×');
+    return `[${index + 1}]${key}(${result})`;
   }).join(', ');
 };

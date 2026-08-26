@@ -6,6 +6,14 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Version History
 
+### Version 4.3.0
+
+- Previous Version: 4.2.1
+- Date: 2026-08-26
+- Issue: 前置詞テスト追加（Issue番号未指定）
+- Changes: 前置詞44項目の双方向テスト、方向別復習、固定IDログを追加
+- Display: ログイン画面とログイン後メニューの右下へ共通定数からVersionを表示
+
 ### Version 4.2.1
 
 - Previous Version: 4.2.0
@@ -28,6 +36,42 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 - gyoumu-app連携影響: 通常ログイン、SSO、初回パスワード判定、`allowedContentIds` による合宿モード表示がgyoumu-app/GAS側仕様に依存
 
 ## Issue History
+
+### 前置詞テスト追加（Issue番号未指定）
+
+- 状態: React実装・CSV追加・自動テスト・build・ローカル起動確認完了。認証後画面、通常ログイン、SSO、ログGAS実保存、本番確認は未実施
+- 変更内容:
+  - メインコンテンツへ権限管理対象の「前置詞テスト」を追加
+  - 日本語→英語／英語→日本語の2方向を選択し、CSV全44項目から重複なしでランダム20問を出題
+  - 英語は大小文字・前後空白・連続空白を正規化し、`in to` と `into` は区別
+  - 日本語は登録済みの複数意味のいずれか1つを正解とし、波線・長音・ハイフン・区切り記号・空白を限定的に正規化
+  - 固定語彙のためGeminiを呼ばず、Reactの決定的文字列判定を使用
+  - `preposition_test::prep_*__en_ja` / `preposition_test::prep_*__ja_en` の方向別固定キーで復習対象を分離
+  - 既存の `getLogs`、`saveLog`、要復習抽出、復習正解 `◎` を流用し、復習正解後は該当方向のみ対象から除外
+  - 既存クイズの問題画面、回答入力、即時判定、誤答練習、結果一覧を流用
+  - 前置詞ログのみ既存payloadへ `answerDetails` を追加し、問題ID・問題・回答・正解・正誤を送信
+- CSV影響:
+  - 変更前: 前置詞CSVなし
+  - 変更後: `public/prepositions.csv` を追加（`id`,`English`,`日本語` の3列、指定表の全44行、ID・英語とも重複なし）
+  - 既存データへの影響: 既存CSVの列・内容は変更なし。新規IDは表示順やランダム順に依存しない固定値として維持が必要
+  - 正式仕様は前置詞44項目。CSV行数、固定ID数、英語項目数がすべて44件であることを確認
+- Gemini影響: 呼び出しなし。既存英語・理科・社会のGemini判定条件は変更なし。外部Gemini API実通信なし
+- GAS影響: このリポジトリにGASソースがないため変更なし。既存 `getLogs` / `saveLog` を利用。`answerDetails` の永続化はログGAS側の受入・保存対応が必要で、実保存は未確認
+- build結果: 2026-08-26 `npm run build` 成功
+- lint結果: 2026-08-26 新規4ファイルの対象lint成功。全体lintは既存8件（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）で失敗し、今回追加コードの新規エラーなし
+- test結果: 2026-08-26 main基点の専用ブランチで `npm test` 成功（19件。英語／日本語正規化、複数意味、方向別固定ID、20問上限、復習解消、既存復習互換を含む）
+- `git diff --check`: 2026-08-26 成功
+- ローカル確認: Vite起動、ログイン画面描画、エラーオーバーレイなし、console errorなしを確認。Version 4.3.0への更新後確認と認証後の前置詞画面は未確認
+- 通常ログイン: 未実施
+- SSO: 未実施
+- Gemini: 実通信未実施
+- Commit: `feat: add preposition test`（本コミット）
+- Push: 未実施
+- mainマージ: 未実施
+- Vercelデプロイ: 未実施
+- 本番確認: 未実施
+- Version: 4.2.1から4.3.0へ更新。共通定数を利用するログイン画面・ログイン後メニューが対象
+- 関連gyoumu-appコミット / Issue: なし。gyoumu-app変更なし
 
 ### S-009 問題ジャンル選択UI改善
 
