@@ -39,7 +39,7 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ### 前置詞テスト追加（Issue番号未指定）
 
-- 状態: React実装・CSV追加・自動テスト・build・ローカル起動確認完了。認証後画面、通常ログイン、SSO、ログGAS実保存、本番確認は未実施
+- 状態: React実装・CSV追加・自動テスト・build・専用ブランチへの切り分け・push・Vercel Preview生成まで完了。認証後画面、通常ログイン、SSO、ログGAS実保存、本番確認は未実施
 - 変更内容:
   - メインコンテンツへ権限管理対象の「前置詞テスト」を追加
   - 日本語→英語／英語→日本語の2方向を選択し、CSV全44項目から重複なしでランダム20問を出題
@@ -65,10 +65,10 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 - 通常ログイン: 未実施
 - SSO: 未実施
 - Gemini: 実通信未実施
-- Commit: `feat: add preposition test`（本コミット）
-- Push: 未実施
+- Commit: `90b0bf6` (`feat: add preposition test`)
+- Push: 2026-08-26 `feat/preposition-test` をoriginへpush
 - mainマージ: 未実施
-- Vercelデプロイ: 未実施
+- Vercelデプロイ: Git連携によるPreviewデプロイ `dpl_AGv3MThpAbGXygvaZwKS2VGUCYjy` がReady。本番デプロイ未実施
 - 本番確認: 未実施
 - Version: 4.2.1から4.3.0へ更新。共通定数を利用するログイン画面・ログイン後メニューが対象
 - 関連gyoumu-appコミット / Issue: なし。gyoumu-app変更なし
