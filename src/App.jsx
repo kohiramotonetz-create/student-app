@@ -36,12 +36,17 @@ import {
   getPrepositionModeLabel,
   isPrepositionAnswerCorrect
 } from './utils/prepositionQuiz';
+import {
+  createLocalPrepositionLog,
+  isLocalPrepositionVerificationEnabled
+} from './utils/localPrepositionVerification';
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
 const API_KEY = import.meta.env.VITE_API_KEY;
 const QUESTION_COUNT = 20;
 const BATCH_GRADING_TIMEOUT_MS = 90000;
+const LOCAL_PREPOSITION_VERIFICATION_ENABLED = isLocalPrepositionVerificationEnabled(import.meta.env);
 
 const normalizeQuizAnswer = (value) => value ? value
   .normalize('NFKC')
@@ -81,6 +86,8 @@ function App() {
   const [permissionsInitialized, setPermissionsInitialized] = useState(false);
   const [activeContentId, setActiveContentId] = useState(null);
   const [permissionError, setPermissionError] = useState('');
+  const [isLocalPrepositionVerification, setIsLocalPrepositionVerification] = useState(false);
+  const localPrepositionLogsRef = useRef([]);
   
   const [allData, setAllData] = useState([]); 
   const [fukisokuData, setFukisokuData] = useState([]);
@@ -338,6 +345,8 @@ function App() {
     setPermissionsInitialized(false);
     setActiveContentId(null);
     setPermissionError('');
+    setIsLocalPrepositionVerification(false);
+    localPrepositionLogsRef.current = [];
     setSelectedBook({ name: '', data: [] });
     setIsKobunMode(false);
     setIsFukisokuMode(false);
@@ -388,7 +397,6 @@ function App() {
   const [showWrongList, setShowWrongList] = useState(false);
 
   const fetchAndFilterWrongWords = async (sheetName, currentRangeWords, options = {}) => {
-    if (!LOG_GAS_URL || !userId) return;
     const {
       keepWrongHistory = false,
       resolveWithReviewSuccess = false,
@@ -396,16 +404,19 @@ function App() {
       contentId = null,
       emptyMessage = "この範囲内に、過去に間違えてまだ合格していない問題はありません！"
     } = options;
+    const usesLocalPrepositionLogs = isLocalPrepositionVerification
+      && contentId === CONTENT_IDS.preposition_test;
+    if ((!LOG_GAS_URL && !usesLocalPrepositionLogs) || !userId) return;
     setLoading(true);
     try {
-      const response = await axios.post(LOG_GAS_URL, JSON.stringify({
-        action: "getLogs",
-        sheetName: sheetName,
-        studentId: userId,
-        ...(contentId ? { contentId } : {})
-      }), { headers: { 'Content-Type': 'text/plain' } });
-
-      const pastLogs = response.data; 
+      const pastLogs = usesLocalPrepositionLogs
+        ? localPrepositionLogsRef.current
+        : (await axios.post(LOG_GAS_URL, JSON.stringify({
+          action: "getLogs",
+          sheetName: sheetName,
+          studentId: userId,
+          ...(contentId ? { contentId } : {})
+        }), { headers: { 'Content-Type': 'text/plain' } })).data;
       
       const isKanji = isKanjiOption || sheetName === "漢字テスト" || sheetName === "漢字対策";
       
@@ -479,7 +490,9 @@ function App() {
   };
 
   const sendResultToGAS = (finalAnswers, sheetName, customRange = null, contentId = activeContentId) => {
-    if (!sheetName || !LOG_GAS_URL || !contentId || !getContentDefinition(contentId) || !isContentAllowed(contentId)) return;
+    const usesLocalPrepositionLogs = isLocalPrepositionVerification
+      && contentId === CONTENT_IDS.preposition_test;
+    if (!sheetName || (!LOG_GAS_URL && !usesLocalPrepositionLogs) || !contentId || !getContentDefinition(contentId) || !isContentAllowed(contentId)) return;
 
     const rangeLabel = customRange || (contentId === CONTENT_IDS.preposition_test
       ? `${getPrepositionModeLabel(mode)} / ${isPrepositionReviewMode ? '復習' : '通常テスト'}`
@@ -520,6 +533,14 @@ function App() {
         }))
       } : {})
     };
+
+    if (usesLocalPrepositionLogs) {
+      localPrepositionLogsRef.current = [
+        createLocalPrepositionLog(payload),
+        ...localPrepositionLogsRef.current
+      ];
+      return;
+    }
 
     fetch(LOG_GAS_URL, { 
       method: "POST", 
@@ -723,6 +744,19 @@ function App() {
     } catch (e) { alert("通信エラー"); } finally { setLoading(false); }
   };
 
+  const handleLocalPrepositionVerification = async () => {
+    if (!LOCAL_PREPOSITION_VERIFICATION_ENABLED) return;
+    setUserId('local-preposition-verification');
+    setUserName('ローカル確認');
+    setSchool('ローカル');
+    setAllowedContentIds([CONTENT_IDS.preposition_test]);
+    setPermissionsInitialized(true);
+    setPermissionError('');
+    setIsLocalPrepositionVerification(true);
+    localPrepositionLogsRef.current = [];
+    await loadCsv();
+  };
+
   const handleChangePassword = async () => {
     if (!newPassword) return alert("入力してください");
     setLoading(true);
@@ -907,6 +941,8 @@ function App() {
         setNewPassword={setNewPassword}
         handleLogin={handleLogin}
         handleChangePassword={handleChangePassword}
+        showLocalPrepositionVerification={LOCAL_PREPOSITION_VERIFICATION_ENABLED}
+        handleLocalPrepositionVerification={handleLocalPrepositionVerification}
         permissionError={permissionError}
       />
 

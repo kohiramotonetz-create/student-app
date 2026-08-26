@@ -13,7 +13,9 @@ function LoginView({
   newPassword, 
   setNewPassword, 
   handleLogin, 
-  handleChangePassword 
+  handleChangePassword,
+  showLocalPrepositionVerification = false,
+  handleLocalPrepositionVerification
 }) {
   // step が login でも change-password でもない場合は何も表示しない
   if (step !== 'login' && step !== 'change-password') return null;
@@ -36,6 +38,11 @@ function LoginView({
             onChange={(e) => setPassword(e.target.value)} 
           />
           <button onClick={handleLogin}>ログイン</button>
+          {showLocalPrepositionVerification && (
+            <button className="secondary" onClick={handleLocalPrepositionVerification}>
+              前置詞テストをローカル確認
+            </button>
+          )}
           <span className="app-version">Version {APP_VERSION}</span>
         </div>
       )}
