@@ -1001,6 +1001,24 @@ function App() {
     }));
   };
 
+  const completeLocalCareLearning = () => {
+    if (!isLocalDailyMissionVerification) return;
+    const store = localXpStoreRef.current;
+    recordLocalQuizXp({
+      store,
+      payload: {
+        studentId: userId,
+        attemptId: globalThis.crypto?.randomUUID?.() || `care-${Date.now()}`,
+        contentId: CONTENT_IDS.kanji_test,
+        isReview: false,
+        score: 1,
+        total: 1,
+        learningDate: store.verificationLearningDate
+      }
+    });
+    setLocalPlayerProgress(getLocalPlayerProgress(store));
+  };
+
   const handleChangePassword = async () => {
     if (!newPassword) return alert("入力してください");
     setLoading(true);
@@ -1208,6 +1226,7 @@ function App() {
         onSelectLocalCharacter={selectLocalCharacter}
         onSetLocalCharacterXp={accelerateLocalCharacterXp}
         onAdvanceLocalStreak={advanceLocalStreak}
+        onCompleteLocalCareLearning={completeLocalCareLearning}
       />
 
       <CampView

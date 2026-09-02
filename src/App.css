@@ -533,6 +533,15 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .student-home__character-option p { min-height: 42px; color: var(--home-muted); font-size: .72rem; line-height: 1.5; }
 .student-home__character-option small { color: var(--home-blue); font-weight: 750; }
 .student-home__character-placeholder { display: grid; place-items: center; width: 62px; height: 62px; flex: 0 0 62px; border: 1px solid #c7daf4; border-radius: 22px; background: linear-gradient(145deg, #fff, #eaf3ff); font-size: 2rem; box-shadow: 0 7px 16px rgba(42,87,150,.1); }
+.student-home__character-summary.is-faded .student-home__character-placeholder { opacity: .48; filter: grayscale(.18); }
+.student-home__character-summary.is-weak .student-home__character-placeholder { opacity: .72; filter: grayscale(.45); transform: translateY(3px); }
+.student-home__character-summary.is-hospitalized { border-color: #93c5fd; background: #eff6ff; }
+.student-home__character-summary.is-critical { border-color: #fda4af; background: #fff1f2; }
+.student-home__character-summary.is-game_over { border-color: #94a3b8; background: #f1f5f9; }
+.student-home__character-summary.is-game_over .student-home__character-placeholder { opacity: .52; filter: grayscale(1); }
+.student-home__care-status { font-weight: 700; color: #475569; }
+.student-home__game-over { display: grid; gap: 4px; min-width: 210px; padding: 10px; border-radius: 14px; background: rgba(255,255,255,.78); color: #334155; }
+.student-home__game-over button { margin-top: 4px; }
 .student-home__character-confirm { max-width: 520px; margin: 16px auto 0; padding: 15px; border: 1px solid #b8d4ff; border-radius: 15px; background: #f4f8ff; text-align: center; }
 .student-home__character-confirm strong { color: var(--home-navy); }
 .student-home__character-confirm p { margin: 5px 0 11px; color: var(--home-muted); font-size: .72rem; }

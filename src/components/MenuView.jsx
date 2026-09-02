@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   ArrowLeft,
   Bell,
+  Bed,
   BookOpen,
   ChevronRight,
   Crown,
@@ -9,6 +10,7 @@ import {
   Gift,
   GraduationCap,
   History,
+  HeartPulse,
   Home,
   Languages,
   LockKeyhole,
@@ -67,7 +69,8 @@ function MenuView({
   isLocalCharacterVerification,
   onSelectLocalCharacter,
   onSetLocalCharacterXp,
-  onAdvanceLocalStreak
+  onAdvanceLocalStreak,
+  onCompleteLocalCareLearning
 }) {
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [showCharacterSelection, setShowCharacterSelection] = useState(false);
@@ -121,6 +124,14 @@ function MenuView({
   const activeCharacterDefinition = getCharacterDefinition(activeCharacter?.characterType);
   const activeStageDefinition = getCharacterStageDefinition(activeCharacter?.characterType, activeCharacter?.stage);
   const nextEvolution = activeCharacterDefinition?.stages.find(({ minLevel }) => minLevel > activeCharacter.level) || null;
+  const conditionLabels = {
+    healthy: activeCharacter?.inactiveDays === 1 ? '未学習1日・変化なし' : '元気',
+    faded: '色が少し薄くなっています',
+    weak: '元気がありません',
+    hospitalized: '入院中・ベッドで休んでいます',
+    critical: '治療中・かなり弱っています',
+    game_over: 'ゲームオーバー'
+  };
 
   const chooseCharacter = (characterType) => {
     const requestId = createLocalSelectionRequestId();
@@ -262,19 +273,22 @@ function MenuView({
             <section className="student-home__panel student-home__future-card">
               <div className="student-home__section-heading"><span className="student-home__section-number">3</span><div><h2>育成・ごほうび</h2><p>学習を続ける楽しみを増やします。</p></div></div>
               {activeCharacter && activeCharacterDefinition ? (
-                <div className="student-home__character-summary" data-local-xp-verification="true">
-                  <span className="student-home__character-placeholder" aria-hidden="true">{activeCharacterDefinition.placeholder}</span>
+                <div className={`student-home__character-summary is-${activeCharacter.condition || 'healthy'}`} data-local-xp-verification="true" data-character-condition={activeCharacter.condition || 'healthy'}>
+                  <span className="student-home__character-placeholder" aria-hidden="true">{activeCharacter.condition === 'hospitalized' ? <Bed /> : activeCharacter.condition === 'critical' ? <HeartPulse /> : activeCharacterDefinition.placeholder}</span>
                   <div className="student-home__character-copy">
                     <strong>{activeCharacterDefinition.label} Lv.{activeCharacter.level}</strong>
                     <span>{activeStageDefinition?.label} / Stage {activeCharacter.stage}</span>
+                    <span className="student-home__care-status">{conditionLabels[activeCharacter.condition] || '元気'}{activeCharacter.inactiveDays > 0 ? `（未学習${activeCharacter.inactiveDays}日）` : ''}</span>
                     <div className="student-home__xp-track" role="progressbar" aria-label="現在レベルのXP進捗" aria-valuemin="0" aria-valuemax="100" aria-valuenow={activeCharacter.progressPercent}><span style={{ width: `${activeCharacter.progressPercent}%` }} /></div>
                     <small>累計 {activeCharacter.totalXp} XP ・ 次のLvまで {activeCharacter.xpToNext} XP</small>
                     <small>{nextEvolution ? `次の進化まであと${nextEvolution.minLevel - activeCharacter.level}Lv` : 'Stage 6・最終進化'}</small>
                   </div>
-                  {isLocalCharacterVerification && <div className="student-home__xp-tools" aria-label="ローカルXP確認操作">
+                  {activeCharacter.status === 'game_over' && <div className="student-home__game-over" role="status"><strong>育成終了</strong><span>このキャラクターの育成は終了しました。</span><button type="button" disabled>次のキャラクター機能は準備中</button></div>}
+                  {isLocalCharacterVerification && <div className="student-home__xp-tools" aria-label="ローカルXP・未学習状態確認操作">
                     {[1139, 1140, 3119, 3120, 5899, 5900, 9479, 9480, 13859, 13860].map((xp) => <button type="button" key={xp} onClick={() => onSetLocalCharacterXp?.(xp)}>{xp.toLocaleString()}XP</button>)}
                     <button type="button" onClick={() => onAdvanceLocalStreak?.(1, true)}>翌日を学習</button>
                     <button type="button" onClick={() => onAdvanceLocalStreak?.(1, false)}>1日休む</button>
+                    <button type="button" onClick={() => onCompleteLocalCareLearning?.()}>今日1問学習</button>
                     <button type="button" onClick={() => { for (let i = 0; i < 30; i += 1) onAdvanceLocalStreak?.(1, true); }}>30日学習</button>
                   </div>}
                 </div>

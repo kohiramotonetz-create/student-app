@@ -37,6 +37,26 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 育成システム Phase D：未学習状態・ゲームオーバー（Issue番号未指定）
+
+- 状態: student-appとログGASへlocal onlyで実装。Production未接続
+- 変更内容:
+  - CharacterInstanceの`careStartedDate`とPlayerProgressの正式な`lastLearningDate`の新しい方を基準に、JST日付で未学習日数を算出する純粋関数を追加
+  - 未学習0〜1日をhealthy、2日をfaded、3日をweak、4日をhospitalized、5日をcritical、6日以上をgame_overとして表示する状態基盤を追加
+  - `getPlayerProgress`と通常学習完了時のlazy evaluationにより、6日到達時だけCharacterInstanceを`game_over`へ冪等遷移し、`endedAt`と`endReason=inactivity`を保持
+  - game over後もactiveCharacterInstanceIdと最終Lv／XP／Stage、Player単位のpointBalanceを保持し、以後の学習XPを旧キャラでなくpendingXpへ投影
+  - development限定E2Eへ日付進行と当日学習操作を追加。正式画像は作成せず、opacity、状態ラベル、医療アイコン、育成終了表示で確認可能にした
+- Spreadsheet影響: 本番実変更なし。CharacterInstancesの`careStartedDate`／`endReason`追加schemaはsetup未実行
+- GAS影響: ローカルコードとテストのみ変更。GAS未push・未deploy、Script Property未変更
+- 未実装: 次キャラ選択、Lv100育成完了、ショップ、アイテム、pt消費、アルバム、正式キャラクター画像
+- test / build / lint: `npm test` 73件成功、`npm run build`成功、変更対象lintは新規エラーなし。`npm run lint`は既存8件のみ、`git diff --check`成功
+- GASローカル確認: ログGAS `node --check`成功・48件成功
+- ローカル確認: `http://127.0.0.1:5175/`でDay1〜6の全condition、Day5通常学習によるhealthy回復、console errorなしを確認。外部API通信なし
+- Production確認: buildを`http://127.0.0.1:4180/`で開き、ローカルE2E入口、日付操作、回復操作、game overテスト表示が0件であることを確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: 未実施
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / setup / Spreadsheet変更 / 本番通信 / 本番確認: 未実施
+
 ### 育成システム Phase C：連続学習・交換用pt基盤（Issue番号未指定）
 
 - 状態: student-appとログGASへlocal onlyで実装。Production未接続

@@ -7,6 +7,7 @@ import {
   getThirtyDayRewardCycle,
   updateStreakForLearningDate
 } from './streakPoints.js';
+import { evaluateCharacterCareState } from './characterCare.js';
 
 const createLocalId = () => globalThis.crypto?.randomUUID?.() || `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 export const createLocalSelectionRequestId = () => createLocalId();
@@ -25,9 +26,28 @@ export const createLocalXpVerificationStore = ({ withActiveCharacter = false } =
   verificationLearningDate: '2026-09-01',
   activeCharacter: withActiveCharacter ? {
     instanceId: 'local-pudding', characterType: 'pudding', totalXp: 0,
-    ...createCharacterProgress(0), status: 'active', totalCorrectCount: 0, totalEarnedXp: 0
+    ...createCharacterProgress(0), status: 'active', totalCorrectCount: 0, totalEarnedXp: 0,
+    careStartedDate: '2026-09-01', endedAt: null, endReason: null
   } : null
 });
+
+const evaluateLocalCharacterCare = (store, currentDate = store?.verificationLearningDate) => {
+  if (!store?.activeCharacter) return null;
+  const character = store.activeCharacter;
+  const state = evaluateCharacterCareState({
+    careStartedDate: character.careStartedDate,
+    lastLearningDate: store.lastLearningDate,
+    currentDate,
+    status: character.status
+  });
+  if (character.status === 'active' && state.condition === 'game_over') {
+    character.status = 'game_over';
+    character.endedAt = character.endedAt || `${currentDate}T00:00:00+09:00`;
+    character.endReason = character.endReason || 'inactivity';
+    character.updatedAt = 'local-e2e';
+  }
+  return { ...state, condition: character.status === 'game_over' ? 'game_over' : state.condition };
+};
 
 const rebuildLocalXpCache = (store) => {
   const transactions = [...store.ledger.values()];
@@ -37,6 +57,10 @@ const rebuildLocalXpCache = (store) => {
     .reduce((sum, transaction) => sum + transaction.amount, 0);
   if (!store.activeCharacter) {
     store.pendingXp = earnedXp;
+    return;
+  }
+  if (store.activeCharacter.status !== 'active') {
+    store.pendingXp = Math.max(0, earnedXp - (Number(store.activeCharacter.totalEarnedXp) || 0));
     return;
   }
   const progress = createCharacterProgress(earnedXp);
@@ -107,6 +131,7 @@ export const recordLocalQuizXp = ({ store, payload }) => {
   const score = validateLearningScore(payload.score, payload.total);
   if (!score.valid) return { awarded: false, reason: score.reason };
   const learningDate = payload.learningDate || store.verificationLearningDate;
+  evaluateLocalCharacterCare(store, learningDate);
   const eventKey = `quiz_xp::${payload.studentId || ''}::${payload.attemptId}`;
   const duplicate = store.completedAttempts.has(payload.attemptId);
   if (!duplicate) {
@@ -168,6 +193,7 @@ export const createLocalCharacterInstance = ({
   const character = {
     instanceId: createId(), userId: studentId, characterType, ...progress,
     visualBranch: null, status: 'active', startedAt: 'local-e2e', endedAt: null,
+    careStartedDate: store.verificationLearningDate, endReason: null,
     totalCorrectCount: [...store.ledger.values()]
       .filter(({ type }) => type === 'quiz_correct')
       .reduce((sum, transaction) => sum + transaction.amount, 0),
@@ -216,6 +242,7 @@ export const advanceLocalLearningDays = ({ store, studentId, days = 1, learn = t
   const [year, month, day] = current.split('-').map(Number);
   const nextDate = new Date(Date.UTC(year, month - 1, day + count)).toISOString().slice(0, 10);
   store.verificationLearningDate = nextDate;
+  evaluateLocalCharacterCare(store, nextDate);
   if (learn) recordLocalLearningDay({ store, studentId, learningDate: nextDate });
   return getLocalPlayerProgress(store);
 };
@@ -226,6 +253,8 @@ export const repairLocalXpCache = (store) => {
 };
 
 export const getLocalPlayerProgress = (store) => {
+  const careState = evaluateLocalCharacterCare(store);
+  rebuildLocalXpCache(store);
   const player = {
     pendingXp: store?.pendingXp || 0,
     pointBalance: store?.pointBalance || 0,
@@ -237,7 +266,12 @@ export const getLocalPlayerProgress = (store) => {
   };
   if (!store?.activeCharacter) return { activeCharacter: null, ...player };
   return {
-    activeCharacter: { ...store.activeCharacter, totalXp: Math.min(MAX_CHARACTER_XP, store.activeCharacter.totalXp) },
+    activeCharacter: {
+      ...store.activeCharacter,
+      totalXp: Math.min(MAX_CHARACTER_XP, store.activeCharacter.totalXp),
+      condition: careState?.condition || 'healthy',
+      inactiveDays: careState?.inactiveDays || 0
+    },
     ...player
   };
 };
