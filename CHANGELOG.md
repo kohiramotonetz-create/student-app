@@ -37,6 +37,20 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 育成システム Phase E2：装備・見た目・進化限定基盤（Issue番号未指定）
+
+- 状態: student-app、認証GAS、ログGASへlocal onlyで実装。Production未接続
+- 変更内容: 固定7スロットのequipmentJson、所有確認付きequip/unequip、同一slot自動付け替え、キャラ専用品制限、終了キャラの装備固定を追加
+- 進化限定: 3キャラ×Lv20/40/60/80/100の15商品を個体所有として追加。価格は250/350/600/800/1,200pt、現在Lv区間だけ購入可能
+- visualBranch: Lv60商品所有後、各キャラ3候補から一度だけ選択しCharacterInstanceへ保存。性能差なし
+- 見た目: assetKeyとplaceholder/CSSによるdevelopment限定簡易反映。正式画像は未作成
+- GAS影響: CharacterInstances末尾へequipmentJson、equipItem/selectVisualBranch action、character:equip-own scopeをローカル追加。GAS未push・未deploy
+- Spreadsheet影響: 本番実変更なし。setup未実行、既存列は維持
+- 未実装: Lv100 status=completed、+500pt、アルバム、次キャラ選択、正式画像、gyoumu-app管理UI
+- Production / Version: Production未接続。Version 4.3.0とVersion Historyは変更なし
+- Commit: `feat: add equipment and evolution customization foundation`でlocal checkpoint化
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / setup / Spreadsheet変更 / 本番通信: 未実施
+
 ### 育成システム Phase E1：ショップ・購入・所持アイテム基盤（Issue番号未指定）
 
 - 状態: student-app、認証GAS、ログGASへlocal onlyで実装。Production未接続

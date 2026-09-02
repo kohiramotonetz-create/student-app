@@ -77,9 +77,12 @@ import {
 } from './utils/localXpVerification';
 import {
   createLocalPurchaseRequestId,
+  equipLocalItem,
   getLocalShopItems,
   grantLocalPointsForVerification,
-  purchaseLocalShopItem
+  purchaseLocalShopItem,
+  selectLocalVisualBranch,
+  unequipLocalItem
 } from './utils/localShopVerification';
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
@@ -995,11 +998,13 @@ function App() {
 
   const accelerateLocalCharacterXp = (targetXp) => {
     if (!isLocalDailyMissionVerification) return;
+    const store = localXpStoreRef.current;
     setLocalPlayerProgress(setLocalXpForVerification({
-      store: localXpStoreRef.current,
+      store,
       studentId: userId,
       targetXp
     }));
+    setLocalShopItems(getLocalShopItems({ store, studentId: userId }));
   };
 
   const advanceLocalStreak = (days, learn = true) => {
@@ -1047,6 +1052,27 @@ function App() {
     grantLocalPointsForVerification({ store, studentId: userId || 'local-e2e', amount: 500, requestId: createLocalPurchaseRequestId() });
     setLocalPlayerProgress(getLocalPlayerProgress(store));
     setLocalShopItems(getLocalShopItems({ store, studentId: userId || 'local-e2e' }));
+  };
+
+  const equipLocalShopItem = (itemId) => {
+    const store = localXpStoreRef.current;
+    const result = equipLocalItem({ store, studentId: userId || 'local-e2e', itemId, equipRequestId: createLocalPurchaseRequestId() });
+    setLocalPlayerProgress(getLocalPlayerProgress(store));
+    setLocalShopItems(getLocalShopItems({ store, studentId: userId || 'local-e2e' }));
+    return result;
+  };
+
+  const unequipLocalShopSlot = (slot) => {
+    const store = localXpStoreRef.current;
+    const result = unequipLocalItem({ store, slot, equipRequestId: createLocalPurchaseRequestId() });
+    setLocalPlayerProgress(getLocalPlayerProgress(store));
+    return result;
+  };
+
+  const chooseLocalVisualBranch = (branch) => {
+    const result = selectLocalVisualBranch({ store: localXpStoreRef.current, branch });
+    setLocalPlayerProgress(getLocalPlayerProgress(localXpStoreRef.current));
+    return result;
   };
 
   const handleChangePassword = async () => {
@@ -1260,6 +1286,9 @@ function App() {
         onCompleteLocalCareLearning={completeLocalCareLearning}
         onPurchaseLocalItem={purchaseLocalItem}
         onAddLocalShopPoints={addLocalShopPoints}
+        onEquipLocalItem={equipLocalShopItem}
+        onUnequipLocalSlot={unequipLocalShopSlot}
+        onSelectLocalVisualBranch={chooseLocalVisualBranch}
       />
 
       <CampView

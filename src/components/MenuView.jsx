@@ -73,7 +73,10 @@ function MenuView({
   onAdvanceLocalStreak,
   onCompleteLocalCareLearning,
   onPurchaseLocalItem,
-  onAddLocalShopPoints
+  onAddLocalShopPoints,
+  onEquipLocalItem,
+  onUnequipLocalSlot,
+  onSelectLocalVisualBranch
 }) {
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [showCharacterSelection, setShowCharacterSelection] = useState(false);
@@ -187,11 +190,11 @@ function MenuView({
             <div className="student-home__shop-grid">
               {(localShopItems || []).map((item) => (
                 <article className="student-home__shop-item" key={item.itemId} data-shop-item={item.itemId}>
-                  <small>{item.category} / {item.itemType === 'common' ? '共通' : 'キャラ専用'}</small>
+                  <small>{item.category} / {item.itemType === 'common' ? '共通' : item.itemType === 'evolution_limited' ? '進化限定' : 'キャラ専用'}</small>
                   <strong>{item.label}</strong>
                   <span>{item.price.toLocaleString()}pt</span>
-                  {item.owned ? <b>所有済み</b> : <button type="button" disabled={!item.purchasable} onClick={() => onPurchaseLocalItem?.(item.itemId)}>
-                    {item.reason === 'insufficient_points' ? 'ポイント不足' : item.reason === 'character_required' ? '育成中の対象キャラが必要' : '購入する'}
+                  {item.owned ? <><b>所有済み</b>{localPlayerProgress?.activeCharacter?.status === 'active' && <button type="button" onClick={() => onEquipLocalItem?.(item.itemId)}>装備する</button>}</> : <button type="button" disabled={!item.purchasable} onClick={() => onPurchaseLocalItem?.(item.itemId)}>
+                    {item.reason === 'insufficient_points' ? 'ポイント不足' : item.reason === 'character_required' ? '育成中の対象キャラが必要' : item.reason === 'level_locked' ? `Lv${item.requiredLevel}で解放` : item.reason === 'evolution_expired' ? 'このキャラでは購入期間終了' : '購入する'}
                   </button>}
                 </article>
               ))}
@@ -298,10 +301,14 @@ function MenuView({
               <div className="student-home__section-heading"><span className="student-home__section-number">3</span><div><h2>育成・ごほうび</h2><p>学習を続ける楽しみを増やします。</p></div></div>
               {activeCharacter && activeCharacterDefinition ? (
                 <div className={`student-home__character-summary is-${activeCharacter.condition || 'healthy'}`} data-local-xp-verification="true" data-character-condition={activeCharacter.condition || 'healthy'}>
-                  <span className="student-home__character-placeholder" aria-hidden="true">{activeCharacter.condition === 'hospitalized' ? <Bed /> : activeCharacter.condition === 'critical' ? <HeartPulse /> : activeCharacterDefinition.placeholder}</span>
+                  <span className="student-home__character-placeholder" aria-hidden="true" data-background-item={activeCharacter.equipment?.background || ''}>
+                    {activeCharacter.condition === 'hospitalized' ? <Bed /> : activeCharacter.condition === 'critical' ? <HeartPulse /> : activeCharacterDefinition.placeholder}
+                    {Object.entries(activeCharacter.equipment || {}).filter(([, itemId]) => itemId).map(([slot, itemId]) => <i key={slot} className={`equipment-${slot}`} title={itemId}>{localShopItems?.find((item) => item.itemId === itemId)?.placeholder}</i>)}
+                  </span>
                   <div className="student-home__character-copy">
                     <strong>{activeCharacterDefinition.label} Lv.{activeCharacter.level}</strong>
                     <span>{activeStageDefinition?.label} / Stage {activeCharacter.stage}</span>
+                    {activeCharacter.visualBranch && <span>見た目分岐: {activeCharacter.visualBranch}</span>}
                     <span className="student-home__care-status">{conditionLabels[activeCharacter.condition] || '元気'}{activeCharacter.inactiveDays > 0 ? `（未学習${activeCharacter.inactiveDays}日）` : ''}</span>
                     <div className="student-home__xp-track" role="progressbar" aria-label="現在レベルのXP進捗" aria-valuemin="0" aria-valuemax="100" aria-valuenow={activeCharacter.progressPercent}><span style={{ width: `${activeCharacter.progressPercent}%` }} /></div>
                     <small>累計 {activeCharacter.totalXp} XP ・ 次のLvまで {activeCharacter.xpToNext} XP</small>
@@ -316,6 +323,8 @@ function MenuView({
                     <button type="button" onClick={() => onCompleteLocalCareLearning?.()}>今日1問学習</button>
                     <button type="button" onClick={() => { for (let i = 0; i < 30; i += 1) onAdvanceLocalStreak?.(1, true); }}>30日学習</button>
                   </div>}
+                  {isLocalCharacterVerification && <div className="student-home__equipment-list"><strong>現在装備中</strong>{Object.entries(activeCharacter.equipment || {}).map(([slot, itemId]) => <span key={slot}>{slot}: {itemId || 'なし'} {itemId && <button type="button" onClick={() => onUnequipLocalSlot?.(slot)}>外す</button>}</span>)}</div>}
+                  {isLocalCharacterVerification && activeCharacter.level >= 60 && !activeCharacter.visualBranch && localShopItems?.some((item) => item.itemId === `${activeCharacter.characterType}_evolution_60` && item.owned) && <div className="student-home__branch-tools"><strong>進化分岐</strong>{activeCharacterDefinition.visualBranches.map((branch) => <button type="button" key={branch} onClick={() => onSelectLocalVisualBranch?.(branch)}>{branch}</button>)}</div>}
                 </div>
               ) : isLocalCharacterVerification ? (
                 <div className="student-home__future-body" data-local-character-empty="true"><Gift /><div>

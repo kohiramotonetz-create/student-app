@@ -8,6 +8,7 @@ import {
   updateStreakForLearningDate
 } from './streakPoints.js';
 import { evaluateCharacterCareState } from './characterCare.js';
+import { createEmptyEquipment } from '../constants/itemMaster.js';
 
 const createLocalId = () => globalThis.crypto?.randomUUID?.() || `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 export const createLocalSelectionRequestId = () => createLocalId();
@@ -15,6 +16,7 @@ export const createLocalSelectionRequestId = () => createLocalId();
 export const createLocalXpVerificationStore = ({ withActiveCharacter = false } = {}) => ({
   ledger: new Map(),
   ownedItems: new Map(),
+  equipRequests: new Map(),
   characterCreationRequests: new Map(),
   completedAttempts: new Set(),
   learningDates: new Set(),
@@ -28,7 +30,7 @@ export const createLocalXpVerificationStore = ({ withActiveCharacter = false } =
   activeCharacter: withActiveCharacter ? {
     instanceId: 'local-pudding', characterType: 'pudding', totalXp: 0,
     ...createCharacterProgress(0), status: 'active', totalCorrectCount: 0, totalEarnedXp: 0,
-    careStartedDate: '2026-09-01', endedAt: null, endReason: null
+    careStartedDate: '2026-09-01', endedAt: null, endReason: null, equipment: createEmptyEquipment()
   } : null
 });
 
@@ -194,7 +196,7 @@ export const createLocalCharacterInstance = ({
   const character = {
     instanceId: createId(), userId: studentId, characterType, ...progress,
     visualBranch: null, status: 'active', startedAt: 'local-e2e', endedAt: null,
-    careStartedDate: store.verificationLearningDate, endReason: null,
+    careStartedDate: store.verificationLearningDate, endReason: null, equipment: createEmptyEquipment(),
     totalCorrectCount: [...store.ledger.values()]
       .filter(({ type }) => type === 'quiz_correct')
       .reduce((sum, transaction) => sum + transaction.amount, 0),

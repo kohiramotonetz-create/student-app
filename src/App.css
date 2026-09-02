@@ -533,6 +533,12 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .student-home__character-option p { min-height: 42px; color: var(--home-muted); font-size: .72rem; line-height: 1.5; }
 .student-home__character-option small { color: var(--home-blue); font-weight: 750; }
 .student-home__character-placeholder { display: grid; place-items: center; width: 62px; height: 62px; flex: 0 0 62px; border: 1px solid #c7daf4; border-radius: 22px; background: linear-gradient(145deg, #fff, #eaf3ff); font-size: 2rem; box-shadow: 0 7px 16px rgba(42,87,150,.1); }
+.student-home__character-placeholder { position: relative; }
+.student-home__character-placeholder i { position: absolute; font-size: .8rem; font-style: normal; }
+.student-home__character-placeholder .equipment-head { top: -8px; } .student-home__character-placeholder .equipment-face { top: 23px; }
+.student-home__character-placeholder .equipment-handheld { right: -9px; bottom: 2px; } .student-home__character-placeholder .equipment-effect { right: -8px; top: -6px; }
+.student-home__equipment-list, .student-home__branch-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; font-size: .68rem; }
+.student-home__equipment-list span { padding: 4px 7px; border-radius: 9px; background: rgba(255,255,255,.72); }
 .student-home__character-summary.is-faded .student-home__character-placeholder { opacity: .48; filter: grayscale(.18); }
 .student-home__character-summary.is-weak .student-home__character-placeholder { opacity: .72; filter: grayscale(.45); transform: translateY(3px); }
 .student-home__character-summary.is-hospitalized { border-color: #93c5fd; background: #eff6ff; }
