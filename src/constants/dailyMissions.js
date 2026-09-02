@@ -38,19 +38,30 @@ export const getVisibleDailyMissions = (isContentAllowed, definitions = DEFAULT_
 export const getHomeDailyMissionModels = ({
   permissionsInitialized,
   isContentAllowed,
+  progressByMissionId = null,
   definitions = DEFAULT_DAILY_MISSIONS
 }) => {
   if (permissionsInitialized !== true) return [];
 
   return getVisibleDailyMissions(isContentAllowed, definitions).map((mission) => {
     const availableContentIds = mission.targetContentIds.filter(isContentAllowed);
+    const progress = progressByMissionId?.[mission.id];
+    const hasProgress = Number.isInteger(progress?.completedCount)
+      && typeof progress?.achieved === 'boolean';
     return {
       ...mission,
       availableContentIds,
       targetLabels: availableContentIds
         .map((contentId) => getContentDefinition(contentId)?.displayName)
         .filter(Boolean),
-      progress: Object.freeze({ status: 'preparing', completedCount: null, achieved: null })
+      progress: hasProgress
+        ? Object.freeze({
+          status: 'ready',
+          completedCount: progress.completedCount,
+          achieved: progress.achieved,
+          missionDate: progress.missionDate || null
+        })
+        : Object.freeze({ status: 'preparing', completedCount: null, achieved: null })
     };
   });
 };

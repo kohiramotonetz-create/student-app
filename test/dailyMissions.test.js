@@ -69,3 +69,23 @@ test('home missions cover english-only, kanji-only, none, and uninitialized perm
   assert.deepEqual(createModels(['kakitan', 'kanji_test'], false), []);
   assert.equal(createModels(['junior_english_quiz'])[0].requiredCount, 3);
 });
+
+test('home shows numeric progress only after a successful mission response', () => {
+  const base = {
+    permissionsInitialized: true,
+    isContentAllowed: (contentId) => contentId === 'kakitan'
+  };
+  const pending = getHomeDailyMissionModels(base)[0];
+  const ready = getHomeDailyMissionModels({
+    ...base,
+    progressByMissionId: {
+      english_vocabulary: { completedCount: 0, achieved: false, missionDate: '2026-09-02' }
+    }
+  })[0];
+
+  assert.equal(pending.progress.status, 'preparing');
+  assert.equal(pending.progress.completedCount, null);
+  assert.deepEqual(ready.progress, {
+    status: 'ready', completedCount: 0, achieved: false, missionDate: '2026-09-02'
+  });
+});

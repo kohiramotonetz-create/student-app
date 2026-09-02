@@ -37,6 +37,34 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 生徒session認証基盤（Issue番号未指定）
+
+- 状態: student-app、認証GAS、ログGASへローカル実装。GAS未push・未deploy、認証Spreadsheet未変更のため本番未接続
+- 変更内容:
+  - 通常ログインとuid/tk SSO成功時に共通の生徒session tokenを発行する認証GASローカル実装を追加
+  - tokenは`ss1.`＋UUID 2個、SpreadsheetにはSHA-256 hashだけを保存する設計
+  - 認証Spreadsheetの「生徒セッション」17列schema、12時間absolute期限、2時間idle期限、30分touch、logout revoke、active上限3件を追加
+  - `validateStudentSession`、`touchStudentSession`、`revokeStudentSession` actionを追加
+  - student-appはtokenを`sessionStorage`へ保持し、SSO優先・session復元・best-effort revoke・visible時30分touchへ対応
+  - 既存`saveLog`の`mode: no-cors`を維持したままtokenをpayloadへ追加し、`getLogs`とミッション進捗取得にも同じtokenを使用
+  - ログGASは`STUDENT_AUTH_SPREADSHEET_ID`から認証Spreadsheetを参照し、token由来userId、scope、allowedContentIdsを正本にするPhase 1互換処理を追加
+  - token付き認証失敗時は匿名処理へfallbackせず、tokenなしの既存`saveLog`／`getLogs`だけを移行期間中維持
+  - `getDailyMissionProgress`をtoken必須actionとしてローカル接続し、取得成功時だけホームへ数値進捗を表示。未接続・失敗時は`-- / 3`を維持
+- 認証GAS影響: `C:\Users\netz\gyoumu-app\gas`のローカルソースとテストのみ変更。管理session、6桁SSO tokenの5分・一回限り仕様は維持
+- ログGAS影響: `C:\Users\netz\student-app-log-gas`のローカルソースとテストのみ変更。匿名互換は既存saveLog/getLogsに限定
+- Spreadsheet影響: 実変更なし。「生徒セッション」シート未作成、setup未実行、`STUDENT_AUTH_SPREADSHEET_ID`未設定
+- CSV影響: なし
+- Gemini影響: なし。採点処理・API呼び出し条件に変更なし
+- セキュリティ: token平文をSpreadsheet・URL・ログ・エラーへ出力しない。token付き処理はsession由来userIdと権限を使用
+- test結果: 2026-09-02 `npm test` 成功（34件）。認証GAS生徒sessionテスト成功（8件）。ログGAS回帰・認証・ミッションテスト成功（29件）
+- build結果: 2026-09-02 `npm run build` 成功
+- lint結果: 新規・変更した認証関連モジュールとテストは成功。`App.jsx`の既存6件と`ChemistryPlayView.jsx`の既存2件により`npm run lint`は失敗し、今回追加エラーなし
+- `git diff --check`: 2026-09-02 成功
+- ローカル確認: 外部認証・ログGASへの実通信なし。本番GAS未デプロイのため実session発行と実進捗取得は未確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: 認証基盤差分は未commit
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / 本番確認: 未実施
+
 ### デイリーミッション基盤（Issue番号未指定）
 
 - 状態: 専用ブランチ上でstudent-appとログGASのローカル基盤を実装。ホームは権限に応じた正式ミッション内容を表示し、実進捗だけを「準備中」としている

@@ -37,6 +37,19 @@ import {
   isPrepositionAnswerCorrect
 } from './utils/prepositionQuiz';
 import { createDailyMissionAttempt } from './utils/dailyMissionAttempt';
+import { APP_VERSION } from './constants/version';
+import {
+  STUDENT_SESSION_TOUCH_INTERVAL_MS,
+  addStudentSessionToken,
+  buildStudentSessionPayload,
+  clearStudentSessionToken,
+  getStudentSessionTokenFromResponse,
+  indexDailyMissionProgress,
+  isExplicitStudentSessionInvalid,
+  readStudentSessionToken,
+  selectStudentAuthBootstrap,
+  storeStudentSessionToken
+} from './utils/studentSession';
 import {
   createLocalPrepositionLog,
   isLocalPrepositionVerificationEnabled
@@ -87,6 +100,8 @@ function App() {
   const [permissionsInitialized, setPermissionsInitialized] = useState(false);
   const [activeContentId, setActiveContentId] = useState(null);
   const [permissionError, setPermissionError] = useState('');
+  const [studentSessionToken, setStudentSessionToken] = useState('');
+  const [dailyMissionProgress, setDailyMissionProgress] = useState(null);
   const [isLocalPrepositionVerification, setIsLocalPrepositionVerification] = useState(false);
   const localPrepositionLogsRef = useRef([]);
   const dailyMissionAttemptRef = useRef(null);
@@ -185,6 +200,15 @@ function App() {
     setPermissionsInitialized(false);
     setPermissionError('利用可能コンテンツの取得に失敗しました。再度ログインしてください。');
     return false;
+  };
+
+  const applyStudentSessionResponse = (data) => {
+    const nextToken = getStudentSessionTokenFromResponse(data);
+    if (!nextToken) return '';
+    storeStudentSessionToken(nextToken);
+    setStudentSessionToken(nextToken);
+    setDailyMissionProgress(null);
+    return nextToken;
   };
 
   const loadCsv = async () => {
@@ -292,22 +316,26 @@ function App() {
       const params = new URLSearchParams(window.location.search);
       const uid = params.get('uid');
       const tk = params.get('tk');
+      const storedToken = readStudentSessionToken();
+      const bootstrapMode = selectStudentAuthBootstrap({ uid, tk, storedToken });
 
-      if (uid && tk) {
+      if (bootstrapMode === 'sso') {
         setLoading(true);
         try {
           const payload = {
             apiKey: API_KEY,
             action: "validateToken",
             userId: uid,
-            token: tk
+            token: tk,
+            clientVersion: APP_VERSION
           };
           const response = await axios.post(GAS_URL, JSON.stringify(payload), {
             headers: { 'Content-Type': 'text/plain' }
           });
           if (response.data.result === "success") {
             if (!applyPermissionResponse(response.data)) return;
-            setUserId(uid);
+            applyStudentSessionResponse(response.data);
+            setUserId(response.data.userId || uid);
             setUserName(response.data.name);
             if (response.data.school) setSchool(response.data.school);
             window.history.replaceState({}, '', window.location.pathname);
@@ -315,10 +343,73 @@ function App() {
           }
         } catch (e) { console.error("SSO通信エラー:", e);
         } finally { setLoading(false); }
+        return;
+      }
+
+      if (bootstrapMode !== 'session') return;
+
+      setLoading(true);
+      try {
+        const response = await axios.post(GAS_URL, JSON.stringify({
+          apiKey: API_KEY,
+          ...buildStudentSessionPayload('validateStudentSession', storedToken)
+        }), { headers: { 'Content-Type': 'text/plain' } });
+        if (response.data.result === 'success' && applyPermissionResponse(response.data)) {
+          setStudentSessionToken(storedToken);
+          setUserId(response.data.userId);
+          setUserName(response.data.name);
+          if (response.data.school) setSchool(response.data.school);
+          await loadCsv();
+        } else if (isExplicitStudentSessionInvalid(response.data)) {
+          clearStudentSessionToken();
+          setStudentSessionToken('');
+        }
+      } catch {
+        // Temporary restore failures keep storage intact so a later reload can retry.
+      } finally {
+        setLoading(false);
       }
     };
     initAuth();
   }, []);
+
+  useEffect(() => {
+    if (!studentSessionToken || !userId) return undefined;
+    const touchSession = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        await axios.post(GAS_URL, JSON.stringify({
+          apiKey: API_KEY,
+          ...buildStudentSessionPayload('touchStudentSession', studentSessionToken)
+        }), { headers: { 'Content-Type': 'text/plain' } });
+      } catch {
+        // Touch is best-effort; a transient failure must not force logout.
+      }
+    };
+    const timer = window.setInterval(touchSession, STUDENT_SESSION_TOUCH_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [studentSessionToken, userId]);
+
+  useEffect(() => {
+    if (step !== 'menu' || !studentSessionToken || !LOG_GAS_URL) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const loadDailyMissionProgress = async () => {
+      try {
+        const response = await axios.post(LOG_GAS_URL, JSON.stringify(
+          buildStudentSessionPayload('getDailyMissionProgress', studentSessionToken)
+        ), { headers: { 'Content-Type': 'text/plain' } });
+        const progress = indexDailyMissionProgress(response.data);
+        if (!cancelled) setDailyMissionProgress(progress);
+      } catch {
+        if (!cancelled) setDailyMissionProgress(null);
+      }
+    };
+    loadDailyMissionProgress();
+    return () => { cancelled = true; };
+  }, [step, studentSessionToken]);
 
   const [quizItems, setQuizItems] = useState([]);
   const [qIndex, setQIndex] = useState(0);
@@ -341,6 +432,16 @@ function App() {
   };
 
   const handleLogout = () => {
+    const tokenToRevoke = studentSessionToken;
+    if (tokenToRevoke) {
+      axios.post(GAS_URL, JSON.stringify({
+        apiKey: API_KEY,
+        ...buildStudentSessionPayload('revokeStudentSession', tokenToRevoke, { reason: 'logout' })
+      }), { headers: { 'Content-Type': 'text/plain' } }).catch(() => {});
+    }
+    clearStudentSessionToken();
+    setStudentSessionToken('');
+    setDailyMissionProgress(null);
     setUserId('');
     setPassword('');
     setNewPassword('');
@@ -418,12 +519,12 @@ function App() {
     try {
       const pastLogs = usesLocalPrepositionLogs
         ? localPrepositionLogsRef.current
-        : (await axios.post(LOG_GAS_URL, JSON.stringify({
+        : (await axios.post(LOG_GAS_URL, JSON.stringify(addStudentSessionToken({
           action: "getLogs",
           sheetName: sheetName,
           studentId: userId,
           ...(contentId ? { contentId } : {})
-        }), { headers: { 'Content-Type': 'text/plain' } })).data;
+        }, studentSessionToken)), { headers: { 'Content-Type': 'text/plain' } })).data;
       
       const isKanji = isKanjiOption || sheetName === "漢字テスト" || sheetName === "漢字対策";
       
@@ -520,7 +621,7 @@ function App() {
     const missionAttempt = dailyMissionAttemptRef.current?.contentId === contentId
       ? dailyMissionAttemptRef.current
       : null;
-    const payload = {
+    const payload = addStudentSessionToken({
       action: "saveLog", 
       contentId,
       sheetName, 
@@ -546,7 +647,7 @@ function App() {
           isCorrect: answer.ok
         }))
       } : {})
-    };
+    }, studentSessionToken);
 
     if (usesLocalPrepositionLogs) {
       localPrepositionLogsRef.current = [
@@ -745,10 +846,12 @@ function App() {
     if (!userId || !password) return alert("入力してください");
     setLoading(true);
     try {
-      const payload = { apiKey: API_KEY, action: "login", userId, password };
+      const payload = { apiKey: API_KEY, action: "login", userId, password, clientVersion: APP_VERSION };
       const response = await axios.post(GAS_URL, JSON.stringify(payload), { headers: { 'Content-Type': 'text/plain' }});
       if (response.data.result === "success") { 
         if (!applyPermissionResponse(response.data, { allowLegacyLogin: true })) return;
+        applyStudentSessionResponse(response.data);
+        if (response.data.userId) setUserId(response.data.userId);
         setUserName(response.data.name); 
         if (response.data.school) setSchool(response.data.school); 
         
@@ -760,6 +863,8 @@ function App() {
 
   const handleLocalPrepositionVerification = async () => {
     if (!LOCAL_PREPOSITION_VERIFICATION_ENABLED) return;
+    clearStudentSessionToken();
+    setStudentSessionToken('');
     setUserId('local-preposition-verification');
     setUserName('ローカル確認');
     setSchool('ローカル');
@@ -972,6 +1077,7 @@ function App() {
         kakitanData={kakitanData}
         handleLogout={handleLogout}
         permissionsInitialized={permissionsInitialized}
+        dailyMissionProgress={dailyMissionProgress}
       />
 
       <CampView

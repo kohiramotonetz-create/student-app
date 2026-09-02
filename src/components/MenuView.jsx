@@ -55,7 +55,8 @@ function MenuView({
   setSelectedBook,
   kakitanData,
   handleLogout,
-  permissionsInitialized
+  permissionsInitialized,
+  dailyMissionProgress
 }) {
   const [selectedSubject, setSelectedSubject] = useState(null);
 
@@ -67,7 +68,8 @@ function MenuView({
   const visibleSubjects = SUBJECTS.filter(({ key }) => contentsBySubject[key].length > 0);
   const dailyMissions = getHomeDailyMissionModels({
     permissionsInitialized,
-    isContentAllowed
+    isContentAllowed,
+    progressByMissionId: dailyMissionProgress
   });
   const hasAnyContent = visibleSubjects.length > 0 || hasHighSchoolContent || hasCampContent;
 
@@ -147,7 +149,7 @@ function MenuView({
             <div className="student-home__section-heading">
               <span className="student-home__section-number">1</span>
               <div><h2>今日のミッション</h2><p>毎日の目標をクリアしよう！</p></div>
-              <span className="student-home__ready"><LockKeyhole /> 進捗連携準備中</span>
+              <span className="student-home__ready"><LockKeyhole /> {dailyMissions.some(({ progress }) => progress.status === 'ready') ? '本日の進捗' : '進捗連携準備中'}</span>
             </div>
             {dailyMissions.length > 0 ? (
               <div className="student-home__mission-list">
@@ -158,10 +160,10 @@ function MenuView({
                       <strong>{mission.label}を{mission.requiredCount}回行う</strong>
                       <p><span>対象:</span> {mission.targetLabels.join('・')}</p>
                     </div>
-                    <div className="student-home__mission-progress" aria-label={`${mission.label}の進捗は準備中`}>
+                    <div className="student-home__mission-progress" aria-label={mission.progress.status === 'ready' ? `${mission.label}の進捗は${mission.progress.completedCount}/${mission.requiredCount}` : `${mission.label}の進捗は準備中`}>
                       <small>進捗</small>
-                      <b>-- / {mission.requiredCount}</b>
-                      <span>準備中</span>
+                      <b>{mission.progress.status === 'ready' ? mission.progress.completedCount : '--'} / {mission.requiredCount}</b>
+                      <span>{mission.progress.status === 'ready' ? (mission.progress.achieved ? '達成！' : '学習中') : '準備中'}</span>
                     </div>
                   </article>
                 ))}
