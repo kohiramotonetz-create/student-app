@@ -487,6 +487,17 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .student-home__empty-state > svg { width: 26px; flex: 0 0 26px; color: var(--home-blue); }
 .student-home__empty-state strong { display: block; margin-bottom: 2px; color: var(--home-navy); font-size: .82rem; }
 .student-home__empty-state p { font-size: .72rem; }
+.student-home__mission-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.student-home__mission-card { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 92px; padding: 13px 15px; border: 1px solid #dbe7f5; border-radius: 16px; background: linear-gradient(145deg, #fff, #f7faff); }
+.student-home__mission-icon { display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid #bdd7ff; border-radius: 15px; color: var(--home-blue); background: #edf5ff; }
+.student-home__mission-icon svg { width: 25px; }
+.student-home__mission-copy { min-width: 0; }
+.student-home__mission-copy strong { display: block; margin-bottom: 5px; color: var(--home-navy); font-size: .9rem; }
+.student-home__mission-copy p { color: var(--home-muted); font-size: .68rem; line-height: 1.45; }
+.student-home__mission-copy p span { color: #465874; font-weight: 750; }
+.student-home__mission-progress { min-width: 76px; padding-left: 12px; border-left: 1px solid #dce6f2; text-align: center; }
+.student-home__mission-progress small, .student-home__mission-progress span { display: block; color: var(--home-muted); font-size: .6rem; }
+.student-home__mission-progress b { display: block; margin: 2px 0; color: var(--home-navy); font-size: 1rem; }
 
 .student-home__subjects { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 13px; }
 .student-home__subject { position: relative; display: grid; justify-items: center; gap: 3px; min-height: 124px; padding: 13px 8px !important; border: 1px solid #b8d4ff; border-radius: 17px !important; color: #16428d !important; background: linear-gradient(150deg, #fff, #eef6ff) !important; box-shadow: none; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease; }
@@ -541,6 +552,7 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
   .student-home__status-card { display: none; }
   .student-home__subjects { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .student-home__lower-grid { grid-template-columns: 1fr; }
+  .student-home__mission-list { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 680px) {
@@ -562,10 +574,14 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
   .student-home__subjects { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
   .student-home__subject { min-height: 112px; }
   .student-home__content-list { grid-template-columns: 1fr; }
+  .student-home__mission-card { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 9px; padding: 11px; }
+  .student-home__mission-icon { width: 42px; height: 42px; }
+  .student-home__mission-copy strong { font-size: .8rem; }
+  .student-home__mission-copy p { font-size: .62rem; }
   .student-home__glass-nav { grid-template-columns: repeat(5, 1fr); gap: 1px; width: calc(100vw - 16px); padding: 6px 4px; border-radius: 22px; }
   .student-home__glass-nav button { flex-direction: column; gap: 1px; min-width: 0; min-height: 51px; padding: 4px 1px; font-size: .57rem; }
   .student-home__glass-nav svg { width: 18px; }
-  .student-home__version { right: 7px; bottom: calc(3px + env(safe-area-inset-bottom)); font-size: 8px; }
+  .student-home__version { right: 7px; bottom: calc(91px + env(safe-area-inset-bottom)); font-size: 8px; }
 }
 
 @media (max-width: 390px) {

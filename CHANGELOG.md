@@ -37,6 +37,36 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### デイリーミッション基盤（Issue番号未指定）
+
+- 状態: 専用ブランチ上でstudent-appとログGASのローカル基盤を実装。ホームは権限に応じた正式ミッション内容を表示し、実進捗だけを「準備中」としている
+- 変更内容:
+  - 英単語（`kakitan`、`junior_english_quiz`、`irregular_verbs`）3セットと漢字（`kanji_test`）3セットのデフォルト定義を1か所へ追加
+  - 対象教材の通常／復習セット開始時に`crypto.randomUUID()`由来のattemptIdを生成し、完了時の既存`saveLog` payloadへattemptIdとisReviewを追加
+  - 復習、合宿漢字、古文、その他教材をミッション加算対象外として維持
+  - ログGASを既存12列維持＋M列attemptIdの13列schemaへ後方互換拡張するローカル実装を追加
+  - GAS内へ英単語・漢字のデフォルト定義、attempt重複排除、MissionAttempts記録、DailyMissionProgress更新、JST日付境界処理を追加
+  - 本人認証方式が未確定のため、進捗取得は内部関数とテストまで実装し、匿名公開doPostのactionには未接続
+  - `MissionAttempts`と`DailyMissionProgress`を安全に作成する冪等setup関数を追加（未実行）
+  - `dailyMissions.js`の定義と既存教材表示名を利用し、`allowedContentIds`と交差したミッション名・必要回数・対象教材をホームへ表示
+  - 進捗未接続時は実績値に見える`0 / 3`を避け、`-- / 3`と「準備中」を表示。対象教材が0件または権限初期化前はミッションを表示しない
+  - 通常ログインとuid/tk SSOの認証経路を調査。生徒の通常ログインはセッショントークンを発行せず、SSOの6桁トークンは5分期限かつ検証成功時に消去されるため、ログGASの継続認証には新しい本人セッション設計が必要と確認
+- ポイント影響: なし。rewardPointsはnull。残高、付与、レベル、育成処理は未実装
+- CSV影響: なし
+- Gemini影響: なし。採点処理・呼び出し条件に変更なし。外部API実通信なし
+- GAS影響: `C:\Users\netz\student-app-log-gas`のローカルソースのみ変更。`clasp push`、setup実行、デプロイ未実施
+- Spreadsheet影響: 実変更なし。将来のM列attemptId、MissionAttempts、DailyMissionProgress追加を想定したコードのみ
+- 既存機能影響: `mode: "no-cors"`、既存saveLog送信、認証、SSO、権限制御、採点、復習処理を維持。attemptIdなしのsaveLogは従来どおりログだけを保存
+- test結果: 2026-09-02 `npm test` 成功（29件。定義、権限別ミッション表示、権限初期化前の非表示、attempt生成を含む）。ログGAS `node --test コード.test.cjs` 成功（23件。重複排除、英単語・漢字、復習除外、JST日付境界、生徒分離、冪等setupを含む）
+- build結果: 2026-09-02 `npm run build` 成功
+- lint結果: 変更ファイル対象lint成功。`npm run lint`は既存8件（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）で失敗し、今回追加エラーなし
+- `git diff --check`: 2026-09-02 成功
+- ローカル確認: `http://127.0.0.1:5173/`でdevelopment限定入口からホーム表示、権限対象が0件の場合の案内、科目一覧切替、ホーム復帰、横方向のはみ出しなし、console errorなしを確認。中1実アカウント、対象4教材の実開始、実進捗取得は未確認
+- checkpoint: 小・中学生ホーム刷新を`13e4310`（`feat: redesign junior sukimakun home`）としてローカルcommit
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: ミッション基盤は未commit
+- Push / mainマージ / Vercel / GASデプロイ / 本番確認: 未実施
+
 ### 小・中学生向けホーム画面刷新（Issue番号未指定）
 
 - 状態: React実装、純粋関数テスト、build、変更箇所lint、PC・tablet・mobileのローカルブラウザ確認まで完了。本番連携確認は未実施

@@ -28,6 +28,7 @@ import {
   getJuniorHomeContentsBySubject
 } from '../constants/sukimakunContents';
 import { APP_VERSION } from '../constants/version';
+import { getHomeDailyMissionModels } from '../constants/dailyMissions';
 
 const SUBJECTS = [
   { key: 'english', label: '英語', description: '英単語・文法', icon: Languages, tone: 'blue' },
@@ -64,6 +65,10 @@ function MenuView({
   const hasHighSchoolContent = HIGH_SCHOOL_CONTENTS.some(({ contentId }) => isContentAllowed(contentId));
   const hasCampContent = CAMP_CONTENTS.some(({ contentId }) => isContentAllowed(contentId));
   const visibleSubjects = SUBJECTS.filter(({ key }) => contentsBySubject[key].length > 0);
+  const dailyMissions = getHomeDailyMissionModels({
+    permissionsInitialized,
+    isContentAllowed
+  });
   const hasAnyContent = visibleSubjects.length > 0 || hasHighSchoolContent || hasCampContent;
 
   const handleMainContent = (content) => {
@@ -141,10 +146,29 @@ function MenuView({
           <section className="student-home__panel student-home__mission">
             <div className="student-home__section-heading">
               <span className="student-home__section-number">1</span>
-              <div><h2>今日のミッション</h2><p>学習を続けるためのミッション機能です。</p></div>
-              <span className="student-home__ready"><LockKeyhole /> 機能準備中</span>
+              <div><h2>今日のミッション</h2><p>毎日の目標をクリアしよう！</p></div>
+              <span className="student-home__ready"><LockKeyhole /> 進捗連携準備中</span>
             </div>
-            <div className="student-home__empty-state"><ShieldCheck /><div><strong>正式な進捗データを準備しています</strong><p>進捗や報酬は、正しい集計・保存の仕組みが整ってから表示します。</p></div></div>
+            {dailyMissions.length > 0 ? (
+              <div className="student-home__mission-list">
+                {dailyMissions.map((mission) => (
+                  <article className="student-home__mission-card" key={mission.id}>
+                    <span className="student-home__mission-icon" aria-hidden="true"><BookOpen /></span>
+                    <div className="student-home__mission-copy">
+                      <strong>{mission.label}を{mission.requiredCount}回行う</strong>
+                      <p><span>対象:</span> {mission.targetLabels.join('・')}</p>
+                    </div>
+                    <div className="student-home__mission-progress" aria-label={`${mission.label}の進捗は準備中`}>
+                      <small>進捗</small>
+                      <b>-- / {mission.requiredCount}</b>
+                      <span>準備中</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="student-home__empty-state" role="status"><ShieldCheck /><div><strong>現在利用できるミッションはありません</strong><p>利用できる教材が追加されると、ここに毎日の目標が表示されます。</p></div></div>
+            )}
           </section>
 
           <section className="student-home__panel student-home__learning">

@@ -41,7 +41,8 @@ function KanjiTestView({
   returnStep = 'menu',
   title = '漢字テスト 設定',
   randomAllCount = null,
-  keepWrongHistory = false
+  keepWrongHistory = false,
+  beginLearningAttempt
 }) {
   if (step !== setupStep && step !== mainStep) return null;
 
@@ -220,6 +221,7 @@ function KanjiTestView({
                 // 漢字テスト専用のクイズ初期化処理
                 setStrokes([]);
                 setQuizAnswers([]);
+                beginLearningAttempt(contentId, true);
                 // 間違えた問題のみをランダムにセットして手書きテストへ進む
                 setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));
                 setShowWrongList(false);

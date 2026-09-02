@@ -36,6 +36,7 @@ import {
   getPrepositionModeLabel,
   isPrepositionAnswerCorrect
 } from './utils/prepositionQuiz';
+import { createDailyMissionAttempt } from './utils/dailyMissionAttempt';
 import {
   createLocalPrepositionLog,
   isLocalPrepositionVerificationEnabled
@@ -88,6 +89,7 @@ function App() {
   const [permissionError, setPermissionError] = useState('');
   const [isLocalPrepositionVerification, setIsLocalPrepositionVerification] = useState(false);
   const localPrepositionLogsRef = useRef([]);
+  const dailyMissionAttemptRef = useRef(null);
   
   const [allData, setAllData] = useState([]); 
   const [fukisokuData, setFukisokuData] = useState([]);
@@ -334,6 +336,10 @@ function App() {
     setCampDraftAnswers([]); setIsCampGrading(false); campNavigationLockRef.current = false;
   };
 
+  const beginLearningAttempt = (contentId, isReview = false) => {
+    dailyMissionAttemptRef.current = createDailyMissionAttempt(contentId, isReview);
+  };
+
   const handleLogout = () => {
     setUserId('');
     setPassword('');
@@ -347,6 +353,7 @@ function App() {
     setPermissionError('');
     setIsLocalPrepositionVerification(false);
     localPrepositionLogsRef.current = [];
+    dailyMissionAttemptRef.current = null;
     setSelectedBook({ name: '', data: [] });
     setIsKobunMode(false);
     setIsFukisokuMode(false);
@@ -510,6 +517,9 @@ function App() {
       return;
     }
 
+    const missionAttempt = dailyMissionAttemptRef.current?.contentId === contentId
+      ? dailyMissionAttemptRef.current
+      : null;
     const payload = {
       action: "saveLog", 
       contentId,
@@ -523,6 +533,10 @@ function App() {
       total: finalAnswers.length,
       percentage: Math.round((finalAnswers.filter(a => a.ok).length / finalAnswers.length) * 100) + "%",
       history,
+      ...(missionAttempt ? {
+        attemptId: missionAttempt.attemptId,
+        isReview: missionAttempt.isReview
+      } : {}),
       ...(contentId === CONTENT_IDS.preposition_test ? {
         answerDetails: finalAnswers.map((answer) => ({
           questionId: answer.rawItem?.id || null,
@@ -804,6 +818,7 @@ function App() {
     if (targetItems.length === 0) return alert("問題が選択されていません");
     
     resetQuizState();
+    beginLearningAttempt(contentId, false);
     setQuizItems(targetItems.map(k => ({ 
       id: k.id,
       ja: k.question, 
@@ -1056,6 +1071,7 @@ function App() {
         wrongWordsList={wrongWordsList}
         canStartContent={canStartContent}
         contentId={CONTENT_IDS.junior_english_quiz}
+        beginLearningAttempt={beginLearningAttempt}
       />
 
       <OtherSetupsView 
@@ -1080,6 +1096,7 @@ function App() {
         setShowWrongList={setShowWrongList}
         wrongWordsList={wrongWordsList}
         canStartContent={canStartContent}
+        beginLearningAttempt={beginLearningAttempt}
       />
 
       <HighSchoolView 
@@ -1183,6 +1200,7 @@ function App() {
         title={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? '香川県　覚えるべき漢字（書きver.）' : '漢字テスト 設定'}
         randomAllCount={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 20 : null}
         keepWrongHistory={activeContentId === CONTENT_IDS.camp_kagawa_kanji}
+        beginLearningAttempt={beginLearningAttempt}
       />
 
       <ChemistrySetupView 

@@ -29,7 +29,8 @@ function QuizSetupView({
   setShowWrongList,
   wrongWordsList,
   canStartContent,
-  contentId
+  contentId,
+  beginLearningAttempt
 }) {
   if (step !== 'quiz-setup') return null;
 
@@ -97,6 +98,7 @@ function QuizSetupView({
         if (sIdx === -1 || eIdx === -1) return alert("選択した範囲のデータが見つかりません");
         const range = allData.slice(Math.min(sIdx, eIdx), Math.max(sIdx, eIdx) + 1);
         resetQuizState(); 
+        beginLearningAttempt(contentId, false);
         setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); 
         setStep('quiz-main');
       }}>
@@ -136,6 +138,7 @@ function QuizSetupView({
             if (!canStartContent(contentId)) return;
             const targetItems = wrongWordsList.map(w => w.rawItem);
             resetQuizState();
+            beginLearningAttempt(contentId, true);
             setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));
             setShowWrongList(false);
             setStep('quiz-main');
