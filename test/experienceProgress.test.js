@@ -44,7 +44,7 @@ test('scoreは有限整数かつ0以上total以下だけを受理する', () => 
 });
 
 test('通常対象セットだけscore分XPを一度付与し、復習・対象外・異常値を除外する', () => {
-  const store = createLocalXpVerificationStore();
+  const store = createLocalXpVerificationStore({ withActiveCharacter: true });
   const base = { studentId: 'student', attemptId: 'attempt-1', contentId: 'kanji_test', score: 20, total: 20, isReview: false };
   assert.equal(recordLocalQuizXp({ store, payload: base }).amount, 20);
   assert.equal(recordLocalQuizXp({ store, payload: base }).duplicate, true);
@@ -59,14 +59,14 @@ test('active characterなしではpendingXpへ入り、activeありではLvとst
   recordLocalQuizXp({ store: pendingStore, payload: { studentId: 's', attemptId: 'a', contentId: 'kakitan', score: 42, total: 42, isReview: false } });
   assert.deepEqual(getLocalPlayerProgress(pendingStore), { activeCharacter: null, pendingXp: 42 });
 
-  const activeStore = createLocalXpVerificationStore();
+  const activeStore = createLocalXpVerificationStore({ withActiveCharacter: true });
   recordLocalQuizXp({ store: activeStore, payload: { studentId: 's', attemptId: 'a', contentId: 'kakitan', score: 1140, total: 1140, isReview: false } });
   assert.equal(getLocalPlayerProgress(activeStore).activeCharacter.level, 20);
   assert.equal(getLocalPlayerProgress(activeStore).activeCharacter.stage, 2);
 });
 
 test('ミッション達成XPは日付・mission単位で一度だけ付与する', () => {
-  const store = createLocalXpVerificationStore();
+  const store = createLocalXpVerificationStore({ withActiveCharacter: true });
   const mission = DEFAULT_DAILY_MISSIONS[0];
   const input = { store, studentId: 's', missionDate: '2026-09-02', mission, achievedNow: true };
   recordLocalMissionXp(input);
@@ -77,7 +77,7 @@ test('ミッション達成XPは日付・mission単位で一度だけ付与す�
 });
 
 test('ledger作成後にキャッシュ更新が欠けても再構築でき、XPは二重にならない', () => {
-  const store = createLocalXpVerificationStore();
+  const store = createLocalXpVerificationStore({ withActiveCharacter: true });
   const payload = { studentId: 's', attemptId: 'a', contentId: 'kanji_test', score: 450, total: 450, isReview: false };
   recordLocalQuizXp({ store, payload });
   store.activeCharacter.totalXp = 0;
@@ -90,7 +90,7 @@ test('ledger作成後にキャッシュ更新が欠けても再構築でき、XP
 });
 
 test('Lv100到達後も進行用XPは13860を超えない', () => {
-  const store = createLocalXpVerificationStore();
+  const store = createLocalXpVerificationStore({ withActiveCharacter: true });
   recordLocalQuizXp({ store, payload: { studentId: 's', attemptId: 'max', contentId: 'kanji_test', score: 13860, total: 13860, isReview: false } });
   recordLocalQuizXp({ store, payload: { studentId: 's', attemptId: 'extra', contentId: 'kanji_test', score: 20, total: 20, isReview: false } });
   const character = getLocalPlayerProgress(store).activeCharacter;

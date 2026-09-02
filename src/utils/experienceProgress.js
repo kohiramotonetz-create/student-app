@@ -42,5 +42,17 @@ export const isXpEligibleContent = (contentId) => XP_ELIGIBLE_CONTENT_IDS.includ
 export const createCharacterProgress = (totalXp = 0) => {
   const cappedXp = Math.min(MAX_CHARACTER_XP, Math.max(0, Math.trunc(Number(totalXp) || 0)));
   const level = levelFromXp(cappedXp);
-  return Object.freeze({ totalXp: cappedXp, level, stage: stageFromLevel(level), xpToNext: xpToNextLevel(cappedXp) });
+  const currentLevelXp = xpForLevel(level);
+  const nextLevelXp = level === MAX_CHARACTER_LEVEL ? MAX_CHARACTER_XP : xpForLevel(level + 1);
+  const requiredXp = nextLevelXp - currentLevelXp;
+  const earnedInLevel = cappedXp - currentLevelXp;
+  return Object.freeze({
+    totalXp: cappedXp,
+    level,
+    stage: stageFromLevel(level),
+    xpToNext: xpToNextLevel(cappedXp),
+    currentLevelXp,
+    nextLevelXp,
+    progressPercent: level === MAX_CHARACTER_LEVEL ? 100 : Math.round((earnedInLevel / requiredXp) * 100)
+  });
 };

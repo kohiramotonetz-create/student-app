@@ -1,7 +1,12 @@
 import { MAX_CHARACTER_XP, createCharacterProgress, isXpEligibleContent, validateLearningScore } from './experienceProgress.js';
+import { getCharacterDefinition } from '../constants/characterMaster.js';
 
-export const createLocalXpVerificationStore = ({ withActiveCharacter = true } = {}) => ({
+const createLocalId = () => globalThis.crypto?.randomUUID?.() || `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+export const createLocalSelectionRequestId = () => createLocalId();
+
+export const createLocalXpVerificationStore = ({ withActiveCharacter = false } = {}) => ({
   ledger: new Map(),
+  characterCreationRequests: new Map(),
   pendingXp: 0,
   activeCharacter: withActiveCharacter ? {
     instanceId: 'local-pudding', characterType: 'pudding', totalXp: 0,
@@ -51,6 +56,48 @@ export const recordLocalMissionXp = ({ store, studentId, missionDate, mission, a
   }
   rebuildLocalXpCache(store);
   return { awarded: !duplicate, duplicate, eventKey, amount: duplicate ? 0 : mission.rewardXp };
+};
+
+export const createLocalCharacterInstance = ({
+  store,
+  studentId,
+  characterType,
+  selectionRequestId,
+  createId = createLocalId
+}) => {
+  if (!store || !selectionRequestId) return { created: false, reason: 'MISSING_REQUEST_ID' };
+  const duplicate = store.characterCreationRequests.get(selectionRequestId);
+  if (duplicate) return { created: false, duplicate: true, character: { ...duplicate } };
+  if (!getCharacterDefinition(characterType)) return { created: false, reason: 'INVALID_CHARACTER_TYPE' };
+  if (store.activeCharacter) return { created: false, reason: 'ACTIVE_CHARACTER_EXISTS' };
+
+  rebuildLocalXpCache(store);
+  const earnedXp = store.pendingXp;
+  const progress = createCharacterProgress(earnedXp);
+  const character = {
+    instanceId: createId(), userId: studentId, characterType, ...progress,
+    visualBranch: null, status: 'active', startedAt: 'local-e2e', endedAt: null,
+    totalCorrectCount: [...store.ledger.values()]
+      .filter(({ type }) => type === 'quiz_correct')
+      .reduce((sum, transaction) => sum + transaction.amount, 0),
+    totalEarnedXp: earnedXp, createdAt: 'local-e2e', updatedAt: 'local-e2e'
+  };
+  store.activeCharacter = character;
+  store.pendingXp = 0;
+  store.characterCreationRequests.set(selectionRequestId, character);
+  return { created: true, duplicate: false, character: { ...character } };
+};
+
+export const setLocalXpForVerification = ({ store, studentId, targetXp, requestId = createLocalId() }) => {
+  const current = [...store.ledger.values()].reduce((sum, transaction) => sum + transaction.amount, 0);
+  const normalizedTarget = Math.max(current, Math.trunc(Number(targetXp) || 0));
+  const amount = normalizedTarget - current;
+  if (amount > 0) {
+    const eventKey = `local_xp::${studentId || ''}::${requestId}`;
+    store.ledger.set(eventKey, { eventKey, currency: 'XP', type: 'local_verification', sourceId: requestId, amount });
+  }
+  rebuildLocalXpCache(store);
+  return getLocalPlayerProgress(store);
 };
 
 export const repairLocalXpCache = (store) => {

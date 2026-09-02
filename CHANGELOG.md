@@ -37,6 +37,27 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 育成システム Phase B：キャラクター選択・進化表示（Issue番号未指定）
+
+- 状態: student-app、認証GAS、ログGASへlocal onlyで実装。Production未接続
+- 変更内容:
+  - プリン／ペンギン／太陽の表示用Character Masterと、各キャラ共通のStage 1〜6定義を追加。正式画像は作成せず、差し替え可能なassetKeyと絵文字placeholderを使用
+  - development限定E2Eをキャラ未選択状態から開始し、学習XPをpendingXpへ保持してから確認付きキャラ選択でCharacterInstanceへ移すフローを追加
+  - activeキャラの名前、Lv、累計XP、次Lvまで、進捗バー、stage名、次の進化までをホーム育成カードへ表示
+  - development限定XP境界操作でLv20／40／60／80／100のstage変更を確認可能にした。Production buildには選択・加速・mock操作を表示しない
+  - ログGASへtoken認証済み`getPlayerProgress`／`selectInitialCharacter`、3キャラ検証、selectionRequestId冪等、ScriptLock内作成、pendingXp移管をローカル実装
+  - 認証GASの新規生徒sessionへ`progress:read-own`、`character:read-own`、`character:select-own` scopeを追加
+- CharacterInstance / Spreadsheet影響: 本番実変更なし。正式CharacterInstance未作成、CharacterInstances schemaのselectionRequestId追加もsetup未実行
+- GAS影響: ローカルコードとテストのみ変更。GAS未push・未deploy、Script Property未変更
+- 未実装: 正式画像、交換用pt、連続学習、ゲームオーバー、ショップ、アイテム、アルバム、visualBranch選択、Lv100完了処理
+- test / build / lint: `npm test` 56件成功、`npm run build`成功、新規・関連変更ファイルlint成功。`npm run lint`は既存8件のみ、`git diff --check`成功
+- GASローカル確認: ログGAS `node --check`成功・40件成功、認証GAS `node --check`成功・生徒session 8件成功
+- ローカル確認: 未選択で漢字1セット25XPをpendingへ保持し、プリン選択でCharacterInstanceへ反映。Lv19→20、39→40、Lv60、80、100でStage 1→6とstage名が切り替わることを確認
+- Production確認: 最終buildを`http://127.0.0.1:4177/`で開き、ローカルE2E入口、完了ボタン、キャラ選択、mock XP、XP境界操作が0件であることを確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: Phase Bのlocal checkpoint commitを実施（本項目を含む）
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / 本番通信 / 本番確認: 未実施
+
 ### 育成システム Phase A：XP・Lv基盤（Issue番号未指定）
 
 - 状態: student-appとログGASへlocal onlyで実装。Production未接続

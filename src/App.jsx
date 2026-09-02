@@ -68,9 +68,11 @@ import {
 } from './utils/localDailyMissionVerification';
 import {
   createLocalXpVerificationStore,
+  createLocalCharacterInstance,
   getLocalPlayerProgress,
   recordLocalMissionXp,
-  recordLocalQuizXp
+  recordLocalQuizXp,
+  setLocalXpForVerification
 } from './utils/localXpVerification';
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
@@ -967,6 +969,27 @@ function App() {
     sendResultToGAS(finalAnswers, contentDefinition?.logSheetName, rangeLabel, activeContentId);
   };
 
+  const selectLocalCharacter = (characterType, selectionRequestId) => {
+    if (!isLocalDailyMissionVerification) return { created: false, reason: 'NOT_LOCAL_VERIFICATION' };
+    const result = createLocalCharacterInstance({
+      store: localXpStoreRef.current,
+      studentId: userId,
+      characterType,
+      selectionRequestId
+    });
+    setLocalPlayerProgress(getLocalPlayerProgress(localXpStoreRef.current));
+    return result;
+  };
+
+  const accelerateLocalCharacterXp = (targetXp) => {
+    if (!isLocalDailyMissionVerification) return;
+    setLocalPlayerProgress(setLocalXpForVerification({
+      store: localXpStoreRef.current,
+      studentId: userId,
+      targetXp
+    }));
+  };
+
   const handleChangePassword = async () => {
     if (!newPassword) return alert("入力してください");
     setLoading(true);
@@ -1170,6 +1193,9 @@ function App() {
         permissionsInitialized={permissionsInitialized}
         dailyMissionProgress={dailyMissionProgress}
         localPlayerProgress={localPlayerProgress}
+        isLocalCharacterVerification={isLocalDailyMissionVerification}
+        onSelectLocalCharacter={selectLocalCharacter}
+        onSetLocalCharacterXp={accelerateLocalCharacterXp}
       />
 
       <CampView

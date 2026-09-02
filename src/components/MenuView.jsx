@@ -29,6 +29,12 @@ import {
 } from '../constants/sukimakunContents';
 import { APP_VERSION } from '../constants/version';
 import { getHomeDailyMissionModels } from '../constants/dailyMissions';
+import {
+  CHARACTER_MASTER,
+  getCharacterDefinition,
+  getCharacterStageDefinition
+} from '../constants/characterMaster';
+import { createLocalSelectionRequestId } from '../utils/localXpVerification';
 
 const SUBJECTS = [
   { key: 'english', label: '英語', description: '英単語・文法', icon: Languages, tone: 'blue' },
@@ -57,9 +63,14 @@ function MenuView({
   handleLogout,
   permissionsInitialized,
   dailyMissionProgress,
-  localPlayerProgress
+  localPlayerProgress,
+  isLocalCharacterVerification,
+  onSelectLocalCharacter,
+  onSetLocalCharacterXp
 }) {
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const [showCharacterSelection, setShowCharacterSelection] = useState(false);
+  const [pendingCharacterSelection, setPendingCharacterSelection] = useState(null);
 
   if (step !== 'menu') return null;
 
@@ -105,6 +116,27 @@ function MenuView({
 
   const selectedSubjectDefinition = SUBJECTS.find(({ key }) => key === selectedSubject);
   const selectedContents = selectedSubject ? contentsBySubject[selectedSubject] : [];
+  const activeCharacter = localPlayerProgress?.activeCharacter || null;
+  const activeCharacterDefinition = getCharacterDefinition(activeCharacter?.characterType);
+  const activeStageDefinition = getCharacterStageDefinition(activeCharacter?.characterType, activeCharacter?.stage);
+  const nextEvolution = activeCharacterDefinition?.stages.find(({ minLevel }) => minLevel > activeCharacter.level) || null;
+
+  const chooseCharacter = (characterType) => {
+    const requestId = createLocalSelectionRequestId();
+    setPendingCharacterSelection({ characterType, requestId });
+  };
+
+  const confirmCharacter = () => {
+    if (!pendingCharacterSelection || !onSelectLocalCharacter) return;
+    const result = onSelectLocalCharacter(
+      pendingCharacterSelection.characterType,
+      pendingCharacterSelection.requestId
+    );
+    if (result?.created || result?.duplicate) {
+      setPendingCharacterSelection(null);
+      setShowCharacterSelection(false);
+    }
+  };
 
   return (
     <div className="student-home" data-permissions-initialized={permissionsInitialized}>
@@ -125,7 +157,36 @@ function MenuView({
         </div>
       </header>
 
-      {selectedSubjectDefinition ? (
+      {showCharacterSelection && isLocalCharacterVerification ? (
+        <main className="student-home__subject-view student-home__character-view" data-local-character-selection="true">
+          <button className="student-home__back" type="button" onClick={() => { setPendingCharacterSelection(null); setShowCharacterSelection(false); }}><ArrowLeft />ホームへ戻る</button>
+          <section className="student-home__panel student-home__content-panel">
+            <div className="student-home__section-heading">
+              <span className="student-home__section-number"><Sparkles aria-hidden="true" /></span>
+              <div><h2>育てるキャラクターを選ぼう</h2><p>性能はすべて同じです。好きな見た目を選んでください。</p></div>
+            </div>
+            <div className="student-home__character-grid">
+              {CHARACTER_MASTER.map((character) => (
+                <article className="student-home__character-option" key={character.characterType}>
+                  <span className="student-home__character-placeholder" aria-hidden="true">{character.placeholder}</span>
+                  <small>{character.themeLabel}</small>
+                  <h3>{character.label}</h3>
+                  <p>{character.description}</p>
+                  <button type="button" onClick={() => chooseCharacter(character.characterType)}>このキャラを育てる</button>
+                </article>
+              ))}
+            </div>
+            {pendingCharacterSelection && (() => {
+              const character = getCharacterDefinition(pendingCharacterSelection.characterType);
+              return <div className="student-home__character-confirm" role="dialog" aria-modal="true" aria-label="キャラクター選択の確認">
+                <strong>{character?.label}を育てますか？</strong>
+                <p>育成開始後は、育成完了またはゲームオーバーまで変更できません。</p>
+                <div><button type="button" className="secondary" onClick={() => setPendingCharacterSelection(null)}>戻る</button><button type="button" onClick={confirmCharacter}>{character?.label}を育てる</button></div>
+              </div>;
+            })()}
+          </section>
+        </main>
+      ) : selectedSubjectDefinition ? (
         <main className="student-home__subject-view">
           <button className="student-home__back" type="button" onClick={() => setSelectedSubject(null)}><ArrowLeft />ホームへ戻る</button>
           <section className="student-home__panel student-home__content-panel">
@@ -194,10 +255,25 @@ function MenuView({
           <div className="student-home__lower-grid">
             <section className="student-home__panel student-home__future-card">
               <div className="student-home__section-heading"><span className="student-home__section-number">3</span><div><h2>育成・ごほうび</h2><p>学習を続ける楽しみを増やします。</p></div></div>
-              {localPlayerProgress?.activeCharacter ? (
-                <div className="student-home__future-body" data-local-xp-verification="true"><Gift /><div>
-                  <strong>ローカル育成確認: Lv.{localPlayerProgress.activeCharacter.level} / Stage {localPlayerProgress.activeCharacter.stage}</strong>
-                  <p>XP {localPlayerProgress.activeCharacter.totalXp} / 次のLvまで {localPlayerProgress.activeCharacter.xpToNext}</p>
+              {activeCharacter && activeCharacterDefinition ? (
+                <div className="student-home__character-summary" data-local-xp-verification="true">
+                  <span className="student-home__character-placeholder" aria-hidden="true">{activeCharacterDefinition.placeholder}</span>
+                  <div className="student-home__character-copy">
+                    <strong>{activeCharacterDefinition.label} Lv.{activeCharacter.level}</strong>
+                    <span>{activeStageDefinition?.label} / Stage {activeCharacter.stage}</span>
+                    <div className="student-home__xp-track" role="progressbar" aria-label="現在レベルのXP進捗" aria-valuemin="0" aria-valuemax="100" aria-valuenow={activeCharacter.progressPercent}><span style={{ width: `${activeCharacter.progressPercent}%` }} /></div>
+                    <small>累計 {activeCharacter.totalXp} XP ・ 次のLvまで {activeCharacter.xpToNext} XP</small>
+                    <small>{nextEvolution ? `次の進化まであと${nextEvolution.minLevel - activeCharacter.level}Lv` : 'Stage 6・最終進化'}</small>
+                  </div>
+                  {isLocalCharacterVerification && <div className="student-home__xp-tools" aria-label="ローカルXP確認操作">
+                    {[1139, 1140, 3119, 3120, 5899, 5900, 9479, 9480, 13859, 13860].map((xp) => <button type="button" key={xp} onClick={() => onSetLocalCharacterXp?.(xp)}>{xp.toLocaleString()}XP</button>)}
+                  </div>}
+                </div>
+              ) : isLocalCharacterVerification ? (
+                <div className="student-home__future-body" data-local-character-empty="true"><Gift /><div>
+                  <strong>まだキャラクターがいません</strong>
+                  <p>貯まっているXP: {localPlayerProgress?.pendingXp || 0} XP</p>
+                  <button type="button" onClick={() => setShowCharacterSelection(true)}>キャラクターを選ぶ</button>
                 </div></div>
               ) : (
                 <div className="student-home__future-body"><Gift /><div><strong>キャラクター・ごほうび機能は準備中</strong><p>ポイントやレベルなどの実データはまだ表示していません。</p></div></div>
@@ -211,7 +287,7 @@ function MenuView({
         </main>
       )}
 
-      {!selectedSubject && <nav className="student-home__glass-nav" aria-label="ホームナビゲーション">
+      {!selectedSubject && !showCharacterSelection && <nav className="student-home__glass-nav" aria-label="ホームナビゲーション">
         {NAV_ITEMS.map(({ label, icon: Icon, active }) => <button key={label} type="button" className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} disabled={!active} aria-label={active ? label : `${label}（準備中）`}>{React.createElement(Icon)}<span>{label}</span></button>)}
       </nav>}
       <span className="student-home__version">Version {APP_VERSION}</span>

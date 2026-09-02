@@ -524,6 +524,28 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .student-home__future-body > svg { width: 29px; flex: 0 0 29px; color: #8b5cf6; }
 .student-home__future-body strong { display: block; color: var(--home-navy); font-size: .78rem; }
 .student-home__future-body p { color: var(--home-muted); font-size: .69rem; }
+.student-home__future-body button,
+.student-home__character-option button,
+.student-home__character-confirm button { padding: 7px 11px; border: 1px solid #b8d4ff; border-radius: 10px; color: #16428d; background: #fff; font-size: .7rem; font-weight: 750; cursor: pointer; }
+.student-home__character-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+.student-home__character-option { display: grid; justify-items: center; gap: 7px; padding: 18px 14px; border: 1px solid var(--home-border); border-radius: 18px; background: linear-gradient(145deg, #fff, #f5f9ff); text-align: center; }
+.student-home__character-option h3 { margin: 0; color: var(--home-navy); }
+.student-home__character-option p { min-height: 42px; color: var(--home-muted); font-size: .72rem; line-height: 1.5; }
+.student-home__character-option small { color: var(--home-blue); font-weight: 750; }
+.student-home__character-placeholder { display: grid; place-items: center; width: 62px; height: 62px; flex: 0 0 62px; border: 1px solid #c7daf4; border-radius: 22px; background: linear-gradient(145deg, #fff, #eaf3ff); font-size: 2rem; box-shadow: 0 7px 16px rgba(42,87,150,.1); }
+.student-home__character-confirm { max-width: 520px; margin: 16px auto 0; padding: 15px; border: 1px solid #b8d4ff; border-radius: 15px; background: #f4f8ff; text-align: center; }
+.student-home__character-confirm strong { color: var(--home-navy); }
+.student-home__character-confirm p { margin: 5px 0 11px; color: var(--home-muted); font-size: .72rem; }
+.student-home__character-confirm > div { display: flex; justify-content: center; gap: 8px; }
+.student-home__character-summary { display: grid; grid-template-columns: 62px minmax(0, 1fr); align-items: center; gap: 12px; margin-top: 11px; padding: 11px 14px; border-radius: 14px; background: linear-gradient(120deg, #f7faff, #f2f8f6); }
+.student-home__character-copy { display: grid; gap: 3px; min-width: 0; }
+.student-home__character-copy strong { color: var(--home-navy); font-size: .86rem; }
+.student-home__character-copy span { color: #566883; font-size: .7rem; font-weight: 750; }
+.student-home__character-copy small { color: var(--home-muted); font-size: .64rem; }
+.student-home__xp-track { overflow: hidden; height: 7px; margin: 3px 0; border-radius: 999px; background: #dce7f5; }
+.student-home__xp-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #3b82f6, #22c55e); transition: width .2s ease; }
+.student-home__xp-tools { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 5px; padding-top: 7px; border-top: 1px dashed #c8d8eb; }
+.student-home__xp-tools button { padding: 5px 7px; border: 1px solid #c4d5eb; border-radius: 8px; color: #53647e; background: #fff; font-size: .58rem; cursor: pointer; }
 
 .student-home__glass-nav { position: fixed; z-index: 20; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(5, minmax(82px, 1fr)); gap: 5px; width: min(720px, calc(100vw - 28px)); padding: 8px; border: 1px solid rgba(255,255,255,.72); border-radius: 999px; background: rgba(241,247,255,.9); box-shadow: 0 14px 38px rgba(30,64,114,.18), inset 0 1px 0 rgba(255,255,255,.9); -webkit-backdrop-filter: blur(18px) saturate(135%); backdrop-filter: blur(18px) saturate(135%); transform: translateX(-50%); }
 .student-home__glass-nav button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 46px; padding: 7px 9px; border: 0; border-radius: 999px; color: #7b8493; background: transparent; font-size: .73rem; }
@@ -572,6 +594,10 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
   .student-home__ready { font-size: 0; padding: 7px; }
   .student-home__ready svg { width: 15px; }
   .student-home__subjects { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .student-home__character-grid { grid-template-columns: 1fr; }
+  .student-home__character-option p { min-height: 0; }
+  .student-home__character-summary { grid-template-columns: 52px minmax(0, 1fr); }
+  .student-home__character-placeholder { width: 52px; height: 52px; flex-basis: 52px; border-radius: 17px; font-size: 1.65rem; }
   .student-home__subject { min-height: 112px; }
   .student-home__content-list { grid-template-columns: 1fr; }
   .student-home__mission-card { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 9px; padding: 11px; }
