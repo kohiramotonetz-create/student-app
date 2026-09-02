@@ -37,6 +37,28 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 育成システム Phase E1：ショップ・購入・所持アイテム基盤（Issue番号未指定）
+
+- 状態: student-app、認証GAS、ログGASへlocal onlyで実装。Production未接続
+- 変更内容:
+  - 共通20件・キャラ専用9件の表示用ItemMasterをstudent-appへ追加し、ログGAS側の同一itemId定義を購入価格・購入可否の正本として追加
+  - OwnedItems schema、player所有の`userId::itemId`、購入時pricePaid、source/sourceIdを追加
+  - `purchaseRequestId`由来eventKeyでEconomyLedgerへ負数PTを一度だけ記録し、pointBalanceを台帳から再構築する購入基盤を追加
+  - Ledger作成後にOwnedItems書き込みが欠けたpartial failureを再送で修復し、既所有・同一request・残高不足・キャラ条件不一致を二重課金なしで処理
+  - `getShopItems`と`purchaseItem`をstudent session token必須actionとして追加し、認証GASの新規session scopeへ`shop:read`と`points:spend-own`を追加
+  - development限定ショップで所持pt、価格、共通／専用、所有済み、ポイント不足、対象キャラ条件を確認可能にした
+- ItemMaster保存方式: Phase E1はGASコード定数を価格正本とする。将来gyoumu-app管理に移行する際は`getShopItems`の返却契約を維持してSpreadsheet masterへ移行可能
+- Spreadsheet影響: 本番実変更なし。OwnedItems schemaとsetup helperは追加したがsetup未実行
+- GAS影響: ローカルコードとテストのみ変更。GAS未push・未deploy、Script Property未変更
+- 未実装: 装備、見た目反映、進化限定商品の正式購入、visualBranch、アルバム、Lv100育成完了、正式画像
+- test / build / lint: `npm test` 80件成功、`npm run build`成功、変更対象lintは新規エラーなし。`npm run lint`は既存8件のみ、`git diff --check`成功
+- GASローカル確認: ログGAS `node --check`成功・54件成功、認証GAS `node --check`成功・8件成功
+- ローカル確認: `http://127.0.0.1:5176/`で500pt開始、丸メガネ購入後400pt・所有済み、プリン専用品、他キャラ条件、game over後の共通／専用品条件、console errorなしを確認。外部API通信なし
+- Production確認: buildを`http://127.0.0.1:4181/`で開き、ローカルE2E入口、ショップ、pt付与、購入ボタンが0件であることを確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: `feat: add shop and item purchase foundation`でlocal checkpoint化
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / setup / Spreadsheet変更 / 本番通信 / 本番確認: 未実施
+
 ### 育成システム Phase D：未学習状態・ゲームオーバー（Issue番号未指定）
 
 - 状態: student-appとログGASへlocal onlyで実装。Production未接続

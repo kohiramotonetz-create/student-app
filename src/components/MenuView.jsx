@@ -66,15 +66,19 @@ function MenuView({
   permissionsInitialized,
   dailyMissionProgress,
   localPlayerProgress,
+  localShopItems,
   isLocalCharacterVerification,
   onSelectLocalCharacter,
   onSetLocalCharacterXp,
   onAdvanceLocalStreak,
-  onCompleteLocalCareLearning
+  onCompleteLocalCareLearning,
+  onPurchaseLocalItem,
+  onAddLocalShopPoints
 }) {
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [showCharacterSelection, setShowCharacterSelection] = useState(false);
   const [pendingCharacterSelection, setPendingCharacterSelection] = useState(null);
+  const [showShop, setShowShop] = useState(false);
 
   if (step !== 'menu') return null;
 
@@ -174,7 +178,27 @@ function MenuView({
         </div>
       </header>
 
-      {showCharacterSelection && isLocalCharacterVerification ? (
+      {showShop && isLocalCharacterVerification ? (
+        <main className="student-home__subject-view student-home__shop-view" data-local-shop="true">
+          <button className="student-home__back" type="button" onClick={() => setShowShop(false)}><ArrowLeft />ホームへ戻る</button>
+          <section className="student-home__panel student-home__content-panel">
+            <div className="student-home__section-heading"><span className="student-home__section-number"><Gift /></span><div><h2>アイテムショップ</h2><p>所持ポイント: {localPlayerProgress?.pointBalance || 0}pt</p></div></div>
+            <div className="student-home__shop-tools"><button type="button" onClick={() => onAddLocalShopPoints?.()}>確認用 +500pt</button></div>
+            <div className="student-home__shop-grid">
+              {(localShopItems || []).map((item) => (
+                <article className="student-home__shop-item" key={item.itemId} data-shop-item={item.itemId}>
+                  <small>{item.category} / {item.itemType === 'common' ? '共通' : 'キャラ専用'}</small>
+                  <strong>{item.label}</strong>
+                  <span>{item.price.toLocaleString()}pt</span>
+                  {item.owned ? <b>所有済み</b> : <button type="button" disabled={!item.purchasable} onClick={() => onPurchaseLocalItem?.(item.itemId)}>
+                    {item.reason === 'insufficient_points' ? 'ポイント不足' : item.reason === 'character_required' ? '育成中の対象キャラが必要' : '購入する'}
+                  </button>}
+                </article>
+              ))}
+            </div>
+          </section>
+        </main>
+      ) : showCharacterSelection && isLocalCharacterVerification ? (
         <main className="student-home__subject-view student-home__character-view" data-local-character-selection="true">
           <button className="student-home__back" type="button" onClick={() => { setPendingCharacterSelection(null); setShowCharacterSelection(false); }}><ArrowLeft />ホームへ戻る</button>
           <section className="student-home__panel student-home__content-panel">
@@ -285,6 +309,7 @@ function MenuView({
                   </div>
                   {activeCharacter.status === 'game_over' && <div className="student-home__game-over" role="status"><strong>育成終了</strong><span>このキャラクターの育成は終了しました。</span><button type="button" disabled>次のキャラクター機能は準備中</button></div>}
                   {isLocalCharacterVerification && <div className="student-home__xp-tools" aria-label="ローカルXP・未学習状態確認操作">
+                    <button type="button" onClick={() => setShowShop(true)}>ショップを見る</button>
                     {[1139, 1140, 3119, 3120, 5899, 5900, 9479, 9480, 13859, 13860].map((xp) => <button type="button" key={xp} onClick={() => onSetLocalCharacterXp?.(xp)}>{xp.toLocaleString()}XP</button>)}
                     <button type="button" onClick={() => onAdvanceLocalStreak?.(1, true)}>翌日を学習</button>
                     <button type="button" onClick={() => onAdvanceLocalStreak?.(1, false)}>1日休む</button>
@@ -297,6 +322,7 @@ function MenuView({
                   <strong>まだキャラクターがいません</strong>
                   <p>貯まっているXP: {localPlayerProgress?.pendingXp || 0} XP</p>
                   <button type="button" onClick={() => setShowCharacterSelection(true)}>キャラクターを選ぶ</button>
+                  <button type="button" onClick={() => setShowShop(true)}>ショップを見る</button>
                 </div></div>
               ) : (
                 <div className="student-home__future-body"><Gift /><div><strong>キャラクター・ごほうび機能は準備中</strong><p>ポイントやレベルなどの実データはまだ表示していません。</p></div></div>

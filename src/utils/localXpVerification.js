@@ -14,6 +14,7 @@ export const createLocalSelectionRequestId = () => createLocalId();
 
 export const createLocalXpVerificationStore = ({ withActiveCharacter = false } = {}) => ({
   ledger: new Map(),
+  ownedItems: new Map(),
   characterCreationRequests: new Map(),
   completedAttempts: new Set(),
   learningDates: new Set(),

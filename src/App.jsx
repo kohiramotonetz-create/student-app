@@ -75,6 +75,12 @@ import {
   recordLocalQuizXp,
   setLocalXpForVerification
 } from './utils/localXpVerification';
+import {
+  createLocalPurchaseRequestId,
+  getLocalShopItems,
+  grantLocalPointsForVerification,
+  purchaseLocalShopItem
+} from './utils/localShopVerification';
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
@@ -125,6 +131,7 @@ function App() {
   const [studentSessionToken, setStudentSessionToken] = useState('');
   const [dailyMissionProgress, setDailyMissionProgress] = useState(null);
   const [localPlayerProgress, setLocalPlayerProgress] = useState(null);
+  const [localShopItems, setLocalShopItems] = useState([]);
   const [isLocalPrepositionVerification, setIsLocalPrepositionVerification] = useState(false);
   const [isLocalDailyMissionVerification, setIsLocalDailyMissionVerification] = useState(false);
   const localPrepositionLogsRef = useRef([]);
@@ -236,6 +243,7 @@ function App() {
     setStudentSessionToken(nextToken);
     setDailyMissionProgress(null);
     setLocalPlayerProgress(null);
+    setLocalShopItems([]);
     return nextToken;
   };
 
@@ -943,7 +951,9 @@ function App() {
     localPrepositionLogsRef.current = [];
     localDailyMissionStoreRef.current = createLocalDailyMissionVerificationStore();
     localXpStoreRef.current = createLocalXpVerificationStore();
+    grantLocalPointsForVerification({ store: localXpStoreRef.current, studentId: 'local-daily-mission-verification', amount: 500 });
     setLocalPlayerProgress(getLocalPlayerProgress(localXpStoreRef.current));
+    setLocalShopItems(getLocalShopItems({ store: localXpStoreRef.current, studentId: 'local-daily-mission-verification' }));
     setDailyMissionProgress(indexDailyMissionProgress(getLocalDailyMissionProgress({
       store: localDailyMissionStoreRef.current,
       allowedContentIds: localContentIds
@@ -979,6 +989,7 @@ function App() {
       selectionRequestId
     });
     setLocalPlayerProgress(getLocalPlayerProgress(localXpStoreRef.current));
+    setLocalShopItems(getLocalShopItems({ store: localXpStoreRef.current, studentId: userId }));
     return result;
   };
 
@@ -999,6 +1010,7 @@ function App() {
       days,
       learn
     }));
+    setLocalShopItems(getLocalShopItems({ store: localXpStoreRef.current, studentId: userId }));
   };
 
   const completeLocalCareLearning = () => {
@@ -1017,6 +1029,24 @@ function App() {
       }
     });
     setLocalPlayerProgress(getLocalPlayerProgress(store));
+    setLocalShopItems(getLocalShopItems({ store, studentId: userId }));
+  };
+
+  const purchaseLocalItem = (itemId, purchaseRequestId = createLocalPurchaseRequestId()) => {
+    if (!isLocalDailyMissionVerification) return { result: 'error', reason: 'not_local' };
+    const store = localXpStoreRef.current;
+    const result = purchaseLocalShopItem({ store, studentId: userId || 'local-e2e', itemId, purchaseRequestId });
+    setLocalPlayerProgress(getLocalPlayerProgress(store));
+    setLocalShopItems(getLocalShopItems({ store, studentId: userId || 'local-e2e' }));
+    return result;
+  };
+
+  const addLocalShopPoints = () => {
+    if (!isLocalDailyMissionVerification) return;
+    const store = localXpStoreRef.current;
+    grantLocalPointsForVerification({ store, studentId: userId || 'local-e2e', amount: 500, requestId: createLocalPurchaseRequestId() });
+    setLocalPlayerProgress(getLocalPlayerProgress(store));
+    setLocalShopItems(getLocalShopItems({ store, studentId: userId || 'local-e2e' }));
   };
 
   const handleChangePassword = async () => {
@@ -1222,11 +1252,14 @@ function App() {
         permissionsInitialized={permissionsInitialized}
         dailyMissionProgress={dailyMissionProgress}
         localPlayerProgress={localPlayerProgress}
+        localShopItems={localShopItems}
         isLocalCharacterVerification={isLocalDailyMissionVerification}
         onSelectLocalCharacter={selectLocalCharacter}
         onSetLocalCharacterXp={accelerateLocalCharacterXp}
         onAdvanceLocalStreak={advanceLocalStreak}
         onCompleteLocalCareLearning={completeLocalCareLearning}
+        onPurchaseLocalItem={purchaseLocalItem}
+        onAddLocalShopPoints={addLocalShopPoints}
       />
 
       <CampView

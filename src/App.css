@@ -542,6 +542,14 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .student-home__care-status { font-weight: 700; color: #475569; }
 .student-home__game-over { display: grid; gap: 4px; min-width: 210px; padding: 10px; border-radius: 14px; background: rgba(255,255,255,.78); color: #334155; }
 .student-home__game-over button { margin-top: 4px; }
+.student-home__shop-tools { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+.student-home__shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.student-home__shop-item { display: grid; gap: 6px; padding: 13px; border: 1px solid #d7e3f2; border-radius: 15px; background: #fff; }
+.student-home__shop-item small { color: #64748b; }
+.student-home__shop-item strong { color: var(--home-navy); }
+.student-home__shop-item > span { font-weight: 800; color: #2563eb; }
+.student-home__shop-item > b { color: #15803d; }
+.student-home__shop-item button:disabled { opacity: .62; }
 .student-home__character-confirm { max-width: 520px; margin: 16px auto 0; padding: 15px; border: 1px solid #b8d4ff; border-radius: 15px; background: #f4f8ff; text-align: center; }
 .student-home__character-confirm strong { color: var(--home-navy); }
 .student-home__character-confirm p { margin: 5px 0 11px; color: var(--home-muted); font-size: .72rem; }
