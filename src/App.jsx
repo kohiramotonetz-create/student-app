@@ -36,7 +36,12 @@ import {
   getPrepositionModeLabel,
   isPrepositionAnswerCorrect
 } from './utils/prepositionQuiz';
-import { createDailyMissionAttempt } from './utils/dailyMissionAttempt';
+import {
+  cancelLearningAttempt as clearLearningAttempt,
+  completeLearningAttempt,
+  createLearningAttempt,
+  getLearningAttemptPayload
+} from './utils/learningAttempt';
 import { isDailyMissionContent } from './constants/dailyMissions';
 import { APP_VERSION } from './constants/version';
 import {
@@ -114,7 +119,7 @@ function App() {
   const [isLocalDailyMissionVerification, setIsLocalDailyMissionVerification] = useState(false);
   const localPrepositionLogsRef = useRef([]);
   const localDailyMissionStoreRef = useRef(createLocalDailyMissionVerificationStore());
-  const dailyMissionAttemptRef = useRef(null);
+  const learningAttemptRef = useRef(null);
   
   const [allData, setAllData] = useState([]); 
   const [fukisokuData, setFukisokuData] = useState([]);
@@ -180,6 +185,7 @@ function App() {
       return false;
     }
     setPermissionError('');
+    learningAttemptRef.current = clearLearningAttempt();
     setActiveContentId(contentId);
     setStep(nextStep);
     return true;
@@ -445,7 +451,11 @@ function App() {
   };
 
   const beginLearningAttempt = (contentId, isReview = false) => {
-    dailyMissionAttemptRef.current = createDailyMissionAttempt(contentId, isReview);
+    learningAttemptRef.current = createLearningAttempt(contentId, isReview);
+  };
+
+  const cancelLearningAttempt = () => {
+    learningAttemptRef.current = clearLearningAttempt();
   };
 
   const handleLogout = () => {
@@ -473,7 +483,7 @@ function App() {
     setIsLocalDailyMissionVerification(false);
     localPrepositionLogsRef.current = [];
     localDailyMissionStoreRef.current = createLocalDailyMissionVerificationStore();
-    dailyMissionAttemptRef.current = null;
+    cancelLearningAttempt();
     setSelectedBook({ name: '', data: [] });
     setIsKobunMode(false);
     setIsFukisokuMode(false);
@@ -638,9 +648,9 @@ function App() {
       return;
     }
 
-    const missionAttempt = dailyMissionAttemptRef.current?.contentId === contentId
-      ? dailyMissionAttemptRef.current
-      : null;
+    const completedAttempt = completeLearningAttempt(learningAttemptRef.current, contentId);
+    if (completedAttempt) learningAttemptRef.current = completedAttempt;
+    const attemptPayload = getLearningAttemptPayload(completedAttempt, contentId);
     const payload = addStudentSessionToken({
       action: "saveLog", 
       contentId,
@@ -654,10 +664,7 @@ function App() {
       total: finalAnswers.length,
       percentage: Math.round((finalAnswers.filter(a => a.ok).length / finalAnswers.length) * 100) + "%",
       history,
-      ...(missionAttempt ? {
-        attemptId: missionAttempt.attemptId,
-        isReview: missionAttempt.isReview
-      } : {}),
+      ...(attemptPayload || {}),
       ...(contentId === CONTENT_IDS.preposition_test ? {
         answerDetails: finalAnswers.map((answer) => ({
           questionId: answer.rawItem?.id || null,
@@ -1160,6 +1167,7 @@ function App() {
         setShowWrongList={setShowWrongList}
         wrongWordsList={wrongWordsList}
         canStartContent={canStartContent}
+        beginLearningAttempt={beginLearningAttempt}
       />
 
       <PrepositionTestView
@@ -1178,6 +1186,7 @@ function App() {
         wrongWordsList={wrongWordsList}
         setIsReviewMode={setIsPrepositionReviewMode}
         canStartContent={canStartContent}
+        beginLearningAttempt={beginLearningAttempt}
       />
 
       <TestSetupView 
@@ -1330,6 +1339,7 @@ function App() {
         gradeCampQuiz={gradeCampQuiz}
         showLocalMissionCompletion={isLocalDailyMissionVerification && isDailyMissionContent(activeContentId)}
         completeLocalMissionSet={completeLocalMissionSet}
+        cancelLearningAttempt={cancelLearningAttempt}
       />
 
       <KanjiTestView 
@@ -1371,6 +1381,7 @@ function App() {
         randomAllCount={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 20 : null}
         keepWrongHistory={activeContentId === CONTENT_IDS.camp_kagawa_kanji}
         beginLearningAttempt={beginLearningAttempt}
+        cancelLearningAttempt={cancelLearningAttempt}
         showLocalMissionCompletion={isLocalDailyMissionVerification && activeContentId === CONTENT_IDS.kanji_test}
         completeLocalMissionSet={completeLocalMissionSet}
       />
@@ -1384,6 +1395,7 @@ function App() {
         QUESTION_COUNT={QUESTION_COUNT}
         canStartContent={canStartContent}
         contentId={CONTENT_IDS.chemistry_formulas}
+        beginLearningAttempt={beginLearningAttempt}
       />
 
       <ChemistryPlayView 

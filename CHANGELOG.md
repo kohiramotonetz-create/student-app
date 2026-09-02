@@ -37,6 +37,26 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 小・中学生教材の共通attempt lifecycle（Phase 0・Issue番号未指定）
+
+- 状態: student-appへローカル実装。XP・Lv・pt・キャラクター・ショップおよびGASのLearningAttemptsは未実装
+- 変更内容:
+  - アプリ内でscore／totalが確定する小・中学生向け10教材を、デイリーミッション専用ではない共通learning attempt対象として明示
+  - 実際の問題セット開始時に教材ごとのattemptIdと明示的なisReviewを保持し、正常完了してsaveLogへ進む時だけ同じattemptIdをpayloadへ追加
+  - 前置詞、化学、合宿理科・社会へ共通attempt開始を追加し、古文・合宿漢字を含む既存開始処理も共通契約へ接続
+  - 中断、別教材への遷移、logoutでは未完了attemptを破棄。reloadではReact stateが復元されないため未完了扱いを維持
+  - 紙テスト作成はアプリ内採点・完了ログを持たないためattempt対象外
+  - 既存デイリーミッション4教材、復習除外、同一attempt重複除外、development限定ローカルE2Eの契約を維持
+- CSV影響: なし
+- Gemini影響: なし。既存の一次判定・Gemini判定・一括判定に変更なし
+- GAS / Spreadsheet影響: 変更なし。将来のLearningAttemptsへ渡せるattemptId／contentId／isReview／score／total契約をstudent-app側で準備
+- test結果: 2026-09-02 `npm test` 成功（43件。共通attempt対象10教材、通常／復習、セット間ID更新、完了・中断・教材不一致、既存デイリーミッションE2Eを含む）
+- build結果: 2026-09-02 `npm run build` 成功。production previewでdevelopment限定E2E入口が非表示であることを確認
+- lint結果: 変更対象lint成功。`npm run lint`は既存8件（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）のみで失敗し、今回追加エラーなし
+- ローカル確認: `http://localhost:5173/`で外部通信なしの漢字E2E 1/3→2/3→3/3・達成表示、前置詞の通常セット開始、reloadによる未完了終了、console errorなしを確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit / Push / mainマージ / Vercel / clasp push / GASデプロイ / 本番確認: 未実施
+
 ### 生徒session認証基盤（Issue番号未指定）
 
 - 状態: student-app、認証GAS、ログGASへローカル実装。GAS未push・未deploy、認証Spreadsheet未変更のため本番未接続

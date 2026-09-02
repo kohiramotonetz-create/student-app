@@ -43,6 +43,7 @@ function KanjiTestView({
   randomAllCount = null,
   keepWrongHistory = false,
   beginLearningAttempt,
+  cancelLearningAttempt,
   showLocalMissionCompletion = false,
   completeLocalMissionSet
 }) {
@@ -283,6 +284,7 @@ function KanjiTestView({
                 setStrokes([]); 
                 clearKanjiCanvas();
                 setQuizAnswers([]); 
+                cancelLearningAttempt();
                 setStep(returnStep);
               }
             }}

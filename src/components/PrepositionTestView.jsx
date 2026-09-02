@@ -24,7 +24,8 @@ function PrepositionTestView({
   setShowWrongList,
   wrongWordsList,
   setIsReviewMode,
-  canStartContent
+  canStartContent,
+  beginLearningAttempt
 }) {
   if (step !== 'preposition-setup') return null;
   const content = getContentDefinition(contentId);
@@ -37,6 +38,7 @@ function PrepositionTestView({
     setSelectedBook({ name: content.displayName, data, contentId });
     setQuizItems(selectPrepositionItems(items));
     setShowWrongList(false);
+    beginLearningAttempt(contentId, isReviewMode);
     setStep('quiz-main');
   };
 

@@ -23,6 +23,7 @@ function QuizPlayView({
   quizAnswers,
   resetQuizState,
   setSelectedBook,
+  cancelLearningAttempt,
   isCampBatchQuiz,
   isCampGrading,
   moveCampQuestion,
@@ -174,6 +175,7 @@ function QuizPlayView({
           <button className="secondary" onClick={() => {
             const returnStep = selectedBook.contentId?.startsWith('camp_') ? 'camp-menu' : 'menu';
             resetQuizState();
+            cancelLearningAttempt();
             setSelectedBook({ name: '', data: [] });
             setStep(returnStep);
           }}>{selectedBook.contentId?.startsWith('camp_') ? '合宿メニューへ戻る' : 'メニューへ戻る'}</button>
