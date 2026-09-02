@@ -37,6 +37,46 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 小・中学生向けホーム画面刷新（Issue番号未指定）
+
+- 状態: React実装、純粋関数テスト、build、変更箇所lint、PC・tablet・mobileのローカルブラウザ確認まで完了。本番連携確認は未実施
+- 変更内容:
+  - 小・中学生向けホームを、学習開始を主役とする横長カードUIへ刷新
+  - 英語・国語・理科・社会を明示的なcontentId配列で表示分類し、`isContentAllowed` を通過した教材だけを件数と科目別一覧へ反映
+  - 合宿3教材の既存 `menuGroup: 'camp'` を維持したまま、表示上のみ国語・理科・社会へ分類
+  - 合宿権限がある場合だけ特別モードを表示し、既存 `camp-menu` へ遷移
+  - 高校生教材を小・中学生の件数から除外し、権限がある場合の既存高校生モード入口を控えめに維持
+  - 科目別教材一覧は `MenuView` 内stateで切り替え、教材開始時は既存 `openContent` と書き単・古文・不規則変化の状態初期化を継続利用
+  - ミッション、連続学習、ポイント、育成・ごほうび、最近の学習・復習は、実データを装う数値を出さない「準備中」UIとして追加
+  - Liquid Glass風下部ナビをホーム概要だけに表示。ホームのみ活性、記録・ランキング・キャラクター・設定は視覚上およびアクセシビリティ上disabled
+  - lucide-reactの学習アイコンを正式キャラクター素材提供前の控えめな代替として使用
+  - ホーム専用CSSへスコープし、PC 5列、tablet 3列、mobile 1〜2列、safe area、backdrop-filter fallback、`prefers-reduced-motion` に対応
+- CSV影響: なし。CSVファイル、列構成、読込処理に変更なし
+- Gemini影響: なし。採点コード、呼び出し条件、回数に変更なし。外部Gemini API実通信なし
+- GAS影響: なし。GASソース、保存payload、`saveLog`、`getLogs` に変更なし。GAS実通信なし
+- 既存機能影響: `App.jsx`、認証、通常ログイン、uid/tk SSO、CSV読込、採点、ログ保存、復習、CampView、HighSchoolViewは変更なし。教材遷移は既存 `openContent` を再利用
+- test結果: 2026-09-02 `npm test` 成功（24件。科目分類の11件・重複なし・存在確認・高校生ID除外・権限別件数・空権限を含む）
+- build結果: 2026-09-02 `npm run build` 成功
+- lint結果: 2026-09-02 変更3コードファイルの対象lint成功。`npm run lint` は既存8件（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）で失敗し、今回追加コードの新規エラーなし
+- `git diff --check`: 2026-09-02 成功
+- ローカル確認: `C:\Users\netz\student-app` で `npm run dev -- --host 127.0.0.1` を実行し、`http://127.0.0.1:5173/` を確認。development限定の既存ローカル確認入口を利用し、外部API通信なしで新ホームを表示
+- PC表示確認: 1440×900でヘッダー、ミッション、学習開始、下段2領域、5列科目グリッド定義、Liquid Glassナビ、Versionを確認。横方向のviewport超過なし
+- tablet表示確認: 820×1000で科目3列、下段1列、ナビと本文の非重複、横方向のviewport超過なしを確認
+- mobile表示確認: 390×844で縦積み、科目1列、下部ナビ5項目、下部padding、横方向のviewport超過なしを確認
+- 科目別遷移確認: 前置詞だけを許可したローカル状態で英語1件表示、英語教材一覧への切替、前置詞テスト表示、ホームへ戻る操作を確認。全11教材の実画面遷移は未確認
+- ブラウザconsole: errorなし。既存CSVの重複headerに関するPapa Parse warningのみ確認
+- 通常ログイン: 未確認
+- SSO: 未確認
+- Gemini: 実通信未実施
+- Commit: 未実施
+- Push: 未実施
+- mainマージ: 未実施
+- 作業ブランチ: `codex/sukimakun-junior-home-renewal`
+- Vercelデプロイ: 未実施
+- 本番確認: 未実施
+- 関連gyoumu-appコミット / Issue: なし。gyoumu-app変更なし
+- Version: 4.3.0のまま。共通定数とVersion Historyは変更なし。更新要否はユーザー確認待ち
+
 ### 前置詞テスト追加（Issue番号未指定）
 
 - 状態: React実装・CSV追加・自動テスト・build・専用ブランチへの切り分け・push・Vercel Preview生成・development限定のローカル操作確認・ログGAS再デプロイ・実ログ経路での復習リスト表示確認まで完了。`answerDetails` の実ログセル内容と本番画面は未確認
