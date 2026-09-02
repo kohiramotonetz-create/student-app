@@ -76,12 +76,15 @@ function MenuView({
   onAddLocalShopPoints,
   onEquipLocalItem,
   onUnequipLocalSlot,
-  onSelectLocalVisualBranch
+  onSelectLocalVisualBranch,
+  onCompleteLocalCharacter
 }) {
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [showCharacterSelection, setShowCharacterSelection] = useState(false);
   const [pendingCharacterSelection, setPendingCharacterSelection] = useState(null);
   const [showShop, setShowShop] = useState(false);
+  const [showAlbum, setShowAlbum] = useState(false);
+  const [showCompletionConfirm, setShowCompletionConfirm] = useState(false);
 
   if (step !== 'menu') return null;
 
@@ -157,6 +160,11 @@ function MenuView({
     }
   };
 
+  const confirmCompletion = () => {
+    const result = onCompleteLocalCharacter?.();
+    if (result?.completed || result?.duplicate) setShowCompletionConfirm(false);
+  };
+
   return (
     <div className="student-home" data-permissions-initialized={permissionsInitialized}>
       <header className="student-home__header">
@@ -181,7 +189,29 @@ function MenuView({
         </div>
       </header>
 
-      {showShop && isLocalCharacterVerification ? (
+      {showAlbum && isLocalCharacterVerification ? (
+        <main className="student-home__subject-view student-home__album-view" data-local-character-album="true">
+          <button className="student-home__back" type="button" onClick={() => setShowAlbum(false)}><ArrowLeft />ホームへ戻る</button>
+          <section className="student-home__panel student-home__content-panel">
+            <div className="student-home__section-heading"><span className="student-home__section-number"><History /></span><div><h2>育成アルバム</h2><p>育成を終えたキャラクターを振り返れます。</p></div></div>
+            <div className="student-home__album-grid">
+              {(localPlayerProgress?.characterAlbum || []).map((character) => {
+                const definition = getCharacterDefinition(character.characterType);
+                const stage = getCharacterStageDefinition(character.characterType, character.stage);
+                return <article key={character.instanceId} className={`student-home__album-card is-${character.status}`}>
+                  <span className="student-home__character-placeholder" aria-hidden="true">{definition?.placeholder}</span>
+                  <div><strong>{definition?.label || character.characterType} Lv.{character.level}</strong><span>{character.status === 'completed' ? '育成成功' : '育成終了'} / Stage {character.stage}</span><small>{stage?.label}</small></div>
+                  <small>{character.startedAt || '開始日未記録'} 〜 {character.endedAt || '終了日未記録'}</small>
+                  {character.visualBranch && <small>見た目分岐: {character.visualBranch}</small>}
+                  <small>最終装備: {Object.values(character.equipment || {}).filter(Boolean).join('・') || 'なし'}</small>
+                  <small>終了理由: {character.endReason === 'completed' ? '育成完了' : '未学習による育成終了'}</small>
+                </article>;
+              })}
+              {(localPlayerProgress?.characterAlbum || []).length === 0 && <p className="student-home__empty-state">育成を終えたキャラクターはまだいません。</p>}
+            </div>
+          </section>
+        </main>
+      ) : showShop && isLocalCharacterVerification ? (
         <main className="student-home__subject-view student-home__shop-view" data-local-shop="true">
           <button className="student-home__back" type="button" onClick={() => setShowShop(false)}><ArrowLeft />ホームへ戻る</button>
           <section className="student-home__panel student-home__content-panel">
@@ -314,9 +344,14 @@ function MenuView({
                     <small>累計 {activeCharacter.totalXp} XP ・ 次のLvまで {activeCharacter.xpToNext} XP</small>
                     <small>{nextEvolution ? `次の進化まであと${nextEvolution.minLevel - activeCharacter.level}Lv` : 'Stage 6・最終進化'}</small>
                   </div>
-                  {activeCharacter.status === 'game_over' && <div className="student-home__game-over" role="status"><strong>育成終了</strong><span>このキャラクターの育成は終了しました。</span><button type="button" disabled>次のキャラクター機能は準備中</button></div>}
+                  {activeCharacter.status === 'game_over' && <div className="student-home__game-over" role="status"><strong>育成終了</strong><span>このキャラクターの育成は終了しました。</span></div>}
+                  {activeCharacter.status === 'completed' && <div className="student-home__completion-result" role="status"><strong>育成成功！</strong><span>このキャラクターは育成アルバムに保存されました。</span></div>}
+                  {activeCharacter.completionReady && <div className="student-home__completion-ready" role="status"><strong>最終進化・育成完了できます</strong><span>Lv100限定商品や装備を確認してから完了できます。</span><button type="button" onClick={() => setShowCompletionConfirm(true)}>育成を完了する</button></div>}
+                  {showCompletionConfirm && <div className="student-home__character-confirm" role="dialog" aria-modal="true" aria-label="育成完了の確認"><strong>このキャラクターの育成を完了しますか？</strong><p>完了後はLvや装備を変更できません。育成完了で500ptを受け取ります。</p><div><button type="button" className="secondary" onClick={() => setShowCompletionConfirm(false)}>戻る</button><button type="button" onClick={confirmCompletion}>育成を完了する</button></div></div>}
+                  {isLocalCharacterVerification && ['completed', 'game_over'].includes(activeCharacter.status) && <button type="button" className="student-home__next-character" onClick={() => setShowCharacterSelection(true)}>次のキャラクターを育てる</button>}
                   {isLocalCharacterVerification && <div className="student-home__xp-tools" aria-label="ローカルXP・未学習状態確認操作">
                     <button type="button" onClick={() => setShowShop(true)}>ショップを見る</button>
+                    <button type="button" onClick={() => setShowAlbum(true)}>育成アルバム</button>
                     {[1139, 1140, 3119, 3120, 5899, 5900, 9479, 9480, 13859, 13860].map((xp) => <button type="button" key={xp} onClick={() => onSetLocalCharacterXp?.(xp)}>{xp.toLocaleString()}XP</button>)}
                     <button type="button" onClick={() => onAdvanceLocalStreak?.(1, true)}>翌日を学習</button>
                     <button type="button" onClick={() => onAdvanceLocalStreak?.(1, false)}>1日休む</button>
@@ -345,8 +380,11 @@ function MenuView({
         </main>
       )}
 
-      {!selectedSubject && !showCharacterSelection && <nav className="student-home__glass-nav" aria-label="ホームナビゲーション">
-        {NAV_ITEMS.map(({ label, icon: Icon, active }) => <button key={label} type="button" className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} disabled={!active} aria-label={active ? label : `${label}（準備中）`}>{React.createElement(Icon)}<span>{label}</span></button>)}
+      {!selectedSubject && !showCharacterSelection && !showAlbum && <nav className="student-home__glass-nav" aria-label="ホームナビゲーション">
+        {NAV_ITEMS.map(({ label, icon: Icon, active }) => {
+          const characterTab = label === 'キャラクター' && isLocalCharacterVerification;
+          return <button key={label} type="button" className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} disabled={!active && !characterTab} onClick={characterTab ? () => setShowAlbum(true) : undefined} aria-label={active || characterTab ? label : `${label}（準備中）`}>{React.createElement(Icon)}<span>{label}</span></button>;
+        })}
       </nav>}
       <span className="student-home__version">Version {APP_VERSION}</span>
     </div>

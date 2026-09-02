@@ -12,12 +12,15 @@ import { createEmptyEquipment } from '../constants/itemMaster.js';
 
 const createLocalId = () => globalThis.crypto?.randomUUID?.() || `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 export const createLocalSelectionRequestId = () => createLocalId();
+export const createLocalCompletionRequestId = () => createLocalId();
 
 export const createLocalXpVerificationStore = ({ withActiveCharacter = false } = {}) => ({
   ledger: new Map(),
   ownedItems: new Map(),
   equipRequests: new Map(),
   characterCreationRequests: new Map(),
+  completionRequests: new Map(),
+  characterHistory: [],
   completedAttempts: new Set(),
   learningDates: new Set(),
   pendingXp: 0,
@@ -58,20 +61,22 @@ const rebuildLocalXpCache = (store) => {
     .reduce((sum, transaction) => sum + transaction.amount, 0);
   store.pointBalance = transactions.filter(({ currency }) => currency === 'PT')
     .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const allocatedXp = (store.characterHistory || []).reduce((sum, character) => sum + (Number(character.totalEarnedXp) || 0), 0);
   if (!store.activeCharacter) {
-    store.pendingXp = earnedXp;
+    store.pendingXp = Math.max(0, earnedXp - allocatedXp);
     return;
   }
   if (store.activeCharacter.status !== 'active') {
-    store.pendingXp = Math.max(0, earnedXp - (Number(store.activeCharacter.totalEarnedXp) || 0));
+    store.pendingXp = Math.max(0, earnedXp - allocatedXp);
     return;
   }
-  const progress = createCharacterProgress(earnedXp);
+  const characterEarnedXp = Math.max(0, earnedXp - allocatedXp);
+  const progress = createCharacterProgress(characterEarnedXp);
   Object.assign(store.activeCharacter, progress, {
     totalCorrectCount: [...store.ledger.values()]
       .filter(({ type }) => type === 'quiz_correct')
       .reduce((sum, transaction) => sum + transaction.amount, 0),
-    totalEarnedXp: earnedXp
+    totalEarnedXp: characterEarnedXp
   });
   store.pendingXp = 0;
 };
@@ -188,9 +193,10 @@ export const createLocalCharacterInstance = ({
   const duplicate = store.characterCreationRequests.get(selectionRequestId);
   if (duplicate) return { created: false, duplicate: true, character: { ...duplicate } };
   if (!getCharacterDefinition(characterType)) return { created: false, reason: 'INVALID_CHARACTER_TYPE' };
-  if (store.activeCharacter) return { created: false, reason: 'ACTIVE_CHARACTER_EXISTS' };
+  if (store.activeCharacter?.status === 'active') return { created: false, reason: 'ACTIVE_CHARACTER_EXISTS' };
 
   rebuildLocalXpCache(store);
+  if (store.activeCharacter) storeEndedCharacter(store, store.activeCharacter);
   const earnedXp = store.pendingXp;
   const progress = createCharacterProgress(earnedXp);
   const character = {
@@ -211,6 +217,63 @@ export const createLocalCharacterInstance = ({
   });
   rebuildLocalXpCache(store);
   return { created: true, duplicate: false, character: { ...character } };
+};
+
+const snapshotCharacter = (character) => ({
+  ...character,
+  equipment: { ...(character.equipment || createEmptyEquipment()) }
+});
+
+const storeEndedCharacter = (store, character) => {
+  const index = store.characterHistory.findIndex(({ instanceId }) => instanceId === character.instanceId);
+  const snapshot = snapshotCharacter(character);
+  if (index >= 0) store.characterHistory[index] = snapshot;
+  else store.characterHistory.push(snapshot);
+};
+
+export const completeLocalCharacter = ({
+  store,
+  studentId,
+  completionRequestId,
+  completedAt = `${store?.verificationLearningDate || '2026-09-01'}T12:00:00+09:00`,
+  skipLedgerWrite = false,
+  skipStatusWrite = false
+}) => {
+  if (!store || !completionRequestId) return { completed: false, reason: 'MISSING_REQUEST_ID' };
+  const character = store.activeCharacter;
+  if (!character) return { completed: false, reason: 'CHARACTER_NOT_FOUND' };
+  const eventKey = `character_complete::${character.instanceId}`;
+  const ready = character.status === 'active' && character.level === 100 && character.stage === 6;
+  const repairing = character.status === 'completed' || store.ledger.has(eventKey);
+  if (!ready && !repairing) return { completed: false, reason: 'CHARACTER_NOT_READY' };
+
+  if (!skipStatusWrite) {
+    character.status = 'completed';
+    character.endedAt ||= completedAt;
+    character.endReason = 'completed';
+    character.updatedAt = 'local-e2e';
+    storeEndedCharacter(store, character);
+  }
+  if (!skipLedgerWrite && !store.ledger.has(eventKey)) {
+    store.ledger.set(eventKey, {
+      eventKey, currency: 'PT', type: 'character_complete', sourceId: character.instanceId,
+      userId: studentId, characterInstanceId: character.instanceId, amount: 500, status: 'COMPLETED'
+    });
+  }
+  store.completionRequests.set(completionRequestId, character.instanceId);
+  rebuildLocalXpCache(store);
+  return { completed: !skipStatusWrite, duplicate: repairing, eventKey, character: snapshotCharacter(character) };
+};
+
+export const getLocalCharacterAlbum = (store) => {
+  const byId = new Map((store?.characterHistory || []).map((character) => [character.instanceId, snapshotCharacter(character)]));
+  if (store?.activeCharacter && ['completed', 'game_over'].includes(store.activeCharacter.status)) {
+    byId.set(store.activeCharacter.instanceId, snapshotCharacter(store.activeCharacter));
+  }
+  return [...byId.values()].sort((left, right) => {
+    const ended = String(right.endedAt || '').localeCompare(String(left.endedAt || ''));
+    return ended || String(left.instanceId).localeCompare(String(right.instanceId));
+  });
 };
 
 export const setLocalXpForVerification = ({ store, studentId, targetXp, requestId = createLocalId() }) => {
@@ -267,14 +330,17 @@ export const getLocalPlayerProgress = (store) => {
     lastLearningDate: store?.lastLearningDate || null,
     verificationLearningDate: store?.verificationLearningDate || null
   };
-  if (!store?.activeCharacter) return { activeCharacter: null, ...player };
+  if (!store?.activeCharacter) return { activeCharacter: null, characterAlbum: getLocalCharacterAlbum(store), canSelectNextCharacter: true, ...player };
   return {
     activeCharacter: {
       ...store.activeCharacter,
       totalXp: Math.min(MAX_CHARACTER_XP, store.activeCharacter.totalXp),
       condition: careState?.condition || 'healthy',
-      inactiveDays: careState?.inactiveDays || 0
+      inactiveDays: careState?.inactiveDays || 0,
+      completionReady: store.activeCharacter.status === 'active' && store.activeCharacter.level === 100 && store.activeCharacter.stage === 6
     },
+    characterAlbum: getLocalCharacterAlbum(store),
+    canSelectNextCharacter: ['completed', 'game_over'].includes(store.activeCharacter.status),
     ...player
   };
 };

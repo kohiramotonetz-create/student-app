@@ -69,7 +69,9 @@ import {
 import {
   createLocalXpVerificationStore,
   advanceLocalLearningDays,
+  completeLocalCharacter,
   createLocalCharacterInstance,
+  createLocalCompletionRequestId,
   getLocalPlayerProgress,
   recordLocalMissionXp,
   recordLocalQuizXp,
@@ -1075,6 +1077,15 @@ function App() {
     return result;
   };
 
+  const completeLocalCharacterGrowth = (completionRequestId = createLocalCompletionRequestId()) => {
+    if (!isLocalDailyMissionVerification) return { completed: false, reason: 'NOT_LOCAL_VERIFICATION' };
+    const store = localXpStoreRef.current;
+    const result = completeLocalCharacter({ store, studentId: userId || 'local-e2e', completionRequestId });
+    setLocalPlayerProgress(getLocalPlayerProgress(store));
+    setLocalShopItems(getLocalShopItems({ store, studentId: userId || 'local-e2e' }));
+    return result;
+  };
+
   const handleChangePassword = async () => {
     if (!newPassword) return alert("入力してください");
     setLoading(true);
@@ -1289,6 +1300,7 @@ function App() {
         onEquipLocalItem={equipLocalShopItem}
         onUnequipLocalSlot={unequipLocalShopSlot}
         onSelectLocalVisualBranch={chooseLocalVisualBranch}
+        onCompleteLocalCharacter={completeLocalCharacterGrowth}
       />
 
       <CampView

@@ -37,6 +37,21 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 育成システム Phase F：育成完了・アルバム・次キャラ基盤（Issue番号未指定）
+
+- 状態: student-app、認証GAS、ログGASへlocal onlyで実装。Production未接続
+- 育成完了: Lv100 / Stage6 / activeをcompletionReadyとして派生し、明示確認後にstatus=completed、endedAt、endReason=completedを確定
+- 完了報酬: EconomyLedgerへ`character_complete::{characterInstanceId}`を正本として500ptを冪等付与し、partial failure再送時にstatus／Ledger／pointBalanceを修復
+- アルバム: 新規Albumシートを作らず、completed/game_overのCharacterInstancesを終了日時降順で取得。最終Lv、Stage、装備、visualBranch、終了理由を表示
+- 次キャラ: 終了済み個体を保持したまま既存3キャラ選択UIを再利用し、新instanceId、空装備、careStartedDate、pendingXp移管で育成を再開
+- 資産: Player単位のpointBalance、streak、common／character-specific所有品を維持。evolution-limited所有品は旧characterInstanceへ保持
+- ローカル確認: development限定でLv100 completionReady、完了500pt、アルバム、次キャラ作成を確認可能。正式画像は未作成
+- GAS影響: completeCharacter/getCharacterAlbumと次キャラ対応、character:complete-own scopeをローカル追加。GAS未push・未deploy
+- Spreadsheet影響: 本番実変更なし。既存CharacterInstancesを再利用し、新規Albumシートなし。setup未実行
+- Production / Version: Production未接続。Version 4.3.0とVersion Historyは変更なし
+- Commit: `feat: complete character lifecycle and album foundation`でlocal checkpoint化
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / setup / Spreadsheet変更 / 本番通信: 未実施
+
 ### 育成システム Phase E2：装備・見た目・進化限定基盤（Issue番号未指定）
 
 - 状態: student-app、認証GAS、ログGASへlocal onlyで実装。Production未接続
