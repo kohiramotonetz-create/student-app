@@ -66,6 +66,12 @@ import {
   isLocalDailyMissionVerificationEnabled,
   recordLocalDailyMissionCompletion
 } from './utils/localDailyMissionVerification';
+import {
+  createLocalXpVerificationStore,
+  getLocalPlayerProgress,
+  recordLocalMissionXp,
+  recordLocalQuizXp
+} from './utils/localXpVerification';
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
@@ -115,10 +121,12 @@ function App() {
   const [permissionError, setPermissionError] = useState('');
   const [studentSessionToken, setStudentSessionToken] = useState('');
   const [dailyMissionProgress, setDailyMissionProgress] = useState(null);
+  const [localPlayerProgress, setLocalPlayerProgress] = useState(null);
   const [isLocalPrepositionVerification, setIsLocalPrepositionVerification] = useState(false);
   const [isLocalDailyMissionVerification, setIsLocalDailyMissionVerification] = useState(false);
   const localPrepositionLogsRef = useRef([]);
   const localDailyMissionStoreRef = useRef(createLocalDailyMissionVerificationStore());
+  const localXpStoreRef = useRef(createLocalXpVerificationStore());
   const learningAttemptRef = useRef(null);
   
   const [allData, setAllData] = useState([]); 
@@ -224,6 +232,7 @@ function App() {
     storeStudentSessionToken(nextToken);
     setStudentSessionToken(nextToken);
     setDailyMissionProgress(null);
+    setLocalPlayerProgress(null);
     return nextToken;
   };
 
@@ -469,6 +478,7 @@ function App() {
     clearStudentSessionToken();
     setStudentSessionToken('');
     setDailyMissionProgress(null);
+    setLocalPlayerProgress(null);
     setUserId('');
     setPassword('');
     setNewPassword('');
@@ -483,6 +493,7 @@ function App() {
     setIsLocalDailyMissionVerification(false);
     localPrepositionLogsRef.current = [];
     localDailyMissionStoreRef.current = createLocalDailyMissionVerificationStore();
+    localXpStoreRef.current = createLocalXpVerificationStore();
     cancelLearningAttempt();
     setSelectedBook({ name: '', data: [] });
     setIsKobunMode(false);
@@ -684,7 +695,16 @@ function App() {
     }
 
     if (usesLocalMissionProgress) {
-      recordLocalDailyMissionCompletion({ store: localDailyMissionStoreRef.current, payload });
+      recordLocalQuizXp({ store: localXpStoreRef.current, payload });
+      const missionCompletion = recordLocalDailyMissionCompletion({ store: localDailyMissionStoreRef.current, payload });
+      recordLocalMissionXp({
+        store: localXpStoreRef.current,
+        studentId: payload.studentId,
+        missionDate: missionCompletion.missionDate,
+        mission: missionCompletion.mission,
+        achievedNow: missionCompletion.achievedNow
+      });
+      setLocalPlayerProgress(getLocalPlayerProgress(localXpStoreRef.current));
       setDailyMissionProgress(indexDailyMissionProgress(getLocalDailyMissionProgress({
         store: localDailyMissionStoreRef.current,
         allowedContentIds
@@ -919,6 +939,8 @@ function App() {
     setIsLocalDailyMissionVerification(true);
     localPrepositionLogsRef.current = [];
     localDailyMissionStoreRef.current = createLocalDailyMissionVerificationStore();
+    localXpStoreRef.current = createLocalXpVerificationStore();
+    setLocalPlayerProgress(getLocalPlayerProgress(localXpStoreRef.current));
     setDailyMissionProgress(indexDailyMissionProgress(getLocalDailyMissionProgress({
       store: localDailyMissionStoreRef.current,
       allowedContentIds: localContentIds
@@ -1147,6 +1169,7 @@ function App() {
         handleLogout={handleLogout}
         permissionsInitialized={permissionsInitialized}
         dailyMissionProgress={dailyMissionProgress}
+        localPlayerProgress={localPlayerProgress}
       />
 
       <CampView

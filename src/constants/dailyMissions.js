@@ -10,6 +10,7 @@ export const DEFAULT_DAILY_MISSIONS = Object.freeze([
       CONTENT_IDS.irregular_verbs
     ]),
     requiredCount: 3,
+    rewardXp: 30,
     rewardPoints: null,
     enabled: true
   }),
@@ -18,6 +19,7 @@ export const DEFAULT_DAILY_MISSIONS = Object.freeze([
     label: '漢字',
     targetContentIds: Object.freeze([CONTENT_IDS.kanji_test]),
     requiredCount: 3,
+    rewardXp: 30,
     rewardPoints: null,
     enabled: true
   })

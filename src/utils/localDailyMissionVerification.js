@@ -20,8 +20,16 @@ export const recordLocalDailyMissionCompletion = ({ store, payload, definitions 
   if (store.processedAttemptKeys.has(attemptKey)) return { recorded: false, reason: 'duplicate' };
 
   store.processedAttemptKeys.add(attemptKey);
-  store.completedCounts.set(mission.id, (store.completedCounts.get(mission.id) || 0) + 1);
-  return { recorded: true, missionId: mission.id };
+  const previousCount = store.completedCounts.get(mission.id) || 0;
+  const completedCount = previousCount + 1;
+  store.completedCounts.set(mission.id, completedCount);
+  return {
+    recorded: true,
+    mission,
+    missionId: mission.id,
+    missionDate: 'local-e2e',
+    achievedNow: previousCount < mission.requiredCount && completedCount >= mission.requiredCount
+  };
 };
 
 export const getLocalDailyMissionProgress = ({ store, allowedContentIds, definitions = DEFAULT_DAILY_MISSIONS }) => ({

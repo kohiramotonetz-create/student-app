@@ -37,6 +37,28 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 育成システム Phase A：XP・Lv基盤（Issue番号未指定）
+
+- 状態: student-appとログGASへlocal onlyで実装。Production未接続
+- 変更内容:
+  - 通常学習完了時に妥当なscoreを1正解=1XPとして扱い、復習・紙テスト・高校生教材・異常scoreをXP対象外とする基盤を追加
+  - `次Lv必要XP = 40 + 現在Lv × 2`、Lv100累計13,860XP、Lv上限、stage 1〜6を純粋関数化
+  - daily mission定義へ`rewardXp: 30`を追加し、達成遷移を日付・mission単位のeventKeyで一度だけ付与
+  - development限定E2Eへpuddingの仮active CharacterInstanceとメモリ内XP台帳を追加。正式値未接続時の本番UIは従来の準備中を維持
+  - ログGASのMissionAttemptsを本番setup前にLearningAttemptsへ一般化し、EconomyLedger、CharacterInstances、PlayerProgressのschemaと冪等setupをローカル実装
+  - XP台帳を付与正本とし、CharacterInstanceのtotalXp／level／stageまたはPlayerProgress.pendingXpを再送時に再構築できる処理を追加
+  - scoreはクライアント申告値を有限整数かつ`0 <= score <= total`で検証するが、サーバー再採点は未実装。ランキング用途の公平性正本には使用しない
+- Spreadsheet影響: 実変更なし。LearningAttempts、EconomyLedger、CharacterInstances、PlayerProgressは未作成、setup未実行
+- GAS影響: `C:\Users\netz\student-app-log-gas`のローカルコードとテストのみ変更。GAS未push・未deploy
+- CSV / Gemini影響: なし。既存CSV、採点、Gemini呼び出し条件を変更していない
+- test / build / lint: `npm test` 51件成功、`npm run build` 成功、新規・関連変更ファイルlint成功。`App.jsx`を含むlintは同ファイル既存6件のみ、`npm run lint`は既存8件のみ、`git diff --check`成功
+- GASローカル確認: `node --check コード.js`成功、`node --test コード.test.cjs` 36件成功
+- ローカル確認: `npm run dev -- --host 127.0.0.1`（`http://127.0.0.1:5173/`）で漢字25問セットを3回完了し、XP 25→50→105（3回目はミッション達成+30XP）、Lv1→2→3、漢字1/3→2/3→3/3を確認
+- Production確認: `npm run preview -- --host 127.0.0.1`（`http://127.0.0.1:4173/`）でローカルE2E入口、完了ボタン、仮XPカード、XP加速UIが0件であることを確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: Phase Aのlocal checkpoint commitを実施（本項目を含む）
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / 本番通信 / 本番確認: 未実施
+
 ### 小・中学生教材の共通attempt lifecycle（Phase 0・Issue番号未指定）
 
 - 状態: student-appへローカル実装。XP・Lv・pt・キャラクター・ショップおよびGASのLearningAttemptsは未実装

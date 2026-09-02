@@ -18,6 +18,8 @@ test('default daily missions contain only the confirmed contents and settings', 
   assert.equal(kanji.requiredCount, 3);
   assert.equal(english.rewardPoints, null);
   assert.equal(kanji.rewardPoints, null);
+  assert.equal(english.rewardXp, 30);
+  assert.equal(kanji.rewardXp, 30);
   assert.deepEqual(DAILY_MISSION_CONTENT_IDS, ['kakitan', 'junior_english_quiz', 'irregular_verbs', 'kanji_test']);
 });
 

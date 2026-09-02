@@ -56,7 +56,8 @@ function MenuView({
   kakitanData,
   handleLogout,
   permissionsInitialized,
-  dailyMissionProgress
+  dailyMissionProgress,
+  localPlayerProgress
 }) {
   const [selectedSubject, setSelectedSubject] = useState(null);
 
@@ -193,7 +194,14 @@ function MenuView({
           <div className="student-home__lower-grid">
             <section className="student-home__panel student-home__future-card">
               <div className="student-home__section-heading"><span className="student-home__section-number">3</span><div><h2>育成・ごほうび</h2><p>学習を続ける楽しみを増やします。</p></div></div>
-              <div className="student-home__future-body"><Gift /><div><strong>キャラクター・ごほうび機能は準備中</strong><p>ポイントやレベルなどの実データはまだ表示していません。</p></div></div>
+              {localPlayerProgress?.activeCharacter ? (
+                <div className="student-home__future-body" data-local-xp-verification="true"><Gift /><div>
+                  <strong>ローカル育成確認: Lv.{localPlayerProgress.activeCharacter.level} / Stage {localPlayerProgress.activeCharacter.stage}</strong>
+                  <p>XP {localPlayerProgress.activeCharacter.totalXp} / 次のLvまで {localPlayerProgress.activeCharacter.xpToNext}</p>
+                </div></div>
+              ) : (
+                <div className="student-home__future-body"><Gift /><div><strong>キャラクター・ごほうび機能は準備中</strong><p>ポイントやレベルなどの実データはまだ表示していません。</p></div></div>
+              )}
             </section>
             <section className="student-home__panel student-home__future-card">
               <div className="student-home__section-heading"><span className="student-home__section-number">4</span><div><h2>最近の学習・復習</h2><p>学習記録を振り返るためのエリアです。</p></div></div>
