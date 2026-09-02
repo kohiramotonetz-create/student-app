@@ -57,7 +57,8 @@ test('通常対象セットだけscore分XPを一度付与し、復習・対象�
 test('active characterなしではpendingXpへ入り、activeありではLvとstageを更新する', () => {
   const pendingStore = createLocalXpVerificationStore({ withActiveCharacter: false });
   recordLocalQuizXp({ store: pendingStore, payload: { studentId: 's', attemptId: 'a', contentId: 'kakitan', score: 42, total: 42, isReview: false } });
-  assert.deepEqual(getLocalPlayerProgress(pendingStore), { activeCharacter: null, pendingXp: 42 });
+  assert.equal(getLocalPlayerProgress(pendingStore).activeCharacter, null);
+  assert.equal(getLocalPlayerProgress(pendingStore).pendingXp, 42);
 
   const activeStore = createLocalXpVerificationStore({ withActiveCharacter: true });
   recordLocalQuizXp({ store: activeStore, payload: { studentId: 's', attemptId: 'a', contentId: 'kakitan', score: 1140, total: 1140, isReview: false } });

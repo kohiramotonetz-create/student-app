@@ -1,5 +1,12 @@
 import { MAX_CHARACTER_XP, createCharacterProgress, isXpEligibleContent, validateLearningScore } from './experienceProgress.js';
 import { getCharacterDefinition } from '../constants/characterMaster.js';
+import {
+  LEVEL_REWARD_POINTS,
+  getCrossedLevelRewards,
+  getStreakRewardForDay,
+  getThirtyDayRewardCycle,
+  updateStreakForLearningDate
+} from './streakPoints.js';
 
 const createLocalId = () => globalThis.crypto?.randomUUID?.() || `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 export const createLocalSelectionRequestId = () => createLocalId();
@@ -7,7 +14,15 @@ export const createLocalSelectionRequestId = () => createLocalId();
 export const createLocalXpVerificationStore = ({ withActiveCharacter = false } = {}) => ({
   ledger: new Map(),
   characterCreationRequests: new Map(),
+  completedAttempts: new Set(),
+  learningDates: new Set(),
   pendingXp: 0,
+  pointBalance: 0,
+  currentStreak: 0,
+  longestStreak: 0,
+  streakStartedDate: null,
+  lastLearningDate: null,
+  verificationLearningDate: '2026-09-01',
   activeCharacter: withActiveCharacter ? {
     instanceId: 'local-pudding', characterType: 'pudding', totalXp: 0,
     ...createCharacterProgress(0), status: 'active', totalCorrectCount: 0, totalEarnedXp: 0
@@ -15,7 +30,11 @@ export const createLocalXpVerificationStore = ({ withActiveCharacter = false } =
 });
 
 const rebuildLocalXpCache = (store) => {
-  const earnedXp = [...store.ledger.values()].reduce((sum, transaction) => sum + transaction.amount, 0);
+  const transactions = [...store.ledger.values()];
+  const earnedXp = transactions.filter(({ currency }) => currency === 'XP')
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  store.pointBalance = transactions.filter(({ currency }) => currency === 'PT')
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
   if (!store.activeCharacter) {
     store.pendingXp = earnedXp;
     return;
@@ -30,18 +49,82 @@ const rebuildLocalXpCache = (store) => {
   store.pendingXp = 0;
 };
 
+const appendLocalPtOnce = (store, transaction) => {
+  if (store.ledger.has(transaction.eventKey)) return false;
+  store.ledger.set(transaction.eventKey, { ...transaction, currency: 'PT' });
+  return true;
+};
+
+const awardLocalLevelRewards = ({ store, studentId, characterInstanceId, previousLevel, nextLevel, learningDate }) => {
+  const levels = getCrossedLevelRewards(previousLevel, nextLevel);
+  for (const level of levels) {
+    appendLocalPtOnce(store, {
+      eventKey: `level_reward::${characterInstanceId}::${level}`,
+      type: 'level_reward', sourceId: String(level), userId: studentId,
+      characterInstanceId, amount: LEVEL_REWARD_POINTS[level], learningDate
+    });
+  }
+  return levels;
+};
+
+export const recordLocalLearningDay = ({ store, studentId, learningDate }) => {
+  if (!store || !/^\d{4}-\d{2}-\d{2}$/.test(String(learningDate || ''))) return { changed: false, reason: 'INVALID_DATE' };
+  const previous = {
+    currentStreak: store.currentStreak, longestStreak: store.longestStreak,
+    streakStartedDate: store.streakStartedDate, lastLearningDate: store.lastLearningDate
+  };
+  const updated = updateStreakForLearningDate(previous, learningDate);
+  if (!updated.changed) {
+    rebuildLocalXpCache(store);
+    return { changed: false, duplicate: updated.reason !== 'OUT_OF_ORDER_DATE', reason: updated.reason || null };
+  }
+  store.learningDates.add(learningDate);
+  Object.assign(store, {
+    currentStreak: updated.currentStreak,
+    longestStreak: updated.longestStreak,
+    streakStartedDate: updated.streakStartedDate,
+    lastLearningDate: updated.lastLearningDate
+  });
+  appendLocalPtOnce(store, {
+    eventKey: `streak_daily::${studentId || ''}::${learningDate}`,
+    type: 'streak_daily', sourceId: learningDate, userId: studentId,
+    amount: getStreakRewardForDay(updated.currentStreak), learningDate
+  });
+  const cycle = getThirtyDayRewardCycle(updated.currentStreak);
+  if (cycle) appendLocalPtOnce(store, {
+    eventKey: `streak_30days::${studentId || ''}::${updated.streakStartedDate}::${cycle}`,
+    type: 'streak_30days', sourceId: `${updated.streakStartedDate}::${cycle}`, userId: studentId,
+    amount: 100, learningDate
+  });
+  rebuildLocalXpCache(store);
+  return { changed: true, currentStreak: updated.currentStreak, cycle };
+};
+
 export const recordLocalQuizXp = ({ store, payload }) => {
   if (!store || !payload?.attemptId) return { awarded: false, reason: 'MISSING_ATTEMPT' };
   if (payload.isReview === true) return { awarded: false, reason: 'REVIEW' };
   if (!isXpEligibleContent(payload.contentId)) return { awarded: false, reason: 'NOT_ELIGIBLE' };
   const score = validateLearningScore(payload.score, payload.total);
   if (!score.valid) return { awarded: false, reason: score.reason };
+  const learningDate = payload.learningDate || store.verificationLearningDate;
   const eventKey = `quiz_xp::${payload.studentId || ''}::${payload.attemptId}`;
-  const duplicate = store.ledger.has(eventKey);
+  const duplicate = store.completedAttempts.has(payload.attemptId);
+  if (!duplicate) {
+    store.completedAttempts.add(payload.attemptId);
+    recordLocalLearningDay({ store, studentId: payload.studentId, learningDate });
+  }
+  const previousLevel = store.activeCharacter?.level || null;
   if (!duplicate && score.score > 0) {
     store.ledger.set(eventKey, { eventKey, currency: 'XP', type: 'quiz_correct', sourceId: payload.attemptId, amount: score.score });
   }
   rebuildLocalXpCache(store);
+  if (store.activeCharacter && previousLevel !== null) {
+    awardLocalLevelRewards({
+      store, studentId: payload.studentId, characterInstanceId: store.activeCharacter.instanceId,
+      previousLevel, nextLevel: store.activeCharacter.level, learningDate
+    });
+    rebuildLocalXpCache(store);
+  }
   return { awarded: !duplicate && score.score > 0, duplicate, eventKey, amount: duplicate ? 0 : score.score };
 };
 
@@ -51,10 +134,18 @@ export const recordLocalMissionXp = ({ store, studentId, missionDate, mission, a
   }
   const eventKey = `mission_xp::${studentId || ''}::${missionDate}::${mission.id}`;
   const duplicate = store.ledger.has(eventKey);
+  const previousLevel = store.activeCharacter?.level || null;
   if (!duplicate) {
     store.ledger.set(eventKey, { eventKey, currency: 'XP', type: 'daily_mission', sourceId: `${missionDate}::${mission.id}`, amount: mission.rewardXp });
   }
   rebuildLocalXpCache(store);
+  if (store.activeCharacter && previousLevel !== null) {
+    awardLocalLevelRewards({
+      store, studentId, characterInstanceId: store.activeCharacter.instanceId,
+      previousLevel, nextLevel: store.activeCharacter.level, learningDate: missionDate
+    });
+    rebuildLocalXpCache(store);
+  }
   return { awarded: !duplicate, duplicate, eventKey, amount: duplicate ? 0 : mission.rewardXp };
 };
 
@@ -85,11 +176,18 @@ export const createLocalCharacterInstance = ({
   store.activeCharacter = character;
   store.pendingXp = 0;
   store.characterCreationRequests.set(selectionRequestId, character);
+  awardLocalLevelRewards({
+    store, studentId, characterInstanceId: character.instanceId,
+    previousLevel: 1, nextLevel: character.level, learningDate: store.lastLearningDate
+  });
+  rebuildLocalXpCache(store);
   return { created: true, duplicate: false, character: { ...character } };
 };
 
 export const setLocalXpForVerification = ({ store, studentId, targetXp, requestId = createLocalId() }) => {
-  const current = [...store.ledger.values()].reduce((sum, transaction) => sum + transaction.amount, 0);
+  const current = [...store.ledger.values()].filter(({ currency }) => currency === 'XP')
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const previousLevel = store.activeCharacter?.level || null;
   const normalizedTarget = Math.max(current, Math.trunc(Number(targetXp) || 0));
   const amount = normalizedTarget - current;
   if (amount > 0) {
@@ -97,6 +195,28 @@ export const setLocalXpForVerification = ({ store, studentId, targetXp, requestI
     store.ledger.set(eventKey, { eventKey, currency: 'XP', type: 'local_verification', sourceId: requestId, amount });
   }
   rebuildLocalXpCache(store);
+  if (store.activeCharacter && previousLevel !== null) {
+    awardLocalLevelRewards({
+      store, studentId, characterInstanceId: store.activeCharacter.instanceId,
+      previousLevel, nextLevel: store.activeCharacter.level, learningDate: store.lastLearningDate
+    });
+    rebuildLocalXpCache(store);
+  }
+  return getLocalPlayerProgress(store);
+};
+
+export const setLocalVerificationLearningDate = (store, learningDate) => {
+  store.verificationLearningDate = learningDate;
+  return getLocalPlayerProgress(store);
+};
+
+export const advanceLocalLearningDays = ({ store, studentId, days = 1, learn = true }) => {
+  const count = Math.max(1, Math.trunc(Number(days) || 1));
+  const current = String(store.verificationLearningDate || '2026-09-01');
+  const [year, month, day] = current.split('-').map(Number);
+  const nextDate = new Date(Date.UTC(year, month - 1, day + count)).toISOString().slice(0, 10);
+  store.verificationLearningDate = nextDate;
+  if (learn) recordLocalLearningDay({ store, studentId, learningDate: nextDate });
   return getLocalPlayerProgress(store);
 };
 
@@ -106,9 +226,18 @@ export const repairLocalXpCache = (store) => {
 };
 
 export const getLocalPlayerProgress = (store) => {
-  if (!store?.activeCharacter) return { activeCharacter: null, pendingXp: store?.pendingXp || 0 };
+  const player = {
+    pendingXp: store?.pendingXp || 0,
+    pointBalance: store?.pointBalance || 0,
+    currentStreak: store?.currentStreak || 0,
+    longestStreak: store?.longestStreak || 0,
+    streakStartedDate: store?.streakStartedDate || null,
+    lastLearningDate: store?.lastLearningDate || null,
+    verificationLearningDate: store?.verificationLearningDate || null
+  };
+  if (!store?.activeCharacter) return { activeCharacter: null, ...player };
   return {
     activeCharacter: { ...store.activeCharacter, totalXp: Math.min(MAX_CHARACTER_XP, store.activeCharacter.totalXp) },
-    pendingXp: store.pendingXp
+    ...player
   };
 };

@@ -66,7 +66,8 @@ function MenuView({
   localPlayerProgress,
   isLocalCharacterVerification,
   onSelectLocalCharacter,
-  onSetLocalCharacterXp
+  onSetLocalCharacterXp,
+  onAdvanceLocalStreak
 }) {
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [showCharacterSelection, setShowCharacterSelection] = useState(false);
@@ -150,8 +151,13 @@ function MenuView({
           </div>
         </div>
         <div className="student-home__status" aria-label="学習ステータス">
-          <div className="student-home__status-card is-pending"><Sparkles aria-hidden="true" /><span><small>連続学習</small>集計準備中</span></div>
-          <div className="student-home__status-card is-pending"><Medal aria-hidden="true" /><span><small>所持ポイント</small>機能準備中</span></div>
+          {isLocalCharacterVerification ? <>
+            <div className="student-home__status-card" data-local-streak="true"><Sparkles aria-hidden="true" /><span><small>連続学習</small>{localPlayerProgress?.currentStreak || 0}日</span></div>
+            <div className="student-home__status-card" data-local-point-balance="true"><Medal aria-hidden="true" /><span><small>所持ポイント</small>{localPlayerProgress?.pointBalance || 0}pt</span></div>
+          </> : <>
+            <div className="student-home__status-card is-pending"><Sparkles aria-hidden="true" /><span><small>連続学習</small>集計準備中</span></div>
+            <div className="student-home__status-card is-pending"><Medal aria-hidden="true" /><span><small>所持ポイント</small>機能準備中</span></div>
+          </>}
           <button className="student-home__icon-button" type="button" disabled aria-label="通知（準備中）"><Bell /></button>
           <button className="student-home__logout" type="button" onClick={handleLogout}><LogOut /><span>ログアウト</span></button>
         </div>
@@ -267,6 +273,9 @@ function MenuView({
                   </div>
                   {isLocalCharacterVerification && <div className="student-home__xp-tools" aria-label="ローカルXP確認操作">
                     {[1139, 1140, 3119, 3120, 5899, 5900, 9479, 9480, 13859, 13860].map((xp) => <button type="button" key={xp} onClick={() => onSetLocalCharacterXp?.(xp)}>{xp.toLocaleString()}XP</button>)}
+                    <button type="button" onClick={() => onAdvanceLocalStreak?.(1, true)}>翌日を学習</button>
+                    <button type="button" onClick={() => onAdvanceLocalStreak?.(1, false)}>1日休む</button>
+                    <button type="button" onClick={() => { for (let i = 0; i < 30; i += 1) onAdvanceLocalStreak?.(1, true); }}>30日学習</button>
                   </div>}
                 </div>
               ) : isLocalCharacterVerification ? (

@@ -68,6 +68,7 @@ import {
 } from './utils/localDailyMissionVerification';
 import {
   createLocalXpVerificationStore,
+  advanceLocalLearningDays,
   createLocalCharacterInstance,
   getLocalPlayerProgress,
   recordLocalMissionXp,
@@ -990,6 +991,16 @@ function App() {
     }));
   };
 
+  const advanceLocalStreak = (days, learn = true) => {
+    if (!isLocalDailyMissionVerification) return;
+    setLocalPlayerProgress(advanceLocalLearningDays({
+      store: localXpStoreRef.current,
+      studentId: userId,
+      days,
+      learn
+    }));
+  };
+
   const handleChangePassword = async () => {
     if (!newPassword) return alert("入力してください");
     setLoading(true);
@@ -1196,6 +1207,7 @@ function App() {
         isLocalCharacterVerification={isLocalDailyMissionVerification}
         onSelectLocalCharacter={selectLocalCharacter}
         onSetLocalCharacterXp={accelerateLocalCharacterXp}
+        onAdvanceLocalStreak={advanceLocalStreak}
       />
 
       <CampView

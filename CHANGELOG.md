@@ -37,6 +37,26 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 育成システム Phase C：連続学習・交換用pt基盤（Issue番号未指定）
+
+- 状態: student-appとログGASへlocal onlyで実装。Production未接続
+- 変更内容:
+  - 正常完了した通常LearningAttemptをJSTの学習日として扱い、同日1回だけcurrentStreak／longestStreak／streakStartedDate／lastLearningDateを更新する基盤を追加。復習、途中離脱、同一attempt再送は対象外
+  - 7日周期の週間報酬（5/5/10/10/15/15/30pt）と連続30日ごとの100ptを、EconomyLedgerのPT取引としてeventKeyで冪等付与
+  - CharacterInstanceごとのLv10／30／50／70／90到達報酬を追加。複数Lv跨ぎとpendingXpからの初回キャラ作成にも対応し、Lv100完了500ptは未実装
+  - EconomyLedgerをXP/PT共通台帳として利用し、PlayerProgress.pointBalanceを台帳から修復可能な投影として追加
+  - development限定E2Eへ翌日学習、1日休み、30日学習を追加し、ホーム上部へcurrentStreakとpointBalanceを表示。Productionでは操作・mock値とも非表示
+- Spreadsheet影響: 本番実変更なし。PlayerProgress拡張schemaとEconomyLedger PT対応はsetup未実行
+- GAS影響: ローカルコードとテストのみ変更。GAS未push・未deploy、Script Property未変更
+- 未実装: Phase Dの未学習状態／ゲームオーバー、ショップ、アイテム、アルバム、Lv100育成完了500pt、pt消費
+- test / build / lint: `npm test` 67件成功、`npm run build`成功、変更対象lintは新規エラーなし。`npm run lint`は既存8件のみ、`git diff --check`成功
+- GASローカル確認: ログGAS `node --check`成功・45件成功
+- ローカル確認: `http://127.0.0.1:5174/`でDay1〜8（95pt）、30日（470pt）、1日空白後のstreak=1、Lv10／30報酬（合計300pt）とconsole errorなしを確認。外部API通信なし
+- Production確認: 最終buildを`http://127.0.0.1:4179/`で開き、ローカルE2E入口、日付加速、mock streak／pt、XP操作が0件であることを確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: Phase Cのlocal checkpoint commitを実施（本項目を含む）
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / setup / Spreadsheet変更 / 本番通信 / 本番確認: 未実施
+
 ### 育成システム Phase B：キャラクター選択・進化表示（Issue番号未指定）
 
 - 状態: student-app、認証GAS、ログGASへlocal onlyで実装。Production未接続
