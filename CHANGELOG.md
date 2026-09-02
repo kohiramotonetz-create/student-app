@@ -78,6 +78,8 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
   - `MissionAttempts`と`DailyMissionProgress`を安全に作成する冪等setup関数を追加（未実行）
   - `dailyMissions.js`の定義と既存教材表示名を利用し、`allowedContentIds`と交差したミッション名・必要回数・対象教材をホームへ表示
   - 進捗未接続時は実績値に見える`0 / 3`を避け、`-- / 3`と「準備中」を表示。対象教材が0件または権限初期化前はミッションを表示しない
+  - Vite development時だけ利用できる外部保存なしのローカルE2E入口とメモリ内進捗モックを追加。既存attemptId・isReview・ミッション定義を利用し、対象教材の正常完了だけを加算
+  - ローカルE2Eでは同一attemptId、復習、途中離脱、対象外教材を加算せず、漢字と英単語3教材を実行画面から外部採点なしで完了できる確認操作を追加。正式進捗保存にlocalStorageは使用しない
   - 通常ログインとuid/tk SSOの認証経路を調査。生徒の通常ログインはセッショントークンを発行せず、SSOの6桁トークンは5分期限かつ検証成功時に消去されるため、ログGASの継続認証には新しい本人セッション設計が必要と確認
 - ポイント影響: なし。rewardPointsはnull。残高、付与、レベル、育成処理は未実装
 - CSV影響: なし
@@ -85,11 +87,11 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 - GAS影響: `C:\Users\netz\student-app-log-gas`のローカルソースのみ変更。`clasp push`、setup実行、デプロイ未実施
 - Spreadsheet影響: 実変更なし。将来のM列attemptId、MissionAttempts、DailyMissionProgress追加を想定したコードのみ
 - 既存機能影響: `mode: "no-cors"`、既存saveLog送信、認証、SSO、権限制御、採点、復習処理を維持。attemptIdなしのsaveLogは従来どおりログだけを保存
-- test結果: 2026-09-02 `npm test` 成功（29件。定義、権限別ミッション表示、権限初期化前の非表示、attempt生成を含む）。ログGAS `node --test コード.test.cjs` 成功（23件。重複排除、英単語・漢字、復習除外、JST日付境界、生徒分離、冪等setupを含む）
+- test結果: 2026-09-02 `npm test` 成功（38件。ローカルE2Eの漢字1/3〜3/3、英単語3教材合算、復習・重複attempt・対象外除外を含む）。ログGAS `node --test コード.test.cjs` 成功（23件。重複排除、英単語・漢字、復習除外、JST日付境界、生徒分離、冪等setupを含む）
 - build結果: 2026-09-02 `npm run build` 成功
 - lint結果: 変更ファイル対象lint成功。`npm run lint`は既存8件（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）で失敗し、今回追加エラーなし
 - `git diff --check`: 2026-09-02 成功
-- ローカル確認: `http://127.0.0.1:5173/`でdevelopment限定入口からホーム表示、権限対象が0件の場合の案内、科目一覧切替、ホーム復帰、横方向のはみ出しなし、console errorなしを確認。中1実アカウント、対象4教材の実開始、実進捗取得は未確認
+- ローカル確認: `http://localhost:5173/`のdevelopment限定入口で、定期テスト漢字対策を通常開始し、外部採点・GAS通信なしのセット完了操作からホームへ戻る流れを3回実行。漢字`1 / 3`、`2 / 3`、`3 / 3`と達成表示を実ブラウザで確認。既存CSV重複header警告とHot Reload時の一時的なReact警告を確認したが、今回機能の操作エラーなし
 - checkpoint: 小・中学生ホーム刷新を`13e4310`（`feat: redesign junior sukimakun home`）としてローカルcommit
 - Version: 4.3.0のまま。Version Historyと共通定数は変更なし
 - Commit: ミッション基盤は未commit

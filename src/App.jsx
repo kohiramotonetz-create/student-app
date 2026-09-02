@@ -37,6 +37,7 @@ import {
   isPrepositionAnswerCorrect
 } from './utils/prepositionQuiz';
 import { createDailyMissionAttempt } from './utils/dailyMissionAttempt';
+import { isDailyMissionContent } from './constants/dailyMissions';
 import { APP_VERSION } from './constants/version';
 import {
   STUDENT_SESSION_TOUCH_INTERVAL_MS,
@@ -54,6 +55,12 @@ import {
   createLocalPrepositionLog,
   isLocalPrepositionVerificationEnabled
 } from './utils/localPrepositionVerification';
+import {
+  createLocalDailyMissionVerificationStore,
+  getLocalDailyMissionProgress,
+  isLocalDailyMissionVerificationEnabled,
+  recordLocalDailyMissionCompletion
+} from './utils/localDailyMissionVerification';
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LOG_GAS_URL = import.meta.env.VITE_LOG_GAS_URL;
@@ -61,6 +68,7 @@ const API_KEY = import.meta.env.VITE_API_KEY;
 const QUESTION_COUNT = 20;
 const BATCH_GRADING_TIMEOUT_MS = 90000;
 const LOCAL_PREPOSITION_VERIFICATION_ENABLED = isLocalPrepositionVerificationEnabled(import.meta.env);
+const LOCAL_DAILY_MISSION_VERIFICATION_ENABLED = isLocalDailyMissionVerificationEnabled(import.meta.env);
 
 const normalizeQuizAnswer = (value) => value ? value
   .normalize('NFKC')
@@ -103,7 +111,9 @@ function App() {
   const [studentSessionToken, setStudentSessionToken] = useState('');
   const [dailyMissionProgress, setDailyMissionProgress] = useState(null);
   const [isLocalPrepositionVerification, setIsLocalPrepositionVerification] = useState(false);
+  const [isLocalDailyMissionVerification, setIsLocalDailyMissionVerification] = useState(false);
   const localPrepositionLogsRef = useRef([]);
+  const localDailyMissionStoreRef = useRef(createLocalDailyMissionVerificationStore());
   const dailyMissionAttemptRef = useRef(null);
   
   const [allData, setAllData] = useState([]); 
@@ -391,6 +401,13 @@ function App() {
   }, [studentSessionToken, userId]);
 
   useEffect(() => {
+    if (step === 'menu' && isLocalDailyMissionVerification) {
+      setDailyMissionProgress(indexDailyMissionProgress(getLocalDailyMissionProgress({
+        store: localDailyMissionStoreRef.current,
+        allowedContentIds
+      })));
+      return undefined;
+    }
     if (step !== 'menu' || !studentSessionToken || !LOG_GAS_URL) {
       return undefined;
     }
@@ -409,7 +426,7 @@ function App() {
     };
     loadDailyMissionProgress();
     return () => { cancelled = true; };
-  }, [step, studentSessionToken]);
+  }, [step, studentSessionToken, isLocalDailyMissionVerification, allowedContentIds]);
 
   const [quizItems, setQuizItems] = useState([]);
   const [qIndex, setQIndex] = useState(0);
@@ -453,7 +470,9 @@ function App() {
     setActiveContentId(null);
     setPermissionError('');
     setIsLocalPrepositionVerification(false);
+    setIsLocalDailyMissionVerification(false);
     localPrepositionLogsRef.current = [];
+    localDailyMissionStoreRef.current = createLocalDailyMissionVerificationStore();
     dailyMissionAttemptRef.current = null;
     setSelectedBook({ name: '', data: [] });
     setIsKobunMode(false);
@@ -600,7 +619,8 @@ function App() {
   const sendResultToGAS = (finalAnswers, sheetName, customRange = null, contentId = activeContentId) => {
     const usesLocalPrepositionLogs = isLocalPrepositionVerification
       && contentId === CONTENT_IDS.preposition_test;
-    if (!sheetName || (!LOG_GAS_URL && !usesLocalPrepositionLogs) || !contentId || !getContentDefinition(contentId) || !isContentAllowed(contentId)) return;
+    const usesLocalMissionProgress = isLocalDailyMissionVerification;
+    if (!sheetName || (!LOG_GAS_URL && !usesLocalPrepositionLogs && !usesLocalMissionProgress) || !contentId || !getContentDefinition(contentId) || !isContentAllowed(contentId)) return;
 
     const rangeLabel = customRange || (contentId === CONTENT_IDS.preposition_test
       ? `${getPrepositionModeLabel(mode)} / ${isPrepositionReviewMode ? '復習' : '通常テスト'}`
@@ -654,8 +674,18 @@ function App() {
         createLocalPrepositionLog(payload),
         ...localPrepositionLogsRef.current
       ];
+    }
+
+    if (usesLocalMissionProgress) {
+      recordLocalDailyMissionCompletion({ store: localDailyMissionStoreRef.current, payload });
+      setDailyMissionProgress(indexDailyMissionProgress(getLocalDailyMissionProgress({
+        store: localDailyMissionStoreRef.current,
+        allowedContentIds
+      })));
       return;
     }
+
+    if (usesLocalPrepositionLogs) return;
 
     fetch(LOG_GAS_URL, { 
       method: "POST", 
@@ -862,18 +892,50 @@ function App() {
   };
 
   const handleLocalPrepositionVerification = async () => {
-    if (!LOCAL_PREPOSITION_VERIFICATION_ENABLED) return;
+    if (!LOCAL_DAILY_MISSION_VERIFICATION_ENABLED) return;
     clearStudentSessionToken();
     setStudentSessionToken('');
-    setUserId('local-preposition-verification');
+    setUserId('local-daily-mission-verification');
     setUserName('ローカル確認');
     setSchool('ローカル');
-    setAllowedContentIds([CONTENT_IDS.preposition_test]);
+    const localContentIds = [
+      CONTENT_IDS.kakitan,
+      CONTENT_IDS.junior_english_quiz,
+      CONTENT_IDS.irregular_verbs,
+      CONTENT_IDS.kanji_test,
+      CONTENT_IDS.preposition_test
+    ];
+    setAllowedContentIds(localContentIds);
     setPermissionsInitialized(true);
     setPermissionError('');
     setIsLocalPrepositionVerification(true);
+    setIsLocalDailyMissionVerification(true);
     localPrepositionLogsRef.current = [];
+    localDailyMissionStoreRef.current = createLocalDailyMissionVerificationStore();
+    setDailyMissionProgress(indexDailyMissionProgress(getLocalDailyMissionProgress({
+      store: localDailyMissionStoreRef.current,
+      allowedContentIds: localContentIds
+    })));
     await loadCsv();
+  };
+
+  const completeLocalMissionSet = () => {
+    if (!isLocalDailyMissionVerification || !isDailyMissionContent(activeContentId) || quizItems.length === 0) return;
+    const finalAnswers = quizItems.map((item) => ({
+      q: item.ja || item.question || item.en,
+      a: item.en || item.answer || item.ja,
+      correct: item.en || item.answer || item.ja,
+      en: item.en || '',
+      ok: true,
+      rawItem: item
+    }));
+    setQuizAnswers(finalAnswers);
+    setStep('quiz-result');
+    const contentDefinition = getContentDefinition(activeContentId);
+    const rangeLabel = activeContentId === CONTENT_IDS.kanji_test
+      ? `${selectedText || 'ローカルE2E'} (${startPage || '-'}〜${endPage || '-'})`
+      : null;
+    sendResultToGAS(finalAnswers, contentDefinition?.logSheetName, rangeLabel, activeContentId);
   };
 
   const handleChangePassword = async () => {
@@ -1061,7 +1123,7 @@ function App() {
         setNewPassword={setNewPassword}
         handleLogin={handleLogin}
         handleChangePassword={handleChangePassword}
-        showLocalPrepositionVerification={LOCAL_PREPOSITION_VERIFICATION_ENABLED}
+        showLocalPrepositionVerification={LOCAL_DAILY_MISSION_VERIFICATION_ENABLED || LOCAL_PREPOSITION_VERIFICATION_ENABLED}
         handleLocalPrepositionVerification={handleLocalPrepositionVerification}
         permissionError={permissionError}
       />
@@ -1266,6 +1328,8 @@ function App() {
         isCampGrading={isCampGrading}
         moveCampQuestion={moveCampQuestion}
         gradeCampQuiz={gradeCampQuiz}
+        showLocalMissionCompletion={isLocalDailyMissionVerification && isDailyMissionContent(activeContentId)}
+        completeLocalMissionSet={completeLocalMissionSet}
       />
 
       <KanjiTestView 
@@ -1307,6 +1371,8 @@ function App() {
         randomAllCount={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 20 : null}
         keepWrongHistory={activeContentId === CONTENT_IDS.camp_kagawa_kanji}
         beginLearningAttempt={beginLearningAttempt}
+        showLocalMissionCompletion={isLocalDailyMissionVerification && activeContentId === CONTENT_IDS.kanji_test}
+        completeLocalMissionSet={completeLocalMissionSet}
       />
 
       <ChemistrySetupView 

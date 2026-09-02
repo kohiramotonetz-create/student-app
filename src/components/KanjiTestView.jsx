@@ -42,7 +42,9 @@ function KanjiTestView({
   title = '漢字テスト 設定',
   randomAllCount = null,
   keepWrongHistory = false,
-  beginLearningAttempt
+  beginLearningAttempt,
+  showLocalMissionCompletion = false,
+  completeLocalMissionSet
 }) {
   if (step !== setupStep && step !== mainStep) return null;
 
@@ -235,6 +237,11 @@ function KanjiTestView({
       {/* 実行画面（手書き画面） */}
       {step === mainStep && quizItems[qIndex] && (
         <div className="quiz-container" style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none', userSelect: 'none' }}>
+          {showLocalMissionCompletion && (
+            <button className="secondary" type="button" onClick={completeLocalMissionSet} style={{ width: '100%', marginBottom: '12px' }}>
+              ローカルE2E: このセットを完了
+            </button>
+          )}
           <div className="q-header">漢字 Q {qIndex + 1} / {quizItems.length}</div>
           
           <div style={{ fontSize: '22px', marginBottom: '15px', fontWeight: 'bold' }}>

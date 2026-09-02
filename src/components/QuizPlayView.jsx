@@ -26,7 +26,9 @@ function QuizPlayView({
   isCampBatchQuiz,
   isCampGrading,
   moveCampQuestion,
-  gradeCampQuiz
+  gradeCampQuiz,
+  showLocalMissionCompletion = false,
+  completeLocalMissionSet
 }) {
   if (step !== 'quiz-main' && step !== 'quiz-result') return null;
   const currentItem = quizItems[qIndex];
@@ -40,6 +42,11 @@ function QuizPlayView({
       {/* 🚀 クイズ実行画面（テスト本体） */}
       {step === 'quiz-main' && quizItems[qIndex] && (
         <div className="quiz-container">
+          {showLocalMissionCompletion && (
+            <button className="secondary" type="button" onClick={completeLocalMissionSet}>
+              ローカルE2E: このセットを完了
+            </button>
+          )}
           <div className="q-header">Q {qIndex + 1} / {quizItems.length}</div>
           <div className="q-display-box" style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'center', background: 'white', border: 'none', height: '100px', marginBottom: '20px' }}>
             {mode === 'en-ja' && !isKobunMode && (
