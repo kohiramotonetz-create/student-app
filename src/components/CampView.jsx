@@ -18,7 +18,8 @@ function CampView({
   showWrongList,
   setShowWrongList,
   wrongWordsList,
-  canStartContent
+  canStartContent,
+  beginLearningAttempt
 }) {
   const [selectedGenre, setSelectedGenre] = useState('');
   const [selectedGenres, setSelectedGenres] = useState([]);
@@ -71,7 +72,7 @@ function CampView({
     : data.filter((item) => selectedGenres.includes(item.genre));
   const content = CAMP_CONTENTS.find(({ contentId }) => contentId === activeContentId);
 
-  const startQuiz = (items, limit = questionCount) => {
+  const startQuiz = (items, limit = questionCount, isReview = false) => {
     if (!canStartContent(activeContentId)) return;
     resetQuizState();
     setMode('en-ja');
@@ -79,6 +80,7 @@ function CampView({
     const shuffledItems = [...items].sort(() => 0.5 - Math.random());
     setQuizItems(limit === null ? shuffledItems : shuffledItems.slice(0, limit));
     setShowWrongList(false);
+    beginLearningAttempt(activeContentId, isReview);
     setStep('quiz-main');
   };
 
@@ -165,7 +167,7 @@ function CampView({
             </table>
           </div>
           <button className="nav-btn" style={{ backgroundColor: '#28a745', width: '100%' }} onClick={() => {
-            startQuiz(wrongWordsList.map(({ rawItem }) => rawItem), null);
+            startQuiz(wrongWordsList.map(({ rawItem }) => rawItem), null, true);
           }}>🔥 間違えた問題のみトライ！</button>
         </div>
       )}

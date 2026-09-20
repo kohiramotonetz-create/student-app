@@ -37,6 +37,288 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 新ホーム先行公開準備：キャラクター育成を作成中表示（Issue番号未指定）
+
+- 状態: ローカル実装・単体テスト・development / productionブラウザモック検証完了。正式リリース・本番公開判定は未実施
+- 作業基点: `codex/sukimakun-junior-home-renewal` の `cfb5d5a7bcd0f62a7109f7a11a415bbf85e97610`。隔離作業ツリーの `codex/sukimakun-home-prerelease` で作業。元の `main` (`2f93df2`) と開始時の `public/miki_high_school.csv` 17行追加は保持
+- 変更内容:
+  - 既存の小・中学生向け新ホームを継続使用し、科目別学習・高校生・合宿の導線と教材権限を維持
+  - キャラクター欄を「キャラクター育成」「作成中・・・」と指定の補足文に変更。画像・操作ボタンは不要
+  - `src/constants/releaseFeatures.js` の `CHARACTER_GROWTH_ENABLED = false` で育成を停止。新ホーム自体は常時有効。development / production共通の固定値で、環境変数・画面・保存状態では有効化しない
+  - 育成ストア初期作成・再作成、ミッション進捗取得、XP/PT/連続学習/未学習ペナルティ、キャラ選択・進化・装備・ショップ・アルバム・育成完了の処理と画面を遮断。作成済みコードは保持し、保存済みデータの削除・初期化・補填は行わない
+  - 復元された育成画面のstateや育成propsがあっても表示・操作しない。未取得のミッション進捗は準備中（`--`）、最近の学習・復習の横断集計は既存の準備中表示を維持
+  - 通常 `saveLog` から育成起動用の `attemptId` / `isReview` 追加payloadだけを除外。`contentId` / `history` / 採点結果 / 前置詞 `answerDetails` / session tokenは維持。`getLogs`、教材内復習、採点方式、認証session維持は変更なし
+  - development限定の既存ローカル前置詞確認入口は育成を初期化せず前置詞だけ利用可能にした
+- CSV影響: 隔離側の public/miki_high_school.csv をmainコミット 2f93df2 の70件（No.1〜70、p70/p72/p74/p76、4列）へバイト単位で一致させた。隔離元の旧121件・末尾空列から置換。元の作業場所の87件CSV・未コミット17件（No.73〜89）は取り込まず保全。その他23CSVは変更なし
+- Gemini影響: 既存の一次判定・一括判定・呼出条件に変更なし。実通信未実施
+- GAS影響: 変更なし。別ディレクトリのローカルログGASを読み取り確認。`attemptId` ありの `saveLog` は育成シート初期化・XP/PT/ペナルティ更新を行うため、既存の `attemptId` なし互換経路で通常ログだけ保存する。既存GASモックテスト3件（旧saveLog、token付きsaveLog、tokenなしgetLogs互換）は成功
+- build結果: 2026-09-20 `npm run build` 成功
+- lint結果: 2026-09-20 `npm run lint` は変更前と同じ既存8件（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）。今回の追加エラーなし
+- test結果: 2026-09-20 `npm test` 89件成功、ブラウザ親2件は通常実行ではskip。追加の `npm run test:home-browser` はdevelopment / production各7項目（子14件＋親2件、計16件）成功。既存インストール済みPlaywrightとChromeを利用し、依存ダウンロードなし
+- `git diff --check`: 成功
+- ローカル確認: PC 1440px / 狭幅390pxの全科目ホームをスクリーンショットでも目視確認。育成表示・ボタン・画像・モーダル・APIなし。書き単/漢字設定、高校生/合宿、教材権限・権限0件・SSO権限未取得時の拒否を確認。前置詞20問完了→ログ1回→ホーム復帰、既存履歴1問復習→追加ログ1回を確認。`history` の方向別固定キーと通常○/復習◎、`answerDetails` を維持。保存済み育成Ref・旧verification state・shop/album等を復元して全育成callbackを呼んでも値は不変。育成ストア初期作成なし、認証session以外のアプリタイマーなし、console/page error 0、アプリからの外部リクエスト試行0。各APIはローカルモックで検証
+- 通常ログイン / SSO / 保存session復元 / ログアウト: development / productionのモックで成功。実GAS・実アカウントでの確認は未実施。既存の通常login時legacy権限応答互換は変更なし
+- 公開GASコード確認: 元の設定に対応する公開v19ソースを管理APIから読み取り確認済み。12列の通常saveLogにattemptIdは不要で、受付から保存まで育成処理なし。前記GASモック3件はローカル開発ソース対象であり公開v19対象ではない。本番データ・実送信は未確認。Preview配信版のログ保存先一致はcommit後に確認する
+- Version: 4.3.0のまま。利用者指示により更新不要。ログイン・ホームとも共通定数を維持。Version History変更なし
+- Commit: 本項目を含む先行公開準備コミット。指定8ファイルを対象
+- Push / Vercel Preview: commit時点では未実施。利用者の指示によりこのコミットを隔離ブランチへ通常pushし、Git連携で生成されるPreviewを確認する。Production対象はVercel設定画面でmainと確認済み
+- mainマージ / Production公開 / clasp push / GAS再デプロイ / 本番セットアップ / 本番データ変更: 未実施
+- 関連gyoumu-appコミット / Issue: なし。gyoumu-app・netz-os変更なし
+
+### 育成システム Phase F：育成完了・アルバム・次キャラ基盤（Issue番号未指定）
+
+- 状態: student-app、認証GAS、ログGASへlocal onlyで実装。Production未接続
+- 育成完了: Lv100 / Stage6 / activeをcompletionReadyとして派生し、明示確認後にstatus=completed、endedAt、endReason=completedを確定
+- 完了報酬: EconomyLedgerへ`character_complete::{characterInstanceId}`を正本として500ptを冪等付与し、partial failure再送時にstatus／Ledger／pointBalanceを修復
+- アルバム: 新規Albumシートを作らず、completed/game_overのCharacterInstancesを終了日時降順で取得。最終Lv、Stage、装備、visualBranch、終了理由を表示
+- 次キャラ: 終了済み個体を保持したまま既存3キャラ選択UIを再利用し、新instanceId、空装備、careStartedDate、pendingXp移管で育成を再開
+- 資産: Player単位のpointBalance、streak、common／character-specific所有品を維持。evolution-limited所有品は旧characterInstanceへ保持
+- ローカル確認: development限定でLv100 completionReady、完了500pt、アルバム、次キャラ作成を確認可能。正式画像は未作成
+- GAS影響: completeCharacter/getCharacterAlbumと次キャラ対応、character:complete-own scopeをローカル追加。GAS未push・未deploy
+- Spreadsheet影響: 本番実変更なし。既存CharacterInstancesを再利用し、新規Albumシートなし。setup未実行
+- Production / Version: Production未接続。Version 4.3.0とVersion Historyは変更なし
+- Commit: `feat: complete character lifecycle and album foundation`でlocal checkpoint化
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / setup / Spreadsheet変更 / 本番通信: 未実施
+
+### 育成システム Phase E2：装備・見た目・進化限定基盤（Issue番号未指定）
+
+- 状態: student-app、認証GAS、ログGASへlocal onlyで実装。Production未接続
+- 変更内容: 固定7スロットのequipmentJson、所有確認付きequip/unequip、同一slot自動付け替え、キャラ専用品制限、終了キャラの装備固定を追加
+- 進化限定: 3キャラ×Lv20/40/60/80/100の15商品を個体所有として追加。価格は250/350/600/800/1,200pt、現在Lv区間だけ購入可能
+- visualBranch: Lv60商品所有後、各キャラ3候補から一度だけ選択しCharacterInstanceへ保存。性能差なし
+- 見た目: assetKeyとplaceholder/CSSによるdevelopment限定簡易反映。正式画像は未作成
+- GAS影響: CharacterInstances末尾へequipmentJson、equipItem/selectVisualBranch action、character:equip-own scopeをローカル追加。GAS未push・未deploy
+- Spreadsheet影響: 本番実変更なし。setup未実行、既存列は維持
+- 未実装: Lv100 status=completed、+500pt、アルバム、次キャラ選択、正式画像、gyoumu-app管理UI
+- Production / Version: Production未接続。Version 4.3.0とVersion Historyは変更なし
+- Commit: `feat: add equipment and evolution customization foundation`でlocal checkpoint化
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / setup / Spreadsheet変更 / 本番通信: 未実施
+
+### 育成システム Phase E1：ショップ・購入・所持アイテム基盤（Issue番号未指定）
+
+- 状態: student-app、認証GAS、ログGASへlocal onlyで実装。Production未接続
+- 変更内容:
+  - 共通20件・キャラ専用9件の表示用ItemMasterをstudent-appへ追加し、ログGAS側の同一itemId定義を購入価格・購入可否の正本として追加
+  - OwnedItems schema、player所有の`userId::itemId`、購入時pricePaid、source/sourceIdを追加
+  - `purchaseRequestId`由来eventKeyでEconomyLedgerへ負数PTを一度だけ記録し、pointBalanceを台帳から再構築する購入基盤を追加
+  - Ledger作成後にOwnedItems書き込みが欠けたpartial failureを再送で修復し、既所有・同一request・残高不足・キャラ条件不一致を二重課金なしで処理
+  - `getShopItems`と`purchaseItem`をstudent session token必須actionとして追加し、認証GASの新規session scopeへ`shop:read`と`points:spend-own`を追加
+  - development限定ショップで所持pt、価格、共通／専用、所有済み、ポイント不足、対象キャラ条件を確認可能にした
+- ItemMaster保存方式: Phase E1はGASコード定数を価格正本とする。将来gyoumu-app管理に移行する際は`getShopItems`の返却契約を維持してSpreadsheet masterへ移行可能
+- Spreadsheet影響: 本番実変更なし。OwnedItems schemaとsetup helperは追加したがsetup未実行
+- GAS影響: ローカルコードとテストのみ変更。GAS未push・未deploy、Script Property未変更
+- 未実装: 装備、見た目反映、進化限定商品の正式購入、visualBranch、アルバム、Lv100育成完了、正式画像
+- test / build / lint: `npm test` 80件成功、`npm run build`成功、変更対象lintは新規エラーなし。`npm run lint`は既存8件のみ、`git diff --check`成功
+- GASローカル確認: ログGAS `node --check`成功・54件成功、認証GAS `node --check`成功・8件成功
+- ローカル確認: `http://127.0.0.1:5176/`で500pt開始、丸メガネ購入後400pt・所有済み、プリン専用品、他キャラ条件、game over後の共通／専用品条件、console errorなしを確認。外部API通信なし
+- Production確認: buildを`http://127.0.0.1:4181/`で開き、ローカルE2E入口、ショップ、pt付与、購入ボタンが0件であることを確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: `feat: add shop and item purchase foundation`でlocal checkpoint化
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / setup / Spreadsheet変更 / 本番通信 / 本番確認: 未実施
+
+### 育成システム Phase D：未学習状態・ゲームオーバー（Issue番号未指定）
+
+- 状態: student-appとログGASへlocal onlyで実装。Production未接続
+- 変更内容:
+  - CharacterInstanceの`careStartedDate`とPlayerProgressの正式な`lastLearningDate`の新しい方を基準に、JST日付で未学習日数を算出する純粋関数を追加
+  - 未学習0〜1日をhealthy、2日をfaded、3日をweak、4日をhospitalized、5日をcritical、6日以上をgame_overとして表示する状態基盤を追加
+  - `getPlayerProgress`と通常学習完了時のlazy evaluationにより、6日到達時だけCharacterInstanceを`game_over`へ冪等遷移し、`endedAt`と`endReason=inactivity`を保持
+  - game over後もactiveCharacterInstanceIdと最終Lv／XP／Stage、Player単位のpointBalanceを保持し、以後の学習XPを旧キャラでなくpendingXpへ投影
+  - development限定E2Eへ日付進行と当日学習操作を追加。正式画像は作成せず、opacity、状態ラベル、医療アイコン、育成終了表示で確認可能にした
+- Spreadsheet影響: 本番実変更なし。CharacterInstancesの`careStartedDate`／`endReason`追加schemaはsetup未実行
+- GAS影響: ローカルコードとテストのみ変更。GAS未push・未deploy、Script Property未変更
+- 未実装: 次キャラ選択、Lv100育成完了、ショップ、アイテム、pt消費、アルバム、正式キャラクター画像
+- test / build / lint: `npm test` 73件成功、`npm run build`成功、変更対象lintは新規エラーなし。`npm run lint`は既存8件のみ、`git diff --check`成功
+- GASローカル確認: ログGAS `node --check`成功・48件成功
+- ローカル確認: `http://127.0.0.1:5175/`でDay1〜6の全condition、Day5通常学習によるhealthy回復、console errorなしを確認。外部API通信なし
+- Production確認: buildを`http://127.0.0.1:4180/`で開き、ローカルE2E入口、日付操作、回復操作、game overテスト表示が0件であることを確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: 未実施
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / setup / Spreadsheet変更 / 本番通信 / 本番確認: 未実施
+
+### 育成システム Phase C：連続学習・交換用pt基盤（Issue番号未指定）
+
+- 状態: student-appとログGASへlocal onlyで実装。Production未接続
+- 変更内容:
+  - 正常完了した通常LearningAttemptをJSTの学習日として扱い、同日1回だけcurrentStreak／longestStreak／streakStartedDate／lastLearningDateを更新する基盤を追加。復習、途中離脱、同一attempt再送は対象外
+  - 7日周期の週間報酬（5/5/10/10/15/15/30pt）と連続30日ごとの100ptを、EconomyLedgerのPT取引としてeventKeyで冪等付与
+  - CharacterInstanceごとのLv10／30／50／70／90到達報酬を追加。複数Lv跨ぎとpendingXpからの初回キャラ作成にも対応し、Lv100完了500ptは未実装
+  - EconomyLedgerをXP/PT共通台帳として利用し、PlayerProgress.pointBalanceを台帳から修復可能な投影として追加
+  - development限定E2Eへ翌日学習、1日休み、30日学習を追加し、ホーム上部へcurrentStreakとpointBalanceを表示。Productionでは操作・mock値とも非表示
+- Spreadsheet影響: 本番実変更なし。PlayerProgress拡張schemaとEconomyLedger PT対応はsetup未実行
+- GAS影響: ローカルコードとテストのみ変更。GAS未push・未deploy、Script Property未変更
+- 未実装: Phase Dの未学習状態／ゲームオーバー、ショップ、アイテム、アルバム、Lv100育成完了500pt、pt消費
+- test / build / lint: `npm test` 67件成功、`npm run build`成功、変更対象lintは新規エラーなし。`npm run lint`は既存8件のみ、`git diff --check`成功
+- GASローカル確認: ログGAS `node --check`成功・45件成功
+- ローカル確認: `http://127.0.0.1:5174/`でDay1〜8（95pt）、30日（470pt）、1日空白後のstreak=1、Lv10／30報酬（合計300pt）とconsole errorなしを確認。外部API通信なし
+- Production確認: 最終buildを`http://127.0.0.1:4179/`で開き、ローカルE2E入口、日付加速、mock streak／pt、XP操作が0件であることを確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: Phase Cのlocal checkpoint commitを実施（本項目を含む）
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / setup / Spreadsheet変更 / 本番通信 / 本番確認: 未実施
+
+### 育成システム Phase B：キャラクター選択・進化表示（Issue番号未指定）
+
+- 状態: student-app、認証GAS、ログGASへlocal onlyで実装。Production未接続
+- 変更内容:
+  - プリン／ペンギン／太陽の表示用Character Masterと、各キャラ共通のStage 1〜6定義を追加。正式画像は作成せず、差し替え可能なassetKeyと絵文字placeholderを使用
+  - development限定E2Eをキャラ未選択状態から開始し、学習XPをpendingXpへ保持してから確認付きキャラ選択でCharacterInstanceへ移すフローを追加
+  - activeキャラの名前、Lv、累計XP、次Lvまで、進捗バー、stage名、次の進化までをホーム育成カードへ表示
+  - development限定XP境界操作でLv20／40／60／80／100のstage変更を確認可能にした。Production buildには選択・加速・mock操作を表示しない
+  - ログGASへtoken認証済み`getPlayerProgress`／`selectInitialCharacter`、3キャラ検証、selectionRequestId冪等、ScriptLock内作成、pendingXp移管をローカル実装
+  - 認証GASの新規生徒sessionへ`progress:read-own`、`character:read-own`、`character:select-own` scopeを追加
+- CharacterInstance / Spreadsheet影響: 本番実変更なし。正式CharacterInstance未作成、CharacterInstances schemaのselectionRequestId追加もsetup未実行
+- GAS影響: ローカルコードとテストのみ変更。GAS未push・未deploy、Script Property未変更
+- 未実装: 正式画像、交換用pt、連続学習、ゲームオーバー、ショップ、アイテム、アルバム、visualBranch選択、Lv100完了処理
+- test / build / lint: `npm test` 56件成功、`npm run build`成功、新規・関連変更ファイルlint成功。`npm run lint`は既存8件のみ、`git diff --check`成功
+- GASローカル確認: ログGAS `node --check`成功・40件成功、認証GAS `node --check`成功・生徒session 8件成功
+- ローカル確認: 未選択で漢字1セット25XPをpendingへ保持し、プリン選択でCharacterInstanceへ反映。Lv19→20、39→40、Lv60、80、100でStage 1→6とstage名が切り替わることを確認
+- Production確認: 最終buildを`http://127.0.0.1:4177/`で開き、ローカルE2E入口、完了ボタン、キャラ選択、mock XP、XP境界操作が0件であることを確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: Phase Bのlocal checkpoint commitを実施（本項目を含む）
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / 本番通信 / 本番確認: 未実施
+
+### 育成システム Phase A：XP・Lv基盤（Issue番号未指定）
+
+- 状態: student-appとログGASへlocal onlyで実装。Production未接続
+- 変更内容:
+  - 通常学習完了時に妥当なscoreを1正解=1XPとして扱い、復習・紙テスト・高校生教材・異常scoreをXP対象外とする基盤を追加
+  - `次Lv必要XP = 40 + 現在Lv × 2`、Lv100累計13,860XP、Lv上限、stage 1〜6を純粋関数化
+  - daily mission定義へ`rewardXp: 30`を追加し、達成遷移を日付・mission単位のeventKeyで一度だけ付与
+  - development限定E2Eへpuddingの仮active CharacterInstanceとメモリ内XP台帳を追加。正式値未接続時の本番UIは従来の準備中を維持
+  - ログGASのMissionAttemptsを本番setup前にLearningAttemptsへ一般化し、EconomyLedger、CharacterInstances、PlayerProgressのschemaと冪等setupをローカル実装
+  - XP台帳を付与正本とし、CharacterInstanceのtotalXp／level／stageまたはPlayerProgress.pendingXpを再送時に再構築できる処理を追加
+  - scoreはクライアント申告値を有限整数かつ`0 <= score <= total`で検証するが、サーバー再採点は未実装。ランキング用途の公平性正本には使用しない
+- Spreadsheet影響: 実変更なし。LearningAttempts、EconomyLedger、CharacterInstances、PlayerProgressは未作成、setup未実行
+- GAS影響: `C:\Users\netz\student-app-log-gas`のローカルコードとテストのみ変更。GAS未push・未deploy
+- CSV / Gemini影響: なし。既存CSV、採点、Gemini呼び出し条件を変更していない
+- test / build / lint: `npm test` 51件成功、`npm run build` 成功、新規・関連変更ファイルlint成功。`App.jsx`を含むlintは同ファイル既存6件のみ、`npm run lint`は既存8件のみ、`git diff --check`成功
+- GASローカル確認: `node --check コード.js`成功、`node --test コード.test.cjs` 36件成功
+- ローカル確認: `npm run dev -- --host 127.0.0.1`（`http://127.0.0.1:5173/`）で漢字25問セットを3回完了し、XP 25→50→105（3回目はミッション達成+30XP）、Lv1→2→3、漢字1/3→2/3→3/3を確認
+- Production確認: `npm run preview -- --host 127.0.0.1`（`http://127.0.0.1:4173/`）でローカルE2E入口、完了ボタン、仮XPカード、XP加速UIが0件であることを確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: Phase Aのlocal checkpoint commitを実施（本項目を含む）
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / 本番通信 / 本番確認: 未実施
+
+### 小・中学生教材の共通attempt lifecycle（Phase 0・Issue番号未指定）
+
+- 状態: student-appへローカル実装。XP・Lv・pt・キャラクター・ショップおよびGASのLearningAttemptsは未実装
+- 変更内容:
+  - アプリ内でscore／totalが確定する小・中学生向け10教材を、デイリーミッション専用ではない共通learning attempt対象として明示
+  - 実際の問題セット開始時に教材ごとのattemptIdと明示的なisReviewを保持し、正常完了してsaveLogへ進む時だけ同じattemptIdをpayloadへ追加
+  - 前置詞、化学、合宿理科・社会へ共通attempt開始を追加し、古文・合宿漢字を含む既存開始処理も共通契約へ接続
+  - 中断、別教材への遷移、logoutでは未完了attemptを破棄。reloadではReact stateが復元されないため未完了扱いを維持
+  - 紙テスト作成はアプリ内採点・完了ログを持たないためattempt対象外
+  - 既存デイリーミッション4教材、復習除外、同一attempt重複除外、development限定ローカルE2Eの契約を維持
+- CSV影響: なし
+- Gemini影響: なし。既存の一次判定・Gemini判定・一括判定に変更なし
+- GAS / Spreadsheet影響: 変更なし。将来のLearningAttemptsへ渡せるattemptId／contentId／isReview／score／total契約をstudent-app側で準備
+- test結果: 2026-09-02 `npm test` 成功（43件。共通attempt対象10教材、通常／復習、セット間ID更新、完了・中断・教材不一致、既存デイリーミッションE2Eを含む）
+- build結果: 2026-09-02 `npm run build` 成功。production previewでdevelopment限定E2E入口が非表示であることを確認
+- lint結果: 変更対象lint成功。`npm run lint`は既存8件（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）のみで失敗し、今回追加エラーなし
+- ローカル確認: `http://localhost:5173/`で外部通信なしの漢字E2E 1/3→2/3→3/3・達成表示、前置詞の通常セット開始、reloadによる未完了終了、console errorなしを確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit / Push / mainマージ / Vercel / clasp push / GASデプロイ / 本番確認: 未実施
+
+### 生徒session認証基盤（Issue番号未指定）
+
+- 状態: student-app、認証GAS、ログGASへローカル実装。GAS未push・未deploy、認証Spreadsheet未変更のため本番未接続
+- 変更内容:
+  - 通常ログインとuid/tk SSO成功時に共通の生徒session tokenを発行する認証GASローカル実装を追加
+  - tokenは`ss1.`＋UUID 2個、SpreadsheetにはSHA-256 hashだけを保存する設計
+  - 認証Spreadsheetの「生徒セッション」17列schema、12時間absolute期限、2時間idle期限、30分touch、logout revoke、active上限3件を追加
+  - `validateStudentSession`、`touchStudentSession`、`revokeStudentSession` actionを追加
+  - student-appはtokenを`sessionStorage`へ保持し、SSO優先・session復元・best-effort revoke・visible時30分touchへ対応
+  - 既存`saveLog`の`mode: no-cors`を維持したままtokenをpayloadへ追加し、`getLogs`とミッション進捗取得にも同じtokenを使用
+  - ログGASは`STUDENT_AUTH_SPREADSHEET_ID`から認証Spreadsheetを参照し、token由来userId、scope、allowedContentIdsを正本にするPhase 1互換処理を追加
+  - token付き認証失敗時は匿名処理へfallbackせず、tokenなしの既存`saveLog`／`getLogs`だけを移行期間中維持
+  - `getDailyMissionProgress`をtoken必須actionとしてローカル接続し、取得成功時だけホームへ数値進捗を表示。未接続・失敗時は`-- / 3`を維持
+- 認証GAS影響: `C:\Users\netz\gyoumu-app\gas`のローカルソースとテストのみ変更。管理session、6桁SSO tokenの5分・一回限り仕様は維持
+- ログGAS影響: `C:\Users\netz\student-app-log-gas`のローカルソースとテストのみ変更。匿名互換は既存saveLog/getLogsに限定
+- Spreadsheet影響: 実変更なし。「生徒セッション」シート未作成、setup未実行、`STUDENT_AUTH_SPREADSHEET_ID`未設定
+- CSV影響: なし
+- Gemini影響: なし。採点処理・API呼び出し条件に変更なし
+- セキュリティ: token平文をSpreadsheet・URL・ログ・エラーへ出力しない。token付き処理はsession由来userIdと権限を使用
+- test結果: 2026-09-02 `npm test` 成功（34件）。認証GAS生徒sessionテスト成功（8件）。ログGAS回帰・認証・ミッションテスト成功（29件）
+- build結果: 2026-09-02 `npm run build` 成功
+- lint結果: 新規・変更した認証関連モジュールとテストは成功。`App.jsx`の既存6件と`ChemistryPlayView.jsx`の既存2件により`npm run lint`は失敗し、今回追加エラーなし
+- `git diff --check`: 2026-09-02 成功
+- ローカル確認: 外部認証・ログGASへの実通信なし。本番GAS未デプロイのため実session発行と実進捗取得は未確認
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: 認証基盤差分は未commit
+- Push / mainマージ / Vercel / clasp push / GASデプロイ / 本番確認: 未実施
+
+### デイリーミッション基盤（Issue番号未指定）
+
+- 状態: 専用ブランチ上でstudent-appとログGASのローカル基盤を実装。ホームは権限に応じた正式ミッション内容を表示し、実進捗だけを「準備中」としている
+- 変更内容:
+  - 英単語（`kakitan`、`junior_english_quiz`、`irregular_verbs`）3セットと漢字（`kanji_test`）3セットのデフォルト定義を1か所へ追加
+  - 対象教材の通常／復習セット開始時に`crypto.randomUUID()`由来のattemptIdを生成し、完了時の既存`saveLog` payloadへattemptIdとisReviewを追加
+  - 復習、合宿漢字、古文、その他教材をミッション加算対象外として維持
+  - ログGASを既存12列維持＋M列attemptIdの13列schemaへ後方互換拡張するローカル実装を追加
+  - GAS内へ英単語・漢字のデフォルト定義、attempt重複排除、MissionAttempts記録、DailyMissionProgress更新、JST日付境界処理を追加
+  - 本人認証方式が未確定のため、進捗取得は内部関数とテストまで実装し、匿名公開doPostのactionには未接続
+  - `MissionAttempts`と`DailyMissionProgress`を安全に作成する冪等setup関数を追加（未実行）
+  - `dailyMissions.js`の定義と既存教材表示名を利用し、`allowedContentIds`と交差したミッション名・必要回数・対象教材をホームへ表示
+  - 進捗未接続時は実績値に見える`0 / 3`を避け、`-- / 3`と「準備中」を表示。対象教材が0件または権限初期化前はミッションを表示しない
+  - Vite development時だけ利用できる外部保存なしのローカルE2E入口とメモリ内進捗モックを追加。既存attemptId・isReview・ミッション定義を利用し、対象教材の正常完了だけを加算
+  - ローカルE2Eでは同一attemptId、復習、途中離脱、対象外教材を加算せず、漢字と英単語3教材を実行画面から外部採点なしで完了できる確認操作を追加。正式進捗保存にlocalStorageは使用しない
+  - 通常ログインとuid/tk SSOの認証経路を調査。生徒の通常ログインはセッショントークンを発行せず、SSOの6桁トークンは5分期限かつ検証成功時に消去されるため、ログGASの継続認証には新しい本人セッション設計が必要と確認
+- ポイント影響: なし。rewardPointsはnull。残高、付与、レベル、育成処理は未実装
+- CSV影響: なし
+- Gemini影響: なし。採点処理・呼び出し条件に変更なし。外部API実通信なし
+- GAS影響: `C:\Users\netz\student-app-log-gas`のローカルソースのみ変更。`clasp push`、setup実行、デプロイ未実施
+- Spreadsheet影響: 実変更なし。将来のM列attemptId、MissionAttempts、DailyMissionProgress追加を想定したコードのみ
+- 既存機能影響: `mode: "no-cors"`、既存saveLog送信、認証、SSO、権限制御、採点、復習処理を維持。attemptIdなしのsaveLogは従来どおりログだけを保存
+- test結果: 2026-09-02 `npm test` 成功（38件。ローカルE2Eの漢字1/3〜3/3、英単語3教材合算、復習・重複attempt・対象外除外を含む）。ログGAS `node --test コード.test.cjs` 成功（23件。重複排除、英単語・漢字、復習除外、JST日付境界、生徒分離、冪等setupを含む）
+- build結果: 2026-09-02 `npm run build` 成功
+- lint結果: 変更ファイル対象lint成功。`npm run lint`は既存8件（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）で失敗し、今回追加エラーなし
+- `git diff --check`: 2026-09-02 成功
+- ローカル確認: `http://localhost:5173/`のdevelopment限定入口で、定期テスト漢字対策を通常開始し、外部採点・GAS通信なしのセット完了操作からホームへ戻る流れを3回実行。漢字`1 / 3`、`2 / 3`、`3 / 3`と達成表示を実ブラウザで確認。既存CSV重複header警告とHot Reload時の一時的なReact警告を確認したが、今回機能の操作エラーなし
+- checkpoint: 小・中学生ホーム刷新を`13e4310`（`feat: redesign junior sukimakun home`）としてローカルcommit
+- Version: 4.3.0のまま。Version Historyと共通定数は変更なし
+- Commit: ミッション基盤は未commit
+- Push / mainマージ / Vercel / GASデプロイ / 本番確認: 未実施
+
+### 小・中学生向けホーム画面刷新（Issue番号未指定）
+
+- 状態: React実装、純粋関数テスト、build、変更箇所lint、PC・tablet・mobileのローカルブラウザ確認まで完了。本番連携確認は未実施
+- 変更内容:
+  - 小・中学生向けホームを、学習開始を主役とする横長カードUIへ刷新
+  - 英語・国語・理科・社会を明示的なcontentId配列で表示分類し、`isContentAllowed` を通過した教材だけを件数と科目別一覧へ反映
+  - 合宿3教材の既存 `menuGroup: 'camp'` を維持したまま、表示上のみ国語・理科・社会へ分類
+  - 合宿権限がある場合だけ特別モードを表示し、既存 `camp-menu` へ遷移
+  - 高校生教材を小・中学生の件数から除外し、権限がある場合の既存高校生モード入口を控えめに維持
+  - 科目別教材一覧は `MenuView` 内stateで切り替え、教材開始時は既存 `openContent` と書き単・古文・不規則変化の状態初期化を継続利用
+  - ミッション、連続学習、ポイント、育成・ごほうび、最近の学習・復習は、実データを装う数値を出さない「準備中」UIとして追加
+  - Liquid Glass風下部ナビをホーム概要だけに表示。ホームのみ活性、記録・ランキング・キャラクター・設定は視覚上およびアクセシビリティ上disabled
+  - lucide-reactの学習アイコンを正式キャラクター素材提供前の控えめな代替として使用
+  - ホーム専用CSSへスコープし、PC 5列、tablet 3列、mobile 1〜2列、safe area、backdrop-filter fallback、`prefers-reduced-motion` に対応
+- CSV影響: なし。CSVファイル、列構成、読込処理に変更なし
+- Gemini影響: なし。採点コード、呼び出し条件、回数に変更なし。外部Gemini API実通信なし
+- GAS影響: なし。GASソース、保存payload、`saveLog`、`getLogs` に変更なし。GAS実通信なし
+- 既存機能影響: `App.jsx`、認証、通常ログイン、uid/tk SSO、CSV読込、採点、ログ保存、復習、CampView、HighSchoolViewは変更なし。教材遷移は既存 `openContent` を再利用
+- test結果: 2026-09-02 `npm test` 成功（24件。科目分類の11件・重複なし・存在確認・高校生ID除外・権限別件数・空権限を含む）
+- build結果: 2026-09-02 `npm run build` 成功
+- lint結果: 2026-09-02 変更3コードファイルの対象lint成功。`npm run lint` は既存8件（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）で失敗し、今回追加コードの新規エラーなし
+- `git diff --check`: 2026-09-02 成功
+- ローカル確認: `C:\Users\netz\student-app` で `npm run dev -- --host 127.0.0.1` を実行し、`http://127.0.0.1:5173/` を確認。development限定の既存ローカル確認入口を利用し、外部API通信なしで新ホームを表示
+- PC表示確認: 1440×900でヘッダー、ミッション、学習開始、下段2領域、5列科目グリッド定義、Liquid Glassナビ、Versionを確認。横方向のviewport超過なし
+- tablet表示確認: 820×1000で科目3列、下段1列、ナビと本文の非重複、横方向のviewport超過なしを確認
+- mobile表示確認: 390×844で縦積み、科目1列、下部ナビ5項目、下部padding、横方向のviewport超過なしを確認
+- 科目別遷移確認: 前置詞だけを許可したローカル状態で英語1件表示、英語教材一覧への切替、前置詞テスト表示、ホームへ戻る操作を確認。全11教材の実画面遷移は未確認
+- ブラウザconsole: errorなし。既存CSVの重複headerに関するPapa Parse warningのみ確認
+- 通常ログイン: 未確認
+- SSO: 未確認
+- Gemini: 実通信未実施
+- Commit: 未実施
+- Push: 未実施
+- mainマージ: 未実施
+- 作業ブランチ: `codex/sukimakun-junior-home-renewal`
+- Vercelデプロイ: 未実施
+- 本番確認: 未実施
+- 関連gyoumu-appコミット / Issue: なし。gyoumu-app変更なし
+- Version: 4.3.0のまま。共通定数とVersion Historyは変更なし。更新要否はユーザー確認待ち
+
 ### 前置詞テスト追加（Issue番号未指定）
 
 - 状態: React実装・CSV追加・自動テスト・build・専用ブランチへの切り分け・push・Vercel Preview生成・development限定のローカル操作確認・ログGAS再デプロイ・実ログ経路での復習リスト表示確認まで完了。`answerDetails` の実ログセル内容と本番画面は未確認

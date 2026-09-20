@@ -40,7 +40,7 @@ function LoginView({
           <button onClick={handleLogin}>ログイン</button>
           {showLocalPrepositionVerification && (
             <button className="secondary" onClick={handleLocalPrepositionVerification}>
-              前置詞テストをローカル確認
+              ローカルE2E確認（外部保存なし）
             </button>
           )}
           <span className="app-version">Version {APP_VERSION}</span>

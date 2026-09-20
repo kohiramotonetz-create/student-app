@@ -24,7 +24,8 @@ function OtherSetupsView({
   showWrongList,
   setShowWrongList,
   wrongWordsList,
-  canStartContent
+  canStartContent,
+  beginLearningAttempt
 }) {
   if (
     step !== 'kakitan-setup' && 
@@ -76,6 +77,7 @@ function OtherSetupsView({
             const range = kakitanData.filter(d => targetUnits.includes(d.unit));
             if (range.length === 0) return alert("該当データがありません");
             resetQuizState();
+            beginLearningAttempt(CONTENT_IDS.kakitan, false);
             setQuizItems([...range].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT));
             setStep('quiz-main');
           }}>スタート！</button>
@@ -110,6 +112,7 @@ function OtherSetupsView({
                 if (!canStartContent(CONTENT_IDS.kakitan)) return;
                 const targetItems = wrongWordsList.map(w => w.rawItem);
                 resetQuizState();
+                beginLearningAttempt(CONTENT_IDS.kakitan, true);
                 setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));
                 setShowWrongList(false);
                 setStep('quiz-main');
@@ -169,6 +172,7 @@ function OtherSetupsView({
             if (!canStartContent(contentId)) return;
             const baseData = isFukisokuMode ? fukisokuData : kobunData;
             resetQuizState(); 
+            beginLearningAttempt(contentId, false);
             setQuizItems([...baseData].sort(() => 0.5 - Math.random()).slice(0, QUESTION_COUNT)); 
             
             {/* ★ スタートした瞬間、各モードに応じた正しい識別子を親ステートに強制同期 */}
@@ -213,6 +217,7 @@ function OtherSetupsView({
                 if (!canStartContent(contentId)) return;
                 const targetItems = wrongWordsList.map(w => w.rawItem);
                 resetQuizState();
+                beginLearningAttempt(contentId, true);
                 setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));
                 
                 {/* ★ 間違えた問題のみトライで復習するときも、確実に各モードの固定形式を適用 */}

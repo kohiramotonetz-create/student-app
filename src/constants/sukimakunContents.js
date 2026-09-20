@@ -38,5 +38,37 @@ export const HIGH_SCHOOL_CONTENTS = SUKIMAKUN_CONTENTS.filter(({ menuGroup }) =>
 
 export const CAMP_CONTENTS = SUKIMAKUN_CONTENTS.filter(({ menuGroup }) => menuGroup === 'camp');
 
+// ホーム表示専用の分類。教材の正式な menuGroup や遷移定義は変更しない。
+export const JUNIOR_HOME_SUBJECT_IDS = Object.freeze({
+  english: Object.freeze([
+    'paper_english_test',
+    'junior_english_quiz',
+    'kakitan',
+    'irregular_verbs',
+    'preposition_test'
+  ]),
+  japanese: Object.freeze([
+    'junior_kobun',
+    'kanji_test',
+    'camp_kagawa_kanji'
+  ]),
+  science: Object.freeze([
+    'chemistry_formulas',
+    'camp_science_qa'
+  ]),
+  social: Object.freeze([
+    'camp_social_qa'
+  ])
+});
+
+export const getJuniorHomeContentsBySubject = (isAllowed) =>
+  Object.fromEntries(Object.entries(JUNIOR_HOME_SUBJECT_IDS).map(([subject, contentIds]) => [
+    subject,
+    contentIds
+      .filter((contentId) => isAllowed(contentId))
+      .map((contentId) => getContentDefinition(contentId))
+      .filter(Boolean)
+  ]));
+
 export const getContentDefinition = (contentId) =>
   SUKIMAKUN_CONTENTS.find((content) => content.contentId === contentId);
