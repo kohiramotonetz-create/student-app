@@ -30,6 +30,7 @@ import {
   getJuniorHomeContentsBySubject
 } from '../constants/sukimakunContents';
 import { APP_VERSION } from '../constants/version';
+import { CHARACTER_GROWTH_ENABLED } from '../constants/releaseFeatures';
 import { getHomeDailyMissionModels } from '../constants/dailyMissions';
 import {
   CHARACTER_MASTER,
@@ -88,6 +89,12 @@ function MenuView({
 
   if (step !== 'menu') return null;
 
+  const isCharacterGrowthAvailable = CHARACTER_GROWTH_ENABLED && isLocalCharacterVerification;
+  const runCharacterAction = (action, ...args) => {
+    if (!isCharacterGrowthAvailable) return;
+    return action?.(...args);
+  };
+
   const contentsBySubject = getJuniorHomeContentsBySubject(isContentAllowed);
   const hasHighSchoolContent = HIGH_SCHOOL_CONTENTS.some(({ contentId }) => isContentAllowed(contentId));
   const hasCampContent = CAMP_CONTENTS.some(({ contentId }) => isContentAllowed(contentId));
@@ -95,7 +102,7 @@ function MenuView({
   const dailyMissions = getHomeDailyMissionModels({
     permissionsInitialized,
     isContentAllowed,
-    progressByMissionId: dailyMissionProgress
+    progressByMissionId: CHARACTER_GROWTH_ENABLED ? dailyMissionProgress : null
   });
   const hasAnyContent = visibleSubjects.length > 0 || hasHighSchoolContent || hasCampContent;
 
@@ -130,7 +137,7 @@ function MenuView({
 
   const selectedSubjectDefinition = SUBJECTS.find(({ key }) => key === selectedSubject);
   const selectedContents = selectedSubject ? contentsBySubject[selectedSubject] : [];
-  const activeCharacter = localPlayerProgress?.activeCharacter || null;
+  const activeCharacter = isCharacterGrowthAvailable ? localPlayerProgress?.activeCharacter || null : null;
   const activeCharacterDefinition = getCharacterDefinition(activeCharacter?.characterType);
   const activeStageDefinition = getCharacterStageDefinition(activeCharacter?.characterType, activeCharacter?.stage);
   const nextEvolution = activeCharacterDefinition?.stages.find(({ minLevel }) => minLevel > activeCharacter.level) || null;
@@ -144,12 +151,13 @@ function MenuView({
   };
 
   const chooseCharacter = (characterType) => {
+    if (!isCharacterGrowthAvailable) return;
     const requestId = createLocalSelectionRequestId();
     setPendingCharacterSelection({ characterType, requestId });
   };
 
   const confirmCharacter = () => {
-    if (!pendingCharacterSelection || !onSelectLocalCharacter) return;
+    if (!isCharacterGrowthAvailable || !pendingCharacterSelection || !onSelectLocalCharacter) return;
     const result = onSelectLocalCharacter(
       pendingCharacterSelection.characterType,
       pendingCharacterSelection.requestId
@@ -161,7 +169,7 @@ function MenuView({
   };
 
   const confirmCompletion = () => {
-    const result = onCompleteLocalCharacter?.();
+    const result = runCharacterAction(onCompleteLocalCharacter);
     if (result?.completed || result?.duplicate) setShowCompletionConfirm(false);
   };
 
@@ -177,19 +185,19 @@ function MenuView({
           </div>
         </div>
         <div className="student-home__status" aria-label="学習ステータス">
-          {isLocalCharacterVerification ? <>
+          {CHARACTER_GROWTH_ENABLED && (isCharacterGrowthAvailable ? <>
             <div className="student-home__status-card" data-local-streak="true"><Sparkles aria-hidden="true" /><span><small>連続学習</small>{localPlayerProgress?.currentStreak || 0}日</span></div>
             <div className="student-home__status-card" data-local-point-balance="true"><Medal aria-hidden="true" /><span><small>所持ポイント</small>{localPlayerProgress?.pointBalance || 0}pt</span></div>
           </> : <>
             <div className="student-home__status-card is-pending"><Sparkles aria-hidden="true" /><span><small>連続学習</small>集計準備中</span></div>
             <div className="student-home__status-card is-pending"><Medal aria-hidden="true" /><span><small>所持ポイント</small>機能準備中</span></div>
-          </>}
-          <button className="student-home__icon-button" type="button" disabled aria-label="通知（準備中）"><Bell /></button>
+          </>)}
+          {CHARACTER_GROWTH_ENABLED && <button className="student-home__icon-button" type="button" disabled aria-label="通知（準備中）"><Bell /></button>}
           <button className="student-home__logout" type="button" onClick={handleLogout}><LogOut /><span>ログアウト</span></button>
         </div>
       </header>
 
-      {showAlbum && isLocalCharacterVerification ? (
+      {showAlbum && isCharacterGrowthAvailable ? (
         <main className="student-home__subject-view student-home__album-view" data-local-character-album="true">
           <button className="student-home__back" type="button" onClick={() => setShowAlbum(false)}><ArrowLeft />ホームへ戻る</button>
           <section className="student-home__panel student-home__content-panel">
@@ -211,19 +219,19 @@ function MenuView({
             </div>
           </section>
         </main>
-      ) : showShop && isLocalCharacterVerification ? (
+      ) : showShop && isCharacterGrowthAvailable ? (
         <main className="student-home__subject-view student-home__shop-view" data-local-shop="true">
           <button className="student-home__back" type="button" onClick={() => setShowShop(false)}><ArrowLeft />ホームへ戻る</button>
           <section className="student-home__panel student-home__content-panel">
             <div className="student-home__section-heading"><span className="student-home__section-number"><Gift /></span><div><h2>アイテムショップ</h2><p>所持ポイント: {localPlayerProgress?.pointBalance || 0}pt</p></div></div>
-            <div className="student-home__shop-tools"><button type="button" onClick={() => onAddLocalShopPoints?.()}>確認用 +500pt</button></div>
+            <div className="student-home__shop-tools"><button type="button" onClick={() => runCharacterAction(onAddLocalShopPoints)}>確認用 +500pt</button></div>
             <div className="student-home__shop-grid">
               {(localShopItems || []).map((item) => (
                 <article className="student-home__shop-item" key={item.itemId} data-shop-item={item.itemId}>
                   <small>{item.category} / {item.itemType === 'common' ? '共通' : item.itemType === 'evolution_limited' ? '進化限定' : 'キャラ専用'}</small>
                   <strong>{item.label}</strong>
                   <span>{item.price.toLocaleString()}pt</span>
-                  {item.owned ? <><b>所有済み</b>{localPlayerProgress?.activeCharacter?.status === 'active' && <button type="button" onClick={() => onEquipLocalItem?.(item.itemId)}>装備する</button>}</> : <button type="button" disabled={!item.purchasable} onClick={() => onPurchaseLocalItem?.(item.itemId)}>
+                  {item.owned ? <><b>所有済み</b>{localPlayerProgress?.activeCharacter?.status === 'active' && <button type="button" onClick={() => runCharacterAction(onEquipLocalItem, item.itemId)}>装備する</button>}</> : <button type="button" disabled={!item.purchasable} onClick={() => runCharacterAction(onPurchaseLocalItem, item.itemId)}>
                     {item.reason === 'insufficient_points' ? 'ポイント不足' : item.reason === 'character_required' ? '育成中の対象キャラが必要' : item.reason === 'level_locked' ? `Lv${item.requiredLevel}で解放` : item.reason === 'evolution_expired' ? 'このキャラでは購入期間終了' : '購入する'}
                   </button>}
                 </article>
@@ -231,7 +239,7 @@ function MenuView({
             </div>
           </section>
         </main>
-      ) : showCharacterSelection && isLocalCharacterVerification ? (
+      ) : showCharacterSelection && isCharacterGrowthAvailable ? (
         <main className="student-home__subject-view student-home__character-view" data-local-character-selection="true">
           <button className="student-home__back" type="button" onClick={() => { setPendingCharacterSelection(null); setShowCharacterSelection(false); }}><ArrowLeft />ホームへ戻る</button>
           <section className="student-home__panel student-home__content-panel">
@@ -328,8 +336,10 @@ function MenuView({
 
           <div className="student-home__lower-grid">
             <section className="student-home__panel student-home__future-card">
-              <div className="student-home__section-heading"><span className="student-home__section-number">3</span><div><h2>育成・ごほうび</h2><p>学習を続ける楽しみを増やします。</p></div></div>
-              {activeCharacter && activeCharacterDefinition ? (
+              <div className="student-home__section-heading"><span className="student-home__section-number">3</span><div><h2>キャラクター育成</h2><p>学習を続ける楽しみを増やします。</p></div></div>
+              {!CHARACTER_GROWTH_ENABLED ? (
+                <div className="student-home__future-body student-home__character-preparing"><UserRound aria-hidden="true" /><div><strong>作成中・・・</strong><p>キャラクター育成機能を準備しています。<br />学習機能はこれまでどおり利用できます。</p></div></div>
+              ) : activeCharacter && activeCharacterDefinition ? (
                 <div className={`student-home__character-summary is-${activeCharacter.condition || 'healthy'}`} data-local-xp-verification="true" data-character-condition={activeCharacter.condition || 'healthy'}>
                   <span className="student-home__character-placeholder" aria-hidden="true" data-background-item={activeCharacter.equipment?.background || ''}>
                     {activeCharacter.condition === 'hospitalized' ? <Bed /> : activeCharacter.condition === 'critical' ? <HeartPulse /> : activeCharacterDefinition.placeholder}
@@ -346,27 +356,27 @@ function MenuView({
                   </div>
                   {activeCharacter.status === 'game_over' && <div className="student-home__game-over" role="status"><strong>育成終了</strong><span>このキャラクターの育成は終了しました。</span></div>}
                   {activeCharacter.status === 'completed' && <div className="student-home__completion-result" role="status"><strong>育成成功！</strong><span>このキャラクターは育成アルバムに保存されました。</span></div>}
-                  {activeCharacter.completionReady && <div className="student-home__completion-ready" role="status"><strong>最終進化・育成完了できます</strong><span>Lv100限定商品や装備を確認してから完了できます。</span><button type="button" onClick={() => setShowCompletionConfirm(true)}>育成を完了する</button></div>}
+                  {activeCharacter.completionReady && <div className="student-home__completion-ready" role="status"><strong>最終進化・育成完了できます</strong><span>Lv100限定商品や装備を確認してから完了できます。</span><button type="button" onClick={() => runCharacterAction(setShowCompletionConfirm, true)}>育成を完了する</button></div>}
                   {showCompletionConfirm && <div className="student-home__character-confirm" role="dialog" aria-modal="true" aria-label="育成完了の確認"><strong>このキャラクターの育成を完了しますか？</strong><p>完了後はLvや装備を変更できません。育成完了で500ptを受け取ります。</p><div><button type="button" className="secondary" onClick={() => setShowCompletionConfirm(false)}>戻る</button><button type="button" onClick={confirmCompletion}>育成を完了する</button></div></div>}
-                  {isLocalCharacterVerification && ['completed', 'game_over'].includes(activeCharacter.status) && <button type="button" className="student-home__next-character" onClick={() => setShowCharacterSelection(true)}>次のキャラクターを育てる</button>}
-                  {isLocalCharacterVerification && <div className="student-home__xp-tools" aria-label="ローカルXP・未学習状態確認操作">
-                    <button type="button" onClick={() => setShowShop(true)}>ショップを見る</button>
-                    <button type="button" onClick={() => setShowAlbum(true)}>育成アルバム</button>
-                    {[1139, 1140, 3119, 3120, 5899, 5900, 9479, 9480, 13859, 13860].map((xp) => <button type="button" key={xp} onClick={() => onSetLocalCharacterXp?.(xp)}>{xp.toLocaleString()}XP</button>)}
-                    <button type="button" onClick={() => onAdvanceLocalStreak?.(1, true)}>翌日を学習</button>
-                    <button type="button" onClick={() => onAdvanceLocalStreak?.(1, false)}>1日休む</button>
-                    <button type="button" onClick={() => onCompleteLocalCareLearning?.()}>今日1問学習</button>
-                    <button type="button" onClick={() => { for (let i = 0; i < 30; i += 1) onAdvanceLocalStreak?.(1, true); }}>30日学習</button>
+                  {isCharacterGrowthAvailable && ['completed', 'game_over'].includes(activeCharacter.status) && <button type="button" className="student-home__next-character" onClick={() => runCharacterAction(setShowCharacterSelection, true)}>次のキャラクターを育てる</button>}
+                  {isCharacterGrowthAvailable && <div className="student-home__xp-tools" aria-label="ローカルXP・未学習状態確認操作">
+                    <button type="button" onClick={() => runCharacterAction(setShowShop, true)}>ショップを見る</button>
+                    <button type="button" onClick={() => runCharacterAction(setShowAlbum, true)}>育成アルバム</button>
+                    {[1139, 1140, 3119, 3120, 5899, 5900, 9479, 9480, 13859, 13860].map((xp) => <button type="button" key={xp} onClick={() => runCharacterAction(onSetLocalCharacterXp, xp)}>{xp.toLocaleString()}XP</button>)}
+                    <button type="button" onClick={() => runCharacterAction(onAdvanceLocalStreak, 1, true)}>翌日を学習</button>
+                    <button type="button" onClick={() => runCharacterAction(onAdvanceLocalStreak, 1, false)}>1日休む</button>
+                    <button type="button" onClick={() => runCharacterAction(onCompleteLocalCareLearning)}>今日1問学習</button>
+                    <button type="button" onClick={() => { for (let i = 0; i < 30; i += 1) runCharacterAction(onAdvanceLocalStreak, 1, true); }}>30日学習</button>
                   </div>}
-                  {isLocalCharacterVerification && <div className="student-home__equipment-list"><strong>現在装備中</strong>{Object.entries(activeCharacter.equipment || {}).map(([slot, itemId]) => <span key={slot}>{slot}: {itemId || 'なし'} {itemId && <button type="button" onClick={() => onUnequipLocalSlot?.(slot)}>外す</button>}</span>)}</div>}
-                  {isLocalCharacterVerification && activeCharacter.level >= 60 && !activeCharacter.visualBranch && localShopItems?.some((item) => item.itemId === `${activeCharacter.characterType}_evolution_60` && item.owned) && <div className="student-home__branch-tools"><strong>進化分岐</strong>{activeCharacterDefinition.visualBranches.map((branch) => <button type="button" key={branch} onClick={() => onSelectLocalVisualBranch?.(branch)}>{branch}</button>)}</div>}
+                  {isCharacterGrowthAvailable && <div className="student-home__equipment-list"><strong>現在装備中</strong>{Object.entries(activeCharacter.equipment || {}).map(([slot, itemId]) => <span key={slot}>{slot}: {itemId || 'なし'} {itemId && <button type="button" onClick={() => runCharacterAction(onUnequipLocalSlot, slot)}>外す</button>}</span>)}</div>}
+                  {isCharacterGrowthAvailable && activeCharacter.level >= 60 && !activeCharacter.visualBranch && localShopItems?.some((item) => item.itemId === `${activeCharacter.characterType}_evolution_60` && item.owned) && <div className="student-home__branch-tools"><strong>進化分岐</strong>{activeCharacterDefinition.visualBranches.map((branch) => <button type="button" key={branch} onClick={() => runCharacterAction(onSelectLocalVisualBranch, branch)}>{branch}</button>)}</div>}
                 </div>
-              ) : isLocalCharacterVerification ? (
+              ) : isCharacterGrowthAvailable ? (
                 <div className="student-home__future-body" data-local-character-empty="true"><Gift /><div>
                   <strong>まだキャラクターがいません</strong>
                   <p>貯まっているXP: {localPlayerProgress?.pendingXp || 0} XP</p>
-                  <button type="button" onClick={() => setShowCharacterSelection(true)}>キャラクターを選ぶ</button>
-                  <button type="button" onClick={() => setShowShop(true)}>ショップを見る</button>
+                  <button type="button" onClick={() => runCharacterAction(setShowCharacterSelection, true)}>キャラクターを選ぶ</button>
+                  <button type="button" onClick={() => runCharacterAction(setShowShop, true)}>ショップを見る</button>
                 </div></div>
               ) : (
                 <div className="student-home__future-body"><Gift /><div><strong>キャラクター・ごほうび機能は準備中</strong><p>ポイントやレベルなどの実データはまだ表示していません。</p></div></div>
@@ -380,10 +390,10 @@ function MenuView({
         </main>
       )}
 
-      {!selectedSubject && !showCharacterSelection && !showAlbum && <nav className="student-home__glass-nav" aria-label="ホームナビゲーション">
-        {NAV_ITEMS.map(({ label, icon: Icon, active }) => {
-          const characterTab = label === 'キャラクター' && isLocalCharacterVerification;
-          return <button key={label} type="button" className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} disabled={!active && !characterTab} onClick={characterTab ? () => setShowAlbum(true) : undefined} aria-label={active || characterTab ? label : `${label}（準備中）`}>{React.createElement(Icon)}<span>{label}</span></button>;
+      {!selectedSubject && (!isCharacterGrowthAvailable || (!showCharacterSelection && !showShop && !showAlbum)) && <nav className={`student-home__glass-nav${CHARACTER_GROWTH_ENABLED ? '' : ' is-growth-unavailable'}`} aria-label="ホームナビゲーション">
+        {NAV_ITEMS.filter(({ label }) => CHARACTER_GROWTH_ENABLED || label !== 'キャラクター').map(({ label, icon: Icon, active }) => {
+          const characterTab = label === 'キャラクター' && isCharacterGrowthAvailable;
+          return <button key={label} type="button" className={active ? 'is-active' : ''} aria-current={active ? 'page' : undefined} disabled={!active && !characterTab} onClick={characterTab ? () => runCharacterAction(setShowAlbum, true) : undefined} aria-label={active || characterTab ? label : `${label}（準備中）`}>{React.createElement(Icon)}<span>{label}</span></button>;
         })}
       </nav>}
       <span className="student-home__version">Version {APP_VERSION}</span>

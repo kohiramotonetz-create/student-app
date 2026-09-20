@@ -44,6 +44,7 @@ import {
 } from './utils/learningAttempt';
 import { isDailyMissionContent } from './constants/dailyMissions';
 import { APP_VERSION } from './constants/version';
+import { CHARACTER_GROWTH_ENABLED } from './constants/releaseFeatures';
 import {
   STUDENT_SESSION_TOUCH_INTERVAL_MS,
   addStudentSessionToken,
@@ -93,7 +94,8 @@ const API_KEY = import.meta.env.VITE_API_KEY;
 const QUESTION_COUNT = 20;
 const BATCH_GRADING_TIMEOUT_MS = 90000;
 const LOCAL_PREPOSITION_VERIFICATION_ENABLED = isLocalPrepositionVerificationEnabled(import.meta.env);
-const LOCAL_DAILY_MISSION_VERIFICATION_ENABLED = isLocalDailyMissionVerificationEnabled(import.meta.env);
+const LOCAL_DAILY_MISSION_VERIFICATION_ENABLED = CHARACTER_GROWTH_ENABLED
+  && isLocalDailyMissionVerificationEnabled(import.meta.env);
 
 const normalizeQuizAnswer = (value) => value ? value
   .normalize('NFKC')
@@ -140,8 +142,8 @@ function App() {
   const [isLocalPrepositionVerification, setIsLocalPrepositionVerification] = useState(false);
   const [isLocalDailyMissionVerification, setIsLocalDailyMissionVerification] = useState(false);
   const localPrepositionLogsRef = useRef([]);
-  const localDailyMissionStoreRef = useRef(createLocalDailyMissionVerificationStore());
-  const localXpStoreRef = useRef(createLocalXpVerificationStore());
+  const localDailyMissionStoreRef = useRef(CHARACTER_GROWTH_ENABLED ? createLocalDailyMissionVerificationStore() : null);
+  const localXpStoreRef = useRef(CHARACTER_GROWTH_ENABLED ? createLocalXpVerificationStore() : null);
   const learningAttemptRef = useRef(null);
   
   const [allData, setAllData] = useState([]); 
@@ -432,6 +434,7 @@ function App() {
   }, [studentSessionToken, userId]);
 
   useEffect(() => {
+    if (!CHARACTER_GROWTH_ENABLED) return undefined;
     if (step === 'menu' && isLocalDailyMissionVerification) {
       setDailyMissionProgress(indexDailyMissionProgress(getLocalDailyMissionProgress({
         store: localDailyMissionStoreRef.current,
@@ -476,7 +479,9 @@ function App() {
   };
 
   const beginLearningAttempt = (contentId, isReview = false) => {
-    learningAttemptRef.current = createLearningAttempt(contentId, isReview);
+    learningAttemptRef.current = CHARACTER_GROWTH_ENABLED
+      ? createLearningAttempt(contentId, isReview)
+      : null;
   };
 
   const cancelLearningAttempt = () => {
@@ -508,8 +513,10 @@ function App() {
     setIsLocalPrepositionVerification(false);
     setIsLocalDailyMissionVerification(false);
     localPrepositionLogsRef.current = [];
-    localDailyMissionStoreRef.current = createLocalDailyMissionVerificationStore();
-    localXpStoreRef.current = createLocalXpVerificationStore();
+    if (CHARACTER_GROWTH_ENABLED) {
+      localDailyMissionStoreRef.current = createLocalDailyMissionVerificationStore();
+      localXpStoreRef.current = createLocalXpVerificationStore();
+    }
     cancelLearningAttempt();
     setSelectedBook({ name: '', data: [] });
     setIsKobunMode(false);
@@ -656,7 +663,7 @@ function App() {
   const sendResultToGAS = (finalAnswers, sheetName, customRange = null, contentId = activeContentId) => {
     const usesLocalPrepositionLogs = isLocalPrepositionVerification
       && contentId === CONTENT_IDS.preposition_test;
-    const usesLocalMissionProgress = isLocalDailyMissionVerification;
+    const usesLocalMissionProgress = CHARACTER_GROWTH_ENABLED && isLocalDailyMissionVerification;
     if (!sheetName || (!LOG_GAS_URL && !usesLocalPrepositionLogs && !usesLocalMissionProgress) || !contentId || !getContentDefinition(contentId) || !isContentAllowed(contentId)) return;
 
     const rangeLabel = customRange || (contentId === CONTENT_IDS.preposition_test
@@ -677,7 +684,11 @@ function App() {
 
     const completedAttempt = completeLearningAttempt(learningAttemptRef.current, contentId);
     if (completedAttempt) learningAttemptRef.current = completedAttempt;
-    const attemptPayload = getLearningAttemptPayload(completedAttempt, contentId);
+    // The existing GAS legacy saveLog path saves learning history without growth updates.
+    // Sending attemptId also initializes growth sheets and awards XP/points on that server.
+    const attemptPayload = CHARACTER_GROWTH_ENABLED
+      ? getLearningAttemptPayload(completedAttempt, contentId)
+      : null;
     const payload = addStudentSessionToken({
       action: "saveLog", 
       contentId,
@@ -935,39 +946,43 @@ function App() {
   };
 
   const handleLocalPrepositionVerification = async () => {
-    if (!LOCAL_DAILY_MISSION_VERIFICATION_ENABLED) return;
+    if (!LOCAL_DAILY_MISSION_VERIFICATION_ENABLED && !LOCAL_PREPOSITION_VERIFICATION_ENABLED) return;
     clearStudentSessionToken();
     setStudentSessionToken('');
     setUserId('local-daily-mission-verification');
     setUserName('ローカル確認');
     setSchool('ローカル');
-    const localContentIds = [
+    const localContentIds = LOCAL_DAILY_MISSION_VERIFICATION_ENABLED ? [
       CONTENT_IDS.kakitan,
       CONTENT_IDS.junior_english_quiz,
       CONTENT_IDS.irregular_verbs,
       CONTENT_IDS.kanji_test,
       CONTENT_IDS.preposition_test
-    ];
+    ] : [CONTENT_IDS.preposition_test];
     setAllowedContentIds(localContentIds);
     setPermissionsInitialized(true);
     setPermissionError('');
     setIsLocalPrepositionVerification(true);
-    setIsLocalDailyMissionVerification(true);
+    setIsLocalDailyMissionVerification(LOCAL_DAILY_MISSION_VERIFICATION_ENABLED);
     localPrepositionLogsRef.current = [];
-    localDailyMissionStoreRef.current = createLocalDailyMissionVerificationStore();
-    localXpStoreRef.current = createLocalXpVerificationStore();
-    grantLocalPointsForVerification({ store: localXpStoreRef.current, studentId: 'local-daily-mission-verification', amount: 500 });
-    setLocalPlayerProgress(getLocalPlayerProgress(localXpStoreRef.current));
-    setLocalShopItems(getLocalShopItems({ store: localXpStoreRef.current, studentId: 'local-daily-mission-verification' }));
-    setDailyMissionProgress(indexDailyMissionProgress(getLocalDailyMissionProgress({
-      store: localDailyMissionStoreRef.current,
-      allowedContentIds: localContentIds
-    })));
+    if (CHARACTER_GROWTH_ENABLED) {
+      localDailyMissionStoreRef.current = createLocalDailyMissionVerificationStore();
+      localXpStoreRef.current = createLocalXpVerificationStore();
+    }
+    if (LOCAL_DAILY_MISSION_VERIFICATION_ENABLED) {
+      grantLocalPointsForVerification({ store: localXpStoreRef.current, studentId: 'local-daily-mission-verification', amount: 500 });
+      setLocalPlayerProgress(getLocalPlayerProgress(localXpStoreRef.current));
+      setLocalShopItems(getLocalShopItems({ store: localXpStoreRef.current, studentId: 'local-daily-mission-verification' }));
+      setDailyMissionProgress(indexDailyMissionProgress(getLocalDailyMissionProgress({
+        store: localDailyMissionStoreRef.current,
+        allowedContentIds: localContentIds
+      })));
+    }
     await loadCsv();
   };
 
   const completeLocalMissionSet = () => {
-    if (!isLocalDailyMissionVerification || !isDailyMissionContent(activeContentId) || quizItems.length === 0) return;
+    if (!CHARACTER_GROWTH_ENABLED || !isLocalDailyMissionVerification || !isDailyMissionContent(activeContentId) || quizItems.length === 0) return;
     const finalAnswers = quizItems.map((item) => ({
       q: item.ja || item.question || item.en,
       a: item.en || item.answer || item.ja,
@@ -986,7 +1001,7 @@ function App() {
   };
 
   const selectLocalCharacter = (characterType, selectionRequestId) => {
-    if (!isLocalDailyMissionVerification) return { created: false, reason: 'NOT_LOCAL_VERIFICATION' };
+    if (!CHARACTER_GROWTH_ENABLED || !isLocalDailyMissionVerification) return { created: false, reason: 'NOT_LOCAL_VERIFICATION' };
     const result = createLocalCharacterInstance({
       store: localXpStoreRef.current,
       studentId: userId,
@@ -999,7 +1014,7 @@ function App() {
   };
 
   const accelerateLocalCharacterXp = (targetXp) => {
-    if (!isLocalDailyMissionVerification) return;
+    if (!CHARACTER_GROWTH_ENABLED || !isLocalDailyMissionVerification) return;
     const store = localXpStoreRef.current;
     setLocalPlayerProgress(setLocalXpForVerification({
       store,
@@ -1010,7 +1025,7 @@ function App() {
   };
 
   const advanceLocalStreak = (days, learn = true) => {
-    if (!isLocalDailyMissionVerification) return;
+    if (!CHARACTER_GROWTH_ENABLED || !isLocalDailyMissionVerification) return;
     setLocalPlayerProgress(advanceLocalLearningDays({
       store: localXpStoreRef.current,
       studentId: userId,
@@ -1021,7 +1036,7 @@ function App() {
   };
 
   const completeLocalCareLearning = () => {
-    if (!isLocalDailyMissionVerification) return;
+    if (!CHARACTER_GROWTH_ENABLED || !isLocalDailyMissionVerification) return;
     const store = localXpStoreRef.current;
     recordLocalQuizXp({
       store,
@@ -1040,7 +1055,7 @@ function App() {
   };
 
   const purchaseLocalItem = (itemId, purchaseRequestId = createLocalPurchaseRequestId()) => {
-    if (!isLocalDailyMissionVerification) return { result: 'error', reason: 'not_local' };
+    if (!CHARACTER_GROWTH_ENABLED || !isLocalDailyMissionVerification) return { result: 'error', reason: 'not_local' };
     const store = localXpStoreRef.current;
     const result = purchaseLocalShopItem({ store, studentId: userId || 'local-e2e', itemId, purchaseRequestId });
     setLocalPlayerProgress(getLocalPlayerProgress(store));
@@ -1049,7 +1064,7 @@ function App() {
   };
 
   const addLocalShopPoints = () => {
-    if (!isLocalDailyMissionVerification) return;
+    if (!CHARACTER_GROWTH_ENABLED || !isLocalDailyMissionVerification) return;
     const store = localXpStoreRef.current;
     grantLocalPointsForVerification({ store, studentId: userId || 'local-e2e', amount: 500, requestId: createLocalPurchaseRequestId() });
     setLocalPlayerProgress(getLocalPlayerProgress(store));
@@ -1057,6 +1072,7 @@ function App() {
   };
 
   const equipLocalShopItem = (itemId) => {
+    if (!CHARACTER_GROWTH_ENABLED || !isLocalDailyMissionVerification) return { result: 'error', reason: 'not_local' };
     const store = localXpStoreRef.current;
     const result = equipLocalItem({ store, studentId: userId || 'local-e2e', itemId, equipRequestId: createLocalPurchaseRequestId() });
     setLocalPlayerProgress(getLocalPlayerProgress(store));
@@ -1065,6 +1081,7 @@ function App() {
   };
 
   const unequipLocalShopSlot = (slot) => {
+    if (!CHARACTER_GROWTH_ENABLED || !isLocalDailyMissionVerification) return { result: 'error', reason: 'not_local' };
     const store = localXpStoreRef.current;
     const result = unequipLocalItem({ store, slot, equipRequestId: createLocalPurchaseRequestId() });
     setLocalPlayerProgress(getLocalPlayerProgress(store));
@@ -1072,13 +1089,14 @@ function App() {
   };
 
   const chooseLocalVisualBranch = (branch) => {
+    if (!CHARACTER_GROWTH_ENABLED || !isLocalDailyMissionVerification) return { result: 'error', reason: 'not_local' };
     const result = selectLocalVisualBranch({ store: localXpStoreRef.current, branch });
     setLocalPlayerProgress(getLocalPlayerProgress(localXpStoreRef.current));
     return result;
   };
 
   const completeLocalCharacterGrowth = (completionRequestId = createLocalCompletionRequestId()) => {
-    if (!isLocalDailyMissionVerification) return { completed: false, reason: 'NOT_LOCAL_VERIFICATION' };
+    if (!CHARACTER_GROWTH_ENABLED || !isLocalDailyMissionVerification) return { completed: false, reason: 'NOT_LOCAL_VERIFICATION' };
     const store = localXpStoreRef.current;
     const result = completeLocalCharacter({ store, studentId: userId || 'local-e2e', completionRequestId });
     setLocalPlayerProgress(getLocalPlayerProgress(store));
@@ -1290,7 +1308,7 @@ function App() {
         dailyMissionProgress={dailyMissionProgress}
         localPlayerProgress={localPlayerProgress}
         localShopItems={localShopItems}
-        isLocalCharacterVerification={isLocalDailyMissionVerification}
+        isLocalCharacterVerification={CHARACTER_GROWTH_ENABLED && isLocalDailyMissionVerification}
         onSelectLocalCharacter={selectLocalCharacter}
         onSetLocalCharacterXp={accelerateLocalCharacterXp}
         onAdvanceLocalStreak={advanceLocalStreak}
@@ -1491,7 +1509,7 @@ function App() {
         isCampGrading={isCampGrading}
         moveCampQuestion={moveCampQuestion}
         gradeCampQuiz={gradeCampQuiz}
-        showLocalMissionCompletion={isLocalDailyMissionVerification && isDailyMissionContent(activeContentId)}
+        showLocalMissionCompletion={CHARACTER_GROWTH_ENABLED && isLocalDailyMissionVerification && isDailyMissionContent(activeContentId)}
         completeLocalMissionSet={completeLocalMissionSet}
         cancelLearningAttempt={cancelLearningAttempt}
       />
@@ -1536,7 +1554,7 @@ function App() {
         keepWrongHistory={activeContentId === CONTENT_IDS.camp_kagawa_kanji}
         beginLearningAttempt={beginLearningAttempt}
         cancelLearningAttempt={cancelLearningAttempt}
-        showLocalMissionCompletion={isLocalDailyMissionVerification && activeContentId === CONTENT_IDS.kanji_test}
+        showLocalMissionCompletion={CHARACTER_GROWTH_ENABLED && isLocalDailyMissionVerification && activeContentId === CONTENT_IDS.kanji_test}
         completeLocalMissionSet={completeLocalMissionSet}
       />
 

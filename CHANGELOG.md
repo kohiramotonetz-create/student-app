@@ -37,6 +37,34 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 新ホーム先行公開準備：キャラクター育成を作成中表示（Issue番号未指定）
+
+- 状態: ローカル実装・単体テスト・development / productionブラウザモック検証完了。正式リリース・本番公開判定は未実施
+- 作業基点: `codex/sukimakun-junior-home-renewal` の `cfb5d5a7bcd0f62a7109f7a11a415bbf85e97610`。隔離作業ツリーの `codex/sukimakun-home-prerelease` で作業。元の `main` (`2f93df2`) と開始時の `public/miki_high_school.csv` 17行追加は保持
+- 変更内容:
+  - 既存の小・中学生向け新ホームを継続使用し、科目別学習・高校生・合宿の導線と教材権限を維持
+  - キャラクター欄を「キャラクター育成」「作成中・・・」と指定の補足文に変更。画像・操作ボタンは不要
+  - `src/constants/releaseFeatures.js` の `CHARACTER_GROWTH_ENABLED = false` で育成を停止。新ホーム自体は常時有効。development / production共通の固定値で、環境変数・画面・保存状態では有効化しない
+  - 育成ストア初期作成・再作成、ミッション進捗取得、XP/PT/連続学習/未学習ペナルティ、キャラ選択・進化・装備・ショップ・アルバム・育成完了の処理と画面を遮断。作成済みコードは保持し、保存済みデータの削除・初期化・補填は行わない
+  - 復元された育成画面のstateや育成propsがあっても表示・操作しない。未取得のミッション進捗は準備中（`--`）、最近の学習・復習の横断集計は既存の準備中表示を維持
+  - 通常 `saveLog` から育成起動用の `attemptId` / `isReview` 追加payloadだけを除外。`contentId` / `history` / 採点結果 / 前置詞 `answerDetails` / session tokenは維持。`getLogs`、教材内復習、採点方式、認証session維持は変更なし
+  - development限定の既存ローカル前置詞確認入口は育成を初期化せず前置詞だけ利用可能にした
+- CSV影響: 隔離側の public/miki_high_school.csv をmainコミット 2f93df2 の70件（No.1〜70、p70/p72/p74/p76、4列）へバイト単位で一致させた。隔離元の旧121件・末尾空列から置換。元の作業場所の87件CSV・未コミット17件（No.73〜89）は取り込まず保全。その他23CSVは変更なし
+- Gemini影響: 既存の一次判定・一括判定・呼出条件に変更なし。実通信未実施
+- GAS影響: 変更なし。別ディレクトリのローカルログGASを読み取り確認。`attemptId` ありの `saveLog` は育成シート初期化・XP/PT/ペナルティ更新を行うため、既存の `attemptId` なし互換経路で通常ログだけ保存する。既存GASモックテスト3件（旧saveLog、token付きsaveLog、tokenなしgetLogs互換）は成功
+- build結果: 2026-09-20 `npm run build` 成功
+- lint結果: 2026-09-20 `npm run lint` は変更前と同じ既存8件（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）。今回の追加エラーなし
+- test結果: 2026-09-20 `npm test` 89件成功、ブラウザ親2件は通常実行ではskip。追加の `npm run test:home-browser` はdevelopment / production各7項目（子14件＋親2件、計16件）成功。既存インストール済みPlaywrightとChromeを利用し、依存ダウンロードなし
+- `git diff --check`: 成功
+- ローカル確認: PC 1440px / 狭幅390pxの全科目ホームをスクリーンショットでも目視確認。育成表示・ボタン・画像・モーダル・APIなし。書き単/漢字設定、高校生/合宿、教材権限・権限0件・SSO権限未取得時の拒否を確認。前置詞20問完了→ログ1回→ホーム復帰、既存履歴1問復習→追加ログ1回を確認。`history` の方向別固定キーと通常○/復習◎、`answerDetails` を維持。保存済み育成Ref・旧verification state・shop/album等を復元して全育成callbackを呼んでも値は不変。育成ストア初期作成なし、認証session以外のアプリタイマーなし、console/page error 0、アプリからの外部リクエスト試行0。各APIはローカルモックで検証
+- 通常ログイン / SSO / 保存session復元 / ログアウト: development / productionのモックで成功。実GAS・実アカウントでの確認は未実施。既存の通常login時legacy権限応答互換は変更なし
+- 公開GASコード確認: 元の設定に対応する公開v19ソースを管理APIから読み取り確認済み。12列の通常saveLogにattemptIdは不要で、受付から保存まで育成処理なし。前記GASモック3件はローカル開発ソース対象であり公開v19対象ではない。本番データ・実送信は未確認。Preview配信版のログ保存先一致はcommit後に確認する
+- Version: 4.3.0のまま。利用者指示により更新不要。ログイン・ホームとも共通定数を維持。Version History変更なし
+- Commit: 本項目を含む先行公開準備コミット。指定8ファイルを対象
+- Push / Vercel Preview: commit時点では未実施。利用者の指示によりこのコミットを隔離ブランチへ通常pushし、Git連携で生成されるPreviewを確認する。Production対象はVercel設定画面でmainと確認済み
+- mainマージ / Production公開 / clasp push / GAS再デプロイ / 本番セットアップ / 本番データ変更: 未実施
+- 関連gyoumu-appコミット / Issue: なし。gyoumu-app・netz-os変更なし
+
 ### 育成システム Phase F：育成完了・アルバム・次キャラ基盤（Issue番号未指定）
 
 - 状態: student-app、認証GAS、ログGASへlocal onlyで実装。Production未接続

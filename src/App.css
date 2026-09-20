@@ -524,6 +524,9 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .student-home__future-body > svg { width: 29px; flex: 0 0 29px; color: #8b5cf6; }
 .student-home__future-body strong { display: block; color: var(--home-navy); font-size: .78rem; }
 .student-home__future-body p { color: var(--home-muted); font-size: .69rem; }
+.student-home__character-preparing { min-height: 80px; }
+.student-home__character-preparing strong { margin-bottom: 5px; font-size: 1rem; }
+.student-home__character-preparing p { line-height: 1.65; }
 .student-home__future-body button,
 .student-home__character-option button,
 .student-home__character-confirm button { padding: 7px 11px; border: 1px solid #b8d4ff; border-radius: 10px; color: #16428d; background: #fff; font-size: .7rem; font-weight: 750; cursor: pointer; }
@@ -581,6 +584,7 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .student-home__xp-tools button { padding: 5px 7px; border: 1px solid #c4d5eb; border-radius: 8px; color: #53647e; background: #fff; font-size: .58rem; cursor: pointer; }
 
 .student-home__glass-nav { position: fixed; z-index: 20; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(5, minmax(82px, 1fr)); gap: 5px; width: min(720px, calc(100vw - 28px)); padding: 8px; border: 1px solid rgba(255,255,255,.72); border-radius: 999px; background: rgba(241,247,255,.9); box-shadow: 0 14px 38px rgba(30,64,114,.18), inset 0 1px 0 rgba(255,255,255,.9); -webkit-backdrop-filter: blur(18px) saturate(135%); backdrop-filter: blur(18px) saturate(135%); transform: translateX(-50%); }
+.student-home__glass-nav.is-growth-unavailable { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .student-home__glass-nav button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 46px; padding: 7px 9px; border: 0; border-radius: 999px; color: #7b8493; background: transparent; font-size: .73rem; }
 .student-home__glass-nav button.is-active { color: var(--home-blue); background: rgba(255,255,255,.82); box-shadow: 0 4px 13px rgba(37,99,235,.09); cursor: default; }
 .student-home__glass-nav button:disabled { opacity: .62; cursor: not-allowed; }
