@@ -90,7 +90,7 @@ function CampView({
       <div className="config-group">
         {isSocial && (
           <>
-            <label>歴史／地理:</label>
+            <label>歴史／地理／公民:</label>
             <select value={selectedGenre} onChange={(event) => {
               setSelectedGenre(event.target.value);
               setSelectedFields([]);

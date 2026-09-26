@@ -25,6 +25,17 @@ test('camp history rejects missing questionId instead of falling back to questio
   );
 });
 
+test('civics uses the existing camp social stable question ID history format', () => {
+  const civicsId = 'csoc_5b5c7049d6d3489881c63271ea9a3e87';
+  const history = createLogHistory([{
+    q: '公民の問題文',
+    ok: true,
+    rawItem: { id: civicsId }
+  }], 'camp_social_qa');
+
+  assert.equal(history, `[1]camp_social_qa::${civicsId}(○)`);
+});
+
 test('review lookup supports stable IDs and legacy question-text logs', () => {
   const keys = getReviewLookupKeys(
     { id: 'ckk_fixed', question: '問題文' },
