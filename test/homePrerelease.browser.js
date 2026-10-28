@@ -15,9 +15,9 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const require = createRequire(import.meta.url);
 const allowedActions = new Set([
   'login', 'validateToken', 'validateStudentSession', 'touchStudentSession',
-  'revokeStudentSession', 'getLogs', 'saveLog'
+  'revokeStudentSession', 'getLogs', 'saveLog', 'checkWithGemini', 'checkAnswersWithGemini'
 ]);
-const savedGrowth = JSON.stringify({ character: 'saved-test-character', xp: 1200, points: 900, album: ['saved'] });
+const storageSentinel = 'preserved-unrelated-local-state';
 const authResponse = (allowedContentIds = ['preposition_test']) => ({
   result: 'success', userId: 'mock-student', name: 'ローカル確認', school: 'ローカル',
   studentSessionToken: 'mock-session-only', allowedContentIds, permissionsInitialized: true
@@ -30,11 +30,15 @@ async function waitForHome(page) {
   assert.equal(await page.locator('vite-error-overlay').count(), 0);
 }
 
-async function assertGrowthHidden(page) {
+async function assertLearningOnlyHome(page) {
   assert.equal(await page.locator('[data-local-xp-verification], [data-local-character-selection], [data-local-character-album], [data-local-shop], [role="dialog"]').count(), 0);
   assert.equal(await page.getByRole('button', { name: /キャラクター|ショップ|育成|XP|ポイント|翌日|休む/ }).count(), 0);
   assert.equal(await page.getByText(/所持ポイント|累計 .* XP|獲得.*XP|連続学習/).count(), 0);
   assert.equal(await page.locator('.student-home__character-preparing img').count(), 0);
+  if (await page.locator('.student-home').count()) {
+    assert.deepEqual(await page.locator('.student-home__glass-nav button').allTextContents(), ['ホーム', '記録', 'ランキング', '設定']);
+    assert.equal(await page.locator('.student-home__glass-nav button:disabled').count(), 3);
+  }
 }
 
 async function newSession(browser, baseUrl, response = authResponse(), { restore = false } = {}) {
@@ -43,10 +47,9 @@ async function newSession(browser, baseUrl, response = authResponse(), { restore
   const blocked = [];
   const errors = [];
   const logs = [{ contentId: 'preposition_test', history: '[1]preposition_test::prep_at__en_ja(×)' }];
-  await context.addInitScript(({ savedGrowth, restore }) => {
-    // The app currently keeps growth stores in memory. This sentinel also detects accidental
-    // blanket browser-storage clearing while exercising login, learning, restoration and logout.
-    localStorage.setItem('home-test.saved-growth', savedGrowth);
+  await context.addInitScript(({ storageSentinel, restore }) => {
+    // Detect accidental clearing of unrelated browser storage during authentication and learning.
+    localStorage.setItem('home-test.saved-state', storageSentinel);
     if (restore) sessionStorage.setItem('sukimakun.studentSessionToken', 'mock-session-only');
     window.__homeIntervals = [];
     const originalInterval = window.setInterval.bind(window);
@@ -63,7 +66,7 @@ async function newSession(browser, baseUrl, response = authResponse(), { restore
       onCommitFiberRoot(_id, fiberRoot) { window.__homeReactRoot = fiberRoot; },
       onCommitFiberUnmount() {}
     };
-  }, { savedGrowth, restore });
+  }, { storageSentinel, restore });
   await context.route('**/*', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -75,13 +78,19 @@ async function newSession(browser, baseUrl, response = authResponse(), { restore
     if (url.pathname === '/__mock-auth' || url.pathname === '/__mock-log') {
       const payload = JSON.parse(request.postData() || '{}');
       requests.push(payload);
-      const result = payload.action === 'getLogs' ? logs : response;
+      const result = payload.action === 'getLogs' ? logs
+        : payload.action === 'checkWithGemini' ? { result: true }
+        : payload.action === 'checkAnswersWithGemini' ? {
+          result: 'success', requestId: payload.requestId,
+          results: payload.answers.map(({ index }) => ({ index, isCorrect: true }))
+        } : response;
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(result) });
       return;
     }
     await route.continue();
   });
   const page = await context.newPage();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   page.on('pageerror', () => errors.push('uncaught browser exception'));
   page.on('console', (message) => { if (message.type() === 'error') errors.push('browser console error'); });
   page.on('dialog', (dialog) => dialog.dismiss());
@@ -100,11 +109,27 @@ async function newSession(browser, baseUrl, response = authResponse(), { restore
       assert.deepEqual(blocked, [], 'No external endpoint should even be attempted');
       assert.deepEqual(errors, [], 'Browser should have no runtime/console errors');
       assert.deepEqual(requests.filter(({ action }) => !allowedActions.has(action)).map(({ action }) => action), [], 'Growth API calls must not occur');
-      assert.equal(await page.evaluate(() => localStorage.getItem('home-test.saved-growth')), savedGrowth);
+      assert.equal(await page.evaluate(() => localStorage.getItem('home-test.saved-state')), storageSentinel);
       // Session keepalive is existing authentication behavior, not a growth timer.
       assert.ok((await page.evaluate(() => window.__homeIntervals)).every((delay) => delay === 30 * 60 * 1000));
     }
   };
+}
+
+async function captureHomeScreenshot(page, outputPath) {
+  await page.mouse.move(0, 0);
+  await page.screenshot({ path: outputPath, fullPage: true, animations: 'disabled' });
+  if (!process.env.HOME_BROWSER_BASELINE_DIR) return;
+  const { PNG } = require(process.env.HOME_BROWSER_PNG_MODULE_PATH || 'pngjs');
+  const before = PNG.sync.read(await readFile(path.join(process.env.HOME_BROWSER_BASELINE_DIR, path.basename(outputPath))));
+  const after = PNG.sync.read(await readFile(outputPath));
+  assert.equal(after.width, before.width, 'Home screenshot width must remain unchanged');
+  assert.equal(after.height, before.height, 'Home screenshot height must remain unchanged');
+  let changedPixels = 0;
+  for (let offset = 0; offset < before.data.length; offset += 4) {
+    if (before.data.subarray(offset, offset + 4).compare(after.data.subarray(offset, offset + 4)) !== 0) changedPixels += 1;
+  }
+  assert.equal(changedPixels, 0, path.basename(outputPath) + ': home must match the approved baseline pixel for pixel');
 }
 
 async function openPrepositions(page) {
@@ -190,17 +215,17 @@ for (const mode of ['development', 'production']) {
         const session = await newSession(browser, baseUrl);
         try {
           await session.login();
-          await assertGrowthHidden(session.page);
+          await assertLearningOnlyHome(session.page);
           assert.equal(await session.page.locator('.student-home__subject').count(), 1);
           assert.equal(await session.page.getByRole('button', { name: /高校生モード/ }).count(), 0);
           const headings = await session.page.locator('.student-home__main h2').allTextContents();
           assert.deepEqual(headings, ['今日のミッション', '学習をはじめる', 'キャラクター育成', '最近の学習・復習']);
           assert.match(await session.page.locator('.student-home__mission').innerText(), /準備中/);
           assert.doesNotMatch(await session.page.locator('.student-home__mission').innerText(), /(?:^|\s)0\s*\//);
-          await session.page.screenshot({ path: path.join(artifacts, `${mode}-home-desktop.png`), fullPage: true });
+          await captureHomeScreenshot(session.page, path.join(artifacts, `${mode}-home-desktop.png`));
           await session.page.setViewportSize({ width: 390, height: 844 });
           assert.equal(await session.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true, 'Narrow home must not overflow horizontally');
-          await session.page.screenshot({ path: path.join(artifacts, `${mode}-home-narrow.png`), fullPage: true });
+          await captureHomeScreenshot(session.page, path.join(artifacts, `${mode}-home-narrow.png`));
           await session.page.setViewportSize({ width: 1440, height: 1000 });
           await session.page.locator('.student-home__subject.is-blue').click();
           assert.deepEqual(await session.page.locator('.student-home__content-button').allTextContents(), ['🧭前置詞テスト']);
@@ -220,14 +245,14 @@ for (const mode of ['development', 'production']) {
         ]));
         try {
           await session.login();
-          await assertGrowthHidden(session.page);
+          await assertLearningOnlyHome(session.page);
           assert.equal(await session.page.locator('.student-home__subject').count(), 5);
           assert.deepEqual(await session.page.locator('.student-home__mission-progress b').allTextContents(), ['-- / 3', '-- / 3']);
           assert.equal(await session.page.evaluate(() => [...document.images].some((image) => !image.complete || image.naturalWidth === 0)), false);
-          await session.page.screenshot({ path: path.join(artifacts, `${mode}-home-all-desktop.png`), fullPage: true });
+          await captureHomeScreenshot(session.page, path.join(artifacts, `${mode}-home-all-desktop.png`));
           await session.page.setViewportSize({ width: 390, height: 844 });
           assert.equal(await session.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true);
-          await session.page.screenshot({ path: path.join(artifacts, `${mode}-home-all-narrow.png`), fullPage: true });
+          await captureHomeScreenshot(session.page, path.join(artifacts, `${mode}-home-all-narrow.png`));
           await session.page.setViewportSize({ width: 1440, height: 1000 });
           await session.page.locator('.student-home__subject.is-blue').click();
           await session.page.getByRole('button', { name: /書き単/, exact: false }).click();
@@ -251,7 +276,7 @@ for (const mode of ['development', 'production']) {
           await session.page.getByRole('button', { name: 'スタート！', exact: true }).click();
           await answerQuiz(session.page, answersByEnglish, 20);
           await assertSingleLog(session, 1, 20);
-          await assertGrowthHidden(session.page);
+          await assertLearningOnlyHome(session.page);
           await session.page.getByRole('button', { name: 'メニューへ戻る', exact: true }).click();
           await waitForHome(session.page);
           assert.equal(session.requests.filter(({ action }) => action === 'saveLog').length, 1);
@@ -298,7 +323,7 @@ for (const mode of ['development', 'production']) {
           await session.page.getByText('利用可能なコンテンツがありません。', { exact: true }).waitFor();
           assert.equal(await session.page.locator('.student-home__subject').count(), 0);
           assert.ok(session.requests.some(({ action }) => action === 'validateStudentSession'));
-          await assertGrowthHidden(session.page);
+          await assertLearningOnlyHome(session.page);
           await session.verify();
         } finally { await session.context.close(); }
       });
@@ -316,72 +341,78 @@ for (const mode of ['development', 'production']) {
         } finally { await session.context.close(); }
       });
 
-      await t.test('restored unpublished UI state and direct disallowed navigation remain blocked', async () => {
+      await t.test('direct disallowed content navigation remains blocked', async () => {
         const session = await newSession(browser, baseUrl);
         try {
           await session.login();
-          const restored = await session.page.evaluate(() => {
-            const find = (fiber) => {
-              if (!fiber) return null;
-              if (fiber.memoizedProps?.onSelectLocalCharacter) return fiber;
-              return find(fiber.child) || find(fiber.sibling);
-            };
+          const denied = await session.page.evaluate(() => {
+            const find = (fiber) => fiber && (fiber.memoizedProps?.openContent && fiber.memoizedProps?.isContentAllowed ? fiber : find(fiber.child) || find(fiber.sibling));
             const menu = find(window.__homeReactRoot?.current);
-            if (!menu) throw new Error('Menu component was not available for restoration regression check');
-            let app = menu.return;
-            while (app && (typeof app.type !== 'function' || !app.memoizedState)) app = app.return;
-            if (!app) throw new Error('App state was not available');
-            const hooks = [];
-            for (let hook = app.memoizedState; hook; hook = hook.next) hooks.push(hook);
-            const refs = hooks.filter(({ memoizedState }) => memoizedState && Object.hasOwn(memoizedState, 'current'));
-            if (refs[1].memoizedState.current !== null || refs[2].memoizedState.current !== null) throw new Error('Growth stores were initialized');
-            const missionRef = refs[1].memoizedState;
-            const growthRef = refs[2].memoizedState;
-            missionRef.current = { savedMission: 2 };
-            growthRef.current = { savedCharacter: 'unchanged', totalXp: 1200, points: 900 };
-            window.__homeSavedRefs = { missionRef, growthRef, before: JSON.stringify([missionRef.current, growthRef.current]) };
-            // Restore a legacy local-development state; the release flag must still win.
-            hooks[15].queue.dispatch(true);
-            hooks[12].queue.dispatch({ activeCharacter: { characterType: 'cat', level: 99 }, pointBalance: 900 });
-            const denied = menu.memoizedProps.openContent('kanji_test', 'kanji-setup');
-            // Simulate all previously open growth views, including pending confirmation.
-            let state = menu.memoizedState;
-            const values = [null, true, { characterType: 'cat', requestId: 'mock' }, true, true, true];
-            for (const value of values) {
-              if (!state?.queue?.dispatch) throw new Error('Menu state signature changed');
-              state.queue.dispatch(value);
-              state = state.next;
-            }
-            return denied;
+            if (!menu) throw new Error('Menu was not available for permission regression check');
+            return menu.memoizedProps.openContent('kanji_test', 'kanji-setup');
           });
-          assert.equal(restored, false);
-          await session.page.waitForFunction(() => {
-            const find = (fiber) => fiber && (fiber.memoizedProps?.onSelectLocalCharacter ? fiber : find(fiber.child) || find(fiber.sibling));
-            let app = find(window.__homeReactRoot?.current)?.return;
-            while (app && (typeof app.type !== 'function' || !app.memoizedState)) app = app.return;
-            let localFlag = app?.memoizedState;
-            for (let index = 0; index < 15 && localFlag; index += 1) localFlag = localFlag.next;
-            return localFlag?.memoizedState === true;
-          });
-          assert.equal(await session.page.evaluate(() => {
-            const find = (fiber) => fiber && (fiber.memoizedProps?.onSelectLocalCharacter ? fiber : find(fiber.child) || find(fiber.sibling));
-            const props = find(window.__homeReactRoot.current).memoizedProps;
-            props.onSelectLocalCharacter('cat', 'mock-selection');
-            props.onSetLocalCharacterXp(15000);
-            props.onAdvanceLocalStreak(30, false);
-            props.onCompleteLocalCareLearning();
-            props.onPurchaseLocalItem('mock-item', 'mock-purchase');
-            props.onAddLocalShopPoints();
-            props.onEquipLocalItem('mock-item');
-            props.onUnequipLocalSlot('background');
-            props.onSelectLocalVisualBranch('mock-branch');
-            props.onCompleteLocalCharacter();
-            const { missionRef, growthRef, before } = window.__homeSavedRefs;
-            return JSON.stringify([missionRef.current, growthRef.current]) === before;
-          }), true, 'Disabled growth callbacks must preserve saved in-memory growth data');
+          assert.equal(denied, false);
           await session.page.getByRole('alert').waitFor();
           await waitForHome(session.page);
-          await assertGrowthHidden(session.page);
+          await assertLearningOnlyHome(session.page);
+          await session.verify();
+        } finally { await session.context.close(); }
+      });
+
+      await t.test('all 25 existing content entrances remain usable', async () => {
+        const { SUKIMAKUN_CONTENTS, JUNIOR_HOME_SUBJECT_IDS } = await import('../src/constants/sukimakunContents.js');
+        assert.equal(SUKIMAKUN_CONTENTS.length, 25);
+        const session = await newSession(browser, baseUrl, authResponse(SUKIMAKUN_CONTENTS.map(({ contentId }) => contentId)));
+        try {
+          await session.login();
+          const subjectIndex = { english: 0, japanese: 1, science: 2, social: 3 };
+          for (const content of SUKIMAKUN_CONTENTS) {
+            if (content.menuGroup.startsWith('highschool-')) {
+              await session.page.getByRole('button', { name: '高校生モードへ', exact: true }).click();
+              await session.page.getByRole('button', { name: content.displayName, exact: true }).click();
+            } else {
+              const subject = Object.keys(JUNIOR_HOME_SUBJECT_IDS).find((key) => JUNIOR_HOME_SUBJECT_IDS[key].includes(content.contentId));
+              assert.ok(subject, 'Every junior content must remain reachable from a subject');
+              await session.page.locator('.student-home__subject').nth(subjectIndex[subject]).click();
+              await session.page.locator('.student-home__content-button').filter({ hasText: content.displayName }).click();
+            }
+            await session.page.getByRole('button', { name: content.contentId === 'chemistry_formulas' ? 'メニューに戻る' : '戻る', exact: true }).first().waitFor();
+            assert.equal(await session.page.locator('.student-home').count(), 0, content.contentId + ' must open its setup');
+            await session.page.reload();
+            await waitForHome(session.page);
+          }
+          await session.verify();
+        } finally { await session.context.close(); }
+      });
+
+      await t.test('camp science keeps one Gemini batch and one legacy log without reward fields', async () => {
+        const session = await newSession(browser, baseUrl, authResponse(['camp_science_qa']));
+        try {
+          await session.login();
+          await session.page.locator('.student-home__subject').first().click();
+          await session.page.locator('.student-home__content-button').click();
+          await session.page.getByRole('checkbox').first().check();
+          await session.page.getByRole('button', { name: 'スタート！', exact: true }).click();
+          const header = await session.page.locator('.q-header').innerText();
+          const count = Number(header.split('/')[1].trim());
+          assert.ok(count > 0 && count <= 20);
+          for (let index = 0; index < count; index += 1) {
+            await session.page.getByText('Q ' + (index + 1) + ' / ' + count, { exact: true }).waitFor();
+            await session.page.getByPlaceholder('答えを入力...').fill('モック採点用の回答');
+            await session.page.getByRole('button', { name: index + 1 === count ? 'テストを終了して採点' : '次へ', exact: true }).click({ delay: 300 });
+          }
+          await session.page.getByRole('heading', { name: '結果発表', exact: true }).waitFor();
+          for (let index = 0; index < 50 && !session.requests.some(({ action }) => action === 'saveLog'); index += 1) await new Promise((resolve) => setTimeout(resolve, 20));
+          const batches = session.requests.filter(({ action }) => action === 'checkAnswersWithGemini');
+          const logs = session.requests.filter(({ action }) => action === 'saveLog');
+          assert.equal(batches.length, 1);
+          assert.equal(batches[0].answers.length, count);
+          assert.equal(logs.length, 1);
+          assert.equal(logs[0].contentId, 'camp_science_qa');
+          assert.equal(logs[0].score, count);
+          assert.equal(logs[0].total, count);
+          assert.equal(Object.hasOwn(logs[0], 'attemptId'), false);
+          assert.equal(Object.hasOwn(logs[0], 'isReview'), false);
           await session.verify();
         } finally { await session.context.close(); }
       });

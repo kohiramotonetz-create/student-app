@@ -1,12 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  DAILY_MISSION_CONTENT_IDS,
   DEFAULT_DAILY_MISSIONS,
   getHomeDailyMissionModels,
   getVisibleDailyMissions
 } from '../src/constants/dailyMissions.js';
-import { createDailyMissionAttempt } from '../src/utils/dailyMissionAttempt.js';
 
 test('default daily missions contain only the confirmed contents and settings', () => {
   const english = DEFAULT_DAILY_MISSIONS.find(({ id }) => id === 'english_vocabulary');
@@ -16,11 +14,10 @@ test('default daily missions contain only the confirmed contents and settings', 
   assert.deepEqual(kanji.targetContentIds, ['kanji_test']);
   assert.equal(english.requiredCount, 3);
   assert.equal(kanji.requiredCount, 3);
-  assert.equal(english.rewardPoints, null);
-  assert.equal(kanji.rewardPoints, null);
-  assert.equal(english.rewardXp, 30);
-  assert.equal(kanji.rewardXp, 30);
-  assert.deepEqual(DAILY_MISSION_CONTENT_IDS, ['kakitan', 'junior_english_quiz', 'irregular_verbs', 'kanji_test']);
+  for (const mission of DEFAULT_DAILY_MISSIONS) {
+    assert.equal(Object.hasOwn(mission, 'rewardXp'), false);
+    assert.equal(Object.hasOwn(mission, 'rewardPoints'), false);
+  }
 });
 
 test('missions remain at three sets and hide only when no target content is allowed', () => {
@@ -29,19 +26,6 @@ test('missions remain at three sets and hide only when no target content is allo
   assert.equal(visible[0].id, 'english_vocabulary');
   assert.equal(visible[0].requiredCount, 3);
   assert.deepEqual(getVisibleDailyMissions(() => false), []);
-});
-
-test('attempt generation keeps one id per attempt and creates a new id for the next set', () => {
-  let sequence = 0;
-  const factory = () => `attempt-${++sequence}`;
-  const first = createDailyMissionAttempt('kakitan', false, factory);
-  const sameSetReference = first;
-  const second = createDailyMissionAttempt('kakitan', false, factory);
-
-  assert.equal(first.attemptId, sameSetReference.attemptId);
-  assert.notEqual(first.attemptId, second.attemptId);
-  assert.equal(first.isReview, false);
-  assert.equal(createDailyMissionAttempt('camp_kagawa_kanji', false, factory), null);
 });
 
 test('home mission models use definitions, permissions, and preparing progress safely', () => {
@@ -55,8 +39,7 @@ test('home mission models use definitions, permissions, and preparing progress s
   assert.equal(models[0].requiredCount, 3);
   assert.deepEqual(models[0].availableContentIds, ['kakitan']);
   assert.deepEqual(models[0].targetLabels, ['書き単']);
-  assert.deepEqual(models[0].progress, { status: 'preparing', completedCount: null, achieved: null });
-  assert.equal(models[1].rewardPoints, null);
+  assert.equal(Object.hasOwn(models[0], 'progress'), false);
 });
 
 test('home missions cover english-only, kanji-only, none, and uninitialized permissions', () => {
@@ -72,22 +55,17 @@ test('home missions cover english-only, kanji-only, none, and uninitialized perm
   assert.equal(createModels(['junior_english_quiz'])[0].requiredCount, 3);
 });
 
-test('home shows numeric progress only after a successful mission response', () => {
-  const base = {
+test('home goals do not accept live progress or expose reward settings', () => {
+  const models = getHomeDailyMissionModels({
     permissionsInitialized: true,
-    isContentAllowed: (contentId) => contentId === 'kakitan'
-  };
-  const pending = getHomeDailyMissionModels(base)[0];
-  const ready = getHomeDailyMissionModels({
-    ...base,
-    progressByMissionId: {
-      english_vocabulary: { completedCount: 0, achieved: false, missionDate: '2026-09-02' }
-    }
-  })[0];
-
-  assert.equal(pending.progress.status, 'preparing');
-  assert.equal(pending.progress.completedCount, null);
-  assert.deepEqual(ready.progress, {
-    status: 'ready', completedCount: 0, achieved: false, missionDate: '2026-09-02'
+    isContentAllowed: () => true,
+    progressByMissionId: { english_vocabulary: { completedCount: 3, achieved: true } }
   });
+  assert.equal(models.length, 2);
+  for (const model of models) {
+    assert.equal(model.requiredCount, 3);
+    assert.equal(Object.hasOwn(model, 'progress'), false);
+    assert.equal(Object.hasOwn(model, 'rewardXp'), false);
+    assert.equal(Object.hasOwn(model, 'rewardPoints'), false);
+  }
 });

@@ -47,10 +47,3 @@ export const selectStudentAuthBootstrap = ({ uid, tk, storedToken }) => {
   if (storedToken) return 'session';
   return 'login';
 };
-
-export const indexDailyMissionProgress = (response) => {
-  if (response?.result !== 'success' || !Array.isArray(response.missions)) return null;
-  return Object.fromEntries(response.missions
-    .filter((mission) => mission && typeof mission.id === 'string')
-    .map((mission) => [mission.id, { ...mission, missionDate: response.missionDate || null }]));
-};

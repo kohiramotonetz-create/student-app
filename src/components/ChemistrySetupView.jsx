@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 
-function ChemistrySetupView({ step, setStep, chemistryData, resetQuizState, setQuizItems, QUESTION_COUNT, canStartContent, contentId, beginLearningAttempt }) {
+function ChemistrySetupView({ step, setStep, chemistryData, resetQuizState, setQuizItems, QUESTION_COUNT, canStartContent, contentId }) {
   // 1. Hooks（useState, useMemo）は必ず最初の一等地にまとめて定義する（途中でreturnさせない）
   const [selectedGrade, setSelectedGrade] = useState('すべて');
   const [selectedType, setSelectedType] = useState('すべて');
@@ -43,7 +43,6 @@ function ChemistrySetupView({ step, setStep, chemistryData, resetQuizState, setQ
     
     resetQuizState();
     setQuizItems(shuffled);
-    beginLearningAttempt(contentId, false);
     setStep('chemistry-play');
   };
 
