@@ -37,6 +37,39 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### 育成関連コード分離 Phase 1（Issue番号未指定）
+
+- 日付: 2026-10-28
+- 状態: Phase 1実装とPhase 2A最終監査・ローカル検証を完了。分離作業ブランチへのローカルcommit対象（本コミット）。未push・main未反映・本番未確認。
+- 基準: 保存済みorigin/main `714d7cff1cdda2bdd4f4eaf1d992a47b35584bd4`。fetch/pullなし。
+- 保全: `codex/character-growth-development`を714d7cfに新規作成。Phase A〜Fのソース・テスト・CHANGELOGを含む元ツリーを変更せず保持。保全はローカルのみ、pushなし。
+- 作業: `codex/split-growth-from-main`、作業基点 `714d7cf`。新規worktree `C:/Users/netz/.codex/worktrees/split-growth-from-main/student-app`だけで変更。
+- 育成専用8ソースを分離: `src/constants/{characterMaster,itemMaster,releaseFeatures}.js`、`src/utils/{characterCare,experienceProgress,streakPoints,localXpVerification,localShopVerification}.js`。
+- 育成専用10テストを分離: `test/{characterCare,characterProgress,experienceProgress,itemMaster,localCharacterCare,localCharacterCompletion,localEquipmentVerification,localShopVerification,localStreakPoints,streakPoints}.test.js`。
+- 未使用コード: 目標表示だけでは利用元がなくなる `src/utils/{learningAttempt,dailyMissionAttempt,localDailyMissionVerification}.js`と `test/{learningAttempt,localDailyMissionVerification}.test.js`を除外。元コードは保全ブランチで保持。
+- 混在箇所: App.jsx、MenuView.jsx、App.css、CampView / ChemistrySetupView / KanjiTestView / OtherSetupsView / PrepositionTestView / QuizPlayView / QuizSetupViewから育成用import・state・props・関数・画面・CSS、attempt連携、確認用完了操作を除外。無効化フラグ方式は廃止。
+- ホーム表示: ③キャラクター育成の見出し・作成中表示・説明・UserRoundアイコン・カードCSS、④最近の学習・復習の説明・準備中表示を維持。①目標・準備中、②科目・教材数・特別モード、ヘッダー、ログアウト、Version、4項目ナビと3項目disabledも維持。ナビは現行表示の4列へ固定。
+- ミッション: 英単語3回・漢字3回の権限別目標表示だけを維持。報酬定義・実進捗取得・集計・加算を除外。studentSession.jsの未使用進捗整形だけを除外し、session認証は維持。
+- CSV影響: public配下の全CSVは714d7cfから変更なし。25教材定義、公民240問（社会計703問）、三木p104の19語を維持。元フォルダの未commit17語は取り込まず、そのまま保全。
+- Gemini影響: 採点方式・呼出条件は変更なし。採点・認証・CSV読込等14関数が基準と改行以外同一であることを確認。実Gemini API通信なし。
+- GAS / 保存影響: GAS・Spreadsheet・本番データは未変更。saveLog/getLogs、session token、history、採点結果、前置詞answerDetails、no-cors/keepaliveを維持。saveLogにattemptId / isReviewを追加しない。52ケースのログpayload・送信オプションが基準と同一であることを通信なしのモックで確認。
+- test: `npm test`成功（36件pass、ブラウザ親2件は通常実行ではskip）。
+- build: `npm run build`成功。
+- lint: 変更前後とも既存8件のみで失敗。App.jsxの不要escape4件・未使用catch変数2件、ChemistryPlayView.jsxのFast Refresh制約1件・effect内setState1件。今回の新規エラーなし。
+- git diff --check: 成功。
+- ローカル画面: 既存Playwright / Chromeでdevelopment・production各9項目＋親、計20件成功。通常ログイン、SSO、session復元、ログアウト、権限0件・未取得・拒否、25教材すべての設定画面への導線を確認。前置詞通常20問・復習1問の完了→1回保存→ホーム復帰とanswerDetails、理科20問のGemini一括1回→ログ1回をモック確認。全教材の採点完了は未確認。
+- 見た目比較: 714d7cfのソース写しと分離後で、1440×1000 / 390×844、単一権限 / 全科目表示、development / productionの8枚を比較し差分0ピクセル。撮影はmouse位置・reduced-motion・animation停止条件を統一。③・④のカードと4項目ナビを目視確認。
+- 通信確認: ブラウザテストは127.0.0.1以外を遮断。アプリの外部リクエスト試行0、想定外action0、console/page error0。認証・ログ・Geminiは全てローカルモック。実GAS・実アカウント・本番動作は未確認。
+- 残存: 育成実装・API・フラグ・報酬・ストアなし。静的な準備中カード、そのCSS、否定検証の文字列、過去CHANGELOG記録のみ維持。既存教材の復習用isReviewModeは維持（saveLogのisReviewとは別）。
+- 保全確認: 元のmainおよび開始時から存在する4つの別worktreeについて、HEAD・ブランチ・status・未commit差分・ステージ済み差分・未追跡一覧が不変であることを終了時に照合。
+- 未解決: 既存lint8件。通常漢字復習等の既存不具合候補は対象外。実GAS・本番確認、別リポジトリの育成GAS成果の保全は未実施。
+- Version: 4.3.0から変更なし。ログイン・ホームの共通定数を維持。Version History変更なし。
+- Phase 2A最終監査: 2026-10-28、Phase 1の39ファイルを全件確認。削除23ファイルは保全ブランチの基準内容と一致。session認証、ログイン/SSO/touch、既存14関数、過去CHANGELOGを維持。CSV・25教材定義・Versionは基準と同一。未使用コード・残存育成実装・import漏れなし。
+- Phase 2A再検証: npm test 36件成功（通常時のブラウザ親2件skip）、build成功、lintは同じ既存8件のみ。専用ブラウザ20件成功、PC/スマートフォン8画像の差分0。52ケースのログ契約一致、attemptId/isReview付加なし。実GAS・本番は未確認。
+- Commit: 本項目を含むローカルコミット `refactor: separate character growth implementation from student app`。
+- Push / mainマージ / rebase / reset / clasp push / GASデプロイ / Vercelデプロイ / 本番データ変更: 未実施。
+- 関連gyoumu-appコミット / Issue: なし。gyoumu-app変更なし。
+
 ### 新ホーム先行公開準備：キャラクター育成を作成中表示（Issue番号未指定）
 
 - 状態: ローカル実装・単体テスト・development / productionブラウザモック検証完了。正式リリース・本番公開判定は未実施

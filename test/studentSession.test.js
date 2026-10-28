@@ -6,7 +6,6 @@ import {
   buildStudentSessionPayload,
   clearStudentSessionToken,
   getStudentSessionTokenFromResponse,
-  indexDailyMissionProgress,
   isExplicitStudentSessionInvalid,
   readStudentSessionToken,
   selectStudentAuthBootstrap,
@@ -42,16 +41,10 @@ test('logout and invalid sessions clear sessionStorage without exposing the toke
   assert.equal(isExplicitStudentSessionInvalid({ code: 'NETWORK_ERROR' }), false);
 });
 
-test('authenticated payloads and mission responses keep identity and progress explicit', () => {
-  assert.deepEqual(buildStudentSessionPayload('getDailyMissionProgress', 'ss1.token'), {
-    action: 'getDailyMissionProgress', studentSessionToken: 'ss1.token'
+test('authenticated log payloads keep the existing identity contract', () => {
+  assert.deepEqual(buildStudentSessionPayload('getLogs', 'ss1.token'), {
+    action: 'getLogs', studentSessionToken: 'ss1.token'
   });
-  assert.deepEqual(indexDailyMissionProgress({
-    result: 'success',
-    missionDate: '2026-09-02',
-    missions: [{ id: 'kanji', completedCount: 2, achieved: false }]
-  }), { kanji: { id: 'kanji', completedCount: 2, achieved: false, missionDate: '2026-09-02' } });
-  assert.equal(indexDailyMissionProgress({ result: 'error' }), null);
 });
 
 test('URL SSO takes priority over stored session and saveLog adds token only when present', () => {
