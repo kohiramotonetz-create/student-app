@@ -75,7 +75,7 @@ function harness(contentId, { items = makeItems(contentId, 35), logs = [], index
     qIndex: index, quizItems: [], quizAnswers: [], currentInput: '', practice: '', quizReview: { visible: false },
     campDraftAnswers: [], isCampGrading: false, isCampReviewMode: false, isPrepositionReviewMode: false,
     isCampBatchQuiz: contentId === 'camp_science_qa' || contentId === 'camp_social_qa',
-    campNavigationLockRef: { current: false }, strokes: [], canvasRef: { current: null },
+    singleQuizSubmissionRef: { current: null }, campNavigationLockRef: { current: false }, strokes: [], canvasRef: { current: null },
     wrongWordsList: [], showWrongList: false, mode: 'en-ja', step: 'setup',
     selectedBook: { name: '模擬教材', data: [], contentId }, selectedParts: [],
     startNo: 1, endNo: 20, isKobunMode: false, isFukisokuMode: false,
