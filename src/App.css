@@ -35,6 +35,16 @@ button, .nav-btn { background-color: #1a73e8; color: white; padding: 12px 24px; 
 .secondary { background: transparent; color: #5f6368; border: 1px solid #dadce0; padding: 10px; width: 100%; cursor: pointer; margin-top: 10px; border-radius: 8px; }
 .app-version { position: fixed; right: 12px; bottom: 8px; color: #5f6368; font-size: 12px; }
 
+/* Handwriting only: do not change the shared setup, login or home card sizes. */
+.quiz-container.kanji-writing-quiz { box-sizing: border-box; max-width: 440px; padding: clamp(12px, 3vw, 24px); min-width: 0; }
+.kanji-writing-hint { font-size: 13px; color: #5f6368; line-height: 1.6; }
+.kanji-writing-frames { display: flex; flex-direction: column; gap: 24px; width: 100%; max-width: 360px; margin: 16px auto; }
+.kanji-writing-frame { position: relative; box-sizing: border-box; width: 100%; border: 2px solid #4a90e2; border-radius: 8px; background-color: white; background-image: linear-gradient(to right, transparent calc(50% - .5px), #dce5ef calc(50% - .5px), #dce5ef calc(50% + .5px), transparent calc(50% + .5px)), linear-gradient(to bottom, transparent calc(50% - .5px), #dce5ef calc(50% - .5px), #dce5ef calc(50% + .5px), transparent calc(50% + .5px)); }
+.kanji-writing-frame canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; touch-action: none; cursor: crosshair; border-radius: 6px; }
+.kanji-writing-frame__number { position: absolute; top: 3px; left: 5px; color: #8a9aaf; font-size: 11px; pointer-events: none; }
+.kanji-writing-actions { display: flex; gap: 10px; width: 100%; max-width: 360px; margin: 0 auto 15px; }
+.kanji-writing-quiz button:disabled { opacity: .55; cursor: wait; }
+
 /* --- 合宿 理科・社会 問題ジャンル選択 --- */
 .camp-genre-list {
   max-height: 280px;
