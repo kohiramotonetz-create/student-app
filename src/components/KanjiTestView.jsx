@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { CONTENT_IDS, getContentDefinition } from '../constants/sukimakunContents';
+import KanjiWritingCanvas from './KanjiWritingCanvas';
+import { getKanjiCharacters } from '../utils/kanjiWriting';
 
 function KanjiTestView({
   step,
@@ -20,15 +22,14 @@ function KanjiTestView({
   startKanjiTest,
   quizItems,
   qIndex,
-  canvasRef,
-  startDrawing,
-  draw,
-  setIsDrawing,
+  strokes,
+  kanjiBusy,
   clearKanjiCanvas,
   judgeKanji,
+  skipKanji,
   setStrokes,
   setQuizItems,
-  setQuizAnswers,
+  resetQuizState,
   // 【追加箇所】間違えたものリスト用のPropsを受け取る
   fetchAndFilterWrongWords,
   showWrongList,
@@ -42,6 +43,7 @@ function KanjiTestView({
   title = '漢字テスト 設定',
   randomAllCount = null,
   keepWrongHistory = false,
+  setIsCampReviewMode,
 }) {
   if (step !== setupStep && step !== mainStep) return null;
 
@@ -166,6 +168,7 @@ function KanjiTestView({
                 // ⭕️ 親の保存シート名「漢字テスト」と完全に一致させる
                 fetchAndFilterWrongWords(getContentDefinition(contentId).logSheetName, range, {
                   keepWrongHistory,
+                  resolveWithReviewSuccess: contentId === CONTENT_IDS.camp_kagawa_kanji,
                   isKanji: true,
                   contentId: keepWrongHistory ? contentId : null,
                   emptyMessage: keepWrongHistory ? '現在、間違えた問題はありません。' : undefined
@@ -209,7 +212,7 @@ function KanjiTestView({
 
               <button className="nav-btn" style={{ backgroundColor: '#28a745', width: '100%' }} onClick={() => {
                 if (!canStartContent(contentId)) return;
-                const targetItems = wrongWordsList.map(w => keepWrongHistory ? {
+                const targetItems = wrongWordsList.map(w => keepWrongHistory || contentId === CONTENT_IDS.kanji_test ? {
                   id: w.rawItem.id,
                   ja: w.rawItem.question,
                   en: w.rawItem.answer,
@@ -219,9 +222,11 @@ function KanjiTestView({
                 
                 // 漢字テスト専用のクイズ初期化処理
                 setStrokes([]);
-                setQuizAnswers([]);
+                resetQuizState();
+                setIsCampReviewMode(contentId === CONTENT_IDS.camp_kagawa_kanji);
                 // 間違えた問題のみをランダムにセットして手書きテストへ進む
-                setQuizItems([...targetItems].sort(() => 0.5 - Math.random()));
+                const shuffledItems = [...targetItems].sort(() => 0.5 - Math.random());
+                setQuizItems(contentId === CONTENT_IDS.camp_kagawa_kanji ? shuffledItems.slice(0, randomAllCount) : shuffledItems);
                 setShowWrongList(false);
                 setStep(mainStep);
               }}>🔥 間違えた問題のみトライ！</button>
@@ -232,53 +237,32 @@ function KanjiTestView({
 
       {/* 実行画面（手書き画面） */}
       {step === mainStep && quizItems[qIndex] && (
-        <div className="quiz-container" style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none', userSelect: 'none' }}>
+        <div className="quiz-container kanji-writing-quiz" style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none', userSelect: 'none' }}>
           <div className="q-header">漢字 Q {qIndex + 1} / {quizItems.length}</div>
           
           <div style={{ fontSize: '22px', marginBottom: '15px', fontWeight: 'bold' }}>
             問題： 「{quizItems[qIndex].ja}」
             <div style={{ fontSize: '14px', color: '#666', marginTop: '5px', fontWeight: 'normal' }}>
-              当てはまる漢字を枠内に書いてください
+              上から1文字ずつ、送り仮名も枠内に書いてください
             </div>
           </div>
 
-          <div style={{ 
-            background: 'white', border: '3px solid #4A90E2', borderRadius: '10px', overflow: 'hidden', width: '270px', margin: '0 auto 15px',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.1)', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', userSelect: 'none'
-          }}>
-            <canvas 
-              ref={canvasRef}
-              width="270" 
-              height="480" 
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={() => setIsDrawing(false)}
-              onMouseLeave={() => setIsDrawing(false)}
-              onTouchStart={startDrawing}
-              onTouchMove={draw}
-              onTouchEnd={() => setIsDrawing(false)}
-              style={{ touchAction: 'none', cursor: 'crosshair', display: 'block' }}
-            ></canvas>
-          </div>
+          <p className="kanji-writing-hint">枠を使って大きめに、とめ・はね・はらいを意識して書こう。画面は枠の外でスクロールできます。</p>
+          <KanjiWritingCanvas key={`${mainStep}:${qIndex}`} characters={getKanjiCharacters(quizItems[qIndex].en)}
+            strokes={strokes} setStrokes={setStrokes} disabled={kanjiBusy} />
 
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '15px', width: '270px', margin: '0 auto 15px' }}>
-            <button className="secondary" onClick={clearKanjiCanvas} style={{ flex: 1 }}>消去</button>
-            <button className="nav-btn" onClick={judgeKanji} style={{ flex: 2 }}>判定する</button>
+          <div className="kanji-writing-actions">
+            <button className="secondary" onClick={clearKanjiCanvas} disabled={kanjiBusy} style={{ flex: 1 }}>消去</button>
+            <button className="nav-btn" onClick={judgeKanji} disabled={kanjiBusy} style={{ flex: 2 }}>判定する</button>
           </div>
           
           <button 
             className="secondary" 
             style={{ width: '100%' }} 
-            onClick={() => { 
-              if(window.confirm("中断しますか？")) {
-                setStrokes([]); 
-                clearKanjiCanvas();
-                setQuizAnswers([]); 
-                setStep(returnStep);
-              }
-            }}
+            onClick={skipKanji}
+            disabled={kanjiBusy}
           >
-            中断してメニューに戻る
+            覚えていない
           </button>
         </div>
       )}

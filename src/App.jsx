@@ -37,6 +37,7 @@ import {
   isPrepositionAnswerCorrect
 } from './utils/prepositionQuiz';
 import { APP_VERSION } from './constants/version';
+import { formatKanjiInk, getEmptyKanjiFrames, getKanjiCandidates, getKanjiCharacters } from './utils/kanjiWriting';
 import {
   STUDENT_SESSION_TOUCH_INTERVAL_MS,
   addStudentSessionToken,
@@ -153,9 +154,8 @@ function App() {
   const [selectedText, setSelectedText] = useState(''); 
   const [startPage, setStartPage] = useState('');
   const [endPage, setEndPage] = useState('');
-  const canvasRef = useRef(null);
-  const [isDrawing, setIsDrawing] = useState(false);
   const [strokes, setStrokes] = useState([]); 
+  const kanjiActionRef = useRef(null);
 
   const isContentAllowed = (contentId) =>
     Boolean(contentId) && allowedContentIds.includes(contentId);
@@ -393,10 +393,12 @@ function App() {
   const [practice, setPractice] = useState("");
   const [campDraftAnswers, setCampDraftAnswers] = useState([]);
   const [isCampGrading, setIsCampGrading] = useState(false);
+  const [isCampReviewMode, setIsCampReviewMode] = useState(false);
   const [isPrepositionReviewMode, setIsPrepositionReviewMode] = useState(false);
   const campNavigationLockRef = useRef(false);
 
   const resetQuizState = () => {
+    setIsCampReviewMode(false);
     setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setPractice(""); setQuizReview({ visible: false, record: null });
     setCampDraftAnswers([]); setIsCampGrading(false); campNavigationLockRef.current = false;
   };
@@ -503,6 +505,10 @@ function App() {
       const currentWordSet = new Set(reviewItems.flatMap(({ keys }) => keys));
       
       const wordHistoryMap = {};
+      // Keep the existing getLogs array order across stable and legacy keys,
+      // only for camp review. Other contents keep their existing history rules.
+      const preserveCampHistoryOrder = resolveWithReviewSuccess && contentId?.startsWith('camp_');
+      let historyOrder = 0;
 
       pastLogs.forEach(log => {
         if (contentId && log.contentId && log.contentId !== contentId) return;
@@ -510,7 +516,7 @@ function App() {
         parseLogHistory(log.history).forEach(({ key, result }) => {
           if (currentWordSet.has(key)) {
             if (!wordHistoryMap[key]) wordHistoryMap[key] = [];
-            wordHistoryMap[key].push(result);
+            wordHistoryMap[key].push(preserveCampHistoryOrder ? { result, order: historyOrder++ } : result);
           }
         });
       });
@@ -518,7 +524,10 @@ function App() {
       const wrongList = [];
       
       reviewItems.forEach(({ item, keys }) => {
-        const history = keys.flatMap((key) => wordHistoryMap[key] || []);
+        const matchedHistory = keys.flatMap((key) => wordHistoryMap[key] || []);
+        const history = preserveCampHistoryOrder
+          ? matchedHistory.sort((left, right) => left.order - right.order).map(({ result }) => result)
+          : matchedHistory;
         
         let isWrong = false;
 
@@ -579,7 +588,7 @@ function App() {
     let history;
     try {
       history = createLogHistory(finalAnswers, contentId, {
-        isReviewMode: contentId === CONTENT_IDS.preposition_test && isPrepositionReviewMode
+        isReviewMode: contentId === CONTENT_IDS.preposition_test ? isPrepositionReviewMode : isCampReviewMode
       });
     } catch (error) {
       console.error('学習ログ用questionIdの生成に失敗しました:', error);
@@ -895,53 +904,60 @@ function App() {
     setStep(contentId === CONTENT_IDS.camp_kagawa_kanji ? 'camp-kanji-main' : 'kanji-main');
   };
 
-  const getCtx = () => canvasRef.current?.getContext('2d');
-
   const clearKanjiCanvas = () => {
-    const ctx = getCtx();
-    if (ctx) {
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    }
     setStrokes([]);
   };
 
-  const startDrawing = (e) => {
-    setIsDrawing(true);
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-    const ctx = getCtx();
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    setStrokes(prev => [...prev, [{ x, y }]]);
+  const beginKanjiAction = () => {
+    if (!quizItems[qIndex]) return null;
+    const previous = kanjiActionRef.current;
+    if (previous?.items === quizItems && previous.index === qIndex && (previous.busy || previous.settled)) return null;
+    const action = { items: quizItems, index: qIndex, busy: true, settled: false };
+    kanjiActionRef.current = action;
+    return action;
   };
 
-  const draw = (e) => {
-    if (!isDrawing) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-    const ctx = getCtx();
-    ctx.lineWidth = 5; 
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#333';
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    setStrokes(prev => {
-      const newStrokes = [...prev];
-      newStrokes[newStrokes.length - 1].push({ x, y });
-      return newStrokes;
-    });
+  const finalizeKanjiAnswer = (record, action) => {
+    if (kanjiActionRef.current !== action || action.settled) return;
+    action.settled = true;
+    const finalAnswers = [...quizAnswers, record];
+    setQuizAnswers(finalAnswers);
+    clearKanjiCanvas();
+    if (qIndex + 1 < quizItems.length) {
+      setQIndex(qIndex + 1);
+    } else {
+      setStep('quiz-result');
+      const contentId = activeContentId === CONTENT_IDS.camp_kagawa_kanji
+        ? CONTENT_IDS.camp_kagawa_kanji : CONTENT_IDS.kanji_test;
+      sendResultToGAS(finalAnswers, getContentDefinition(contentId).logSheetName,
+        `${selectedText} (${startPage}〜${endPage})`, contentId);
+    }
+  };
+
+  const skipKanji = () => {
+    const action = beginKanjiAction();
+    if (!action) return;
+    try {
+      if (!window.confirm('この問題をとばしてもよいですか？')) return;
+      finalizeKanjiAnswer({ q: quizItems[qIndex].ja, a: '覚えていない',
+        correct: quizItems[qIndex].en, ok: false, rawItem: quizItems[qIndex] }, action);
+    } finally {
+      action.busy = false;
+    }
   };
 
   const judgeKanji = async () => {
-    if (strokes.length === 0) return alert("文字を書いてください");
+    const action = beginKanjiAction();
+    if (!action) return;
+    const count = getKanjiCharacters(quizItems[qIndex].en).length;
+    const empty = getEmptyKanjiFrames(strokes, count);
+    if (!count || empty.length) {
+      action.busy = false;
+      alert(empty.length ? `${empty.map((index) => index + 1).join('、')}文字目の枠にも書いてください` : '解答データを確認できません');
+      return;
+    }
     setLoading(true);
-    const formattedStrokes = strokes.map(s => [
-      s.map(p => Math.round(p.x)),
-      s.map(p => Math.round(p.y)),
-      []
-    ]);
+    const formattedStrokes = formatKanjiInk(strokes, count);
 
     try {
       const response = await fetch('https://inputtools.google.com/request?itc=ja-t-i0-handwrit&app=test', {
@@ -960,9 +976,9 @@ function App() {
         })
       });
 
-      const data = await response.json();
-      if (data[0] === "SUCCESS") {
-        const candidates = data[1][0][1];
+      if (!response.ok) throw new Error('Handwriting recognition HTTP error');
+      const candidates = getKanjiCandidates(await response.json());
+      if (kanjiActionRef.current === action && !action.settled) {
         const answer = quizItems[qIndex].en; 
         const isOk = candidates.includes(answer);
         
@@ -974,31 +990,14 @@ function App() {
           rawItem: quizItems[qIndex] 
         };
 
-        setQuizAnswers(prev => [...prev, record]);
         alert(isOk ? "⭕ 正解！" : `❌ 残念！ (あなたの書いた文字: ${candidates[0]})`);
-
-        if (qIndex + 1 < quizItems.length) {
-          setQIndex(qIndex + 1);
-          clearKanjiCanvas();
-        } else {
-          setStep('quiz-result');
-          setStrokes([]);
-          const contentId = activeContentId === CONTENT_IDS.camp_kagawa_kanji
-            ? CONTENT_IDS.camp_kagawa_kanji
-            : CONTENT_IDS.kanji_test;
-          const rangeLabel = `${selectedText} (${startPage}〜${endPage})`;
-          sendResultToGAS(
-            [...quizAnswers, record],
-            getContentDefinition(contentId).logSheetName,
-            rangeLabel,
-            contentId
-          );
-        }
+        finalizeKanjiAnswer(record, action);
       }
     } catch (e) {
       console.error(e);
       alert("判定エラーが発生しました");
     } finally {
+      action.busy = false;
       setLoading(false);
     }
   };
@@ -1053,6 +1052,7 @@ function App() {
         setSelectedBook={setSelectedBook}
         setMode={setMode}
         questionCount={QUESTION_COUNT}
+        setIsCampReviewMode={setIsCampReviewMode}
         fetchAndFilterWrongWords={fetchAndFilterWrongWords}
         showWrongList={showWrongList}
         setShowWrongList={setShowWrongList}
@@ -1202,6 +1202,7 @@ function App() {
 
       <QuizPlayView 
         step={step}
+        activeContentId={activeContentId}
         setStep={setStep}
         quizItems={quizItems}
         qIndex={qIndex}
@@ -1243,15 +1244,14 @@ function App() {
         startKanjiTest={startKanjiTest}
         quizItems={quizItems}
         qIndex={qIndex}
-        canvasRef={canvasRef}
-        startDrawing={startDrawing}
-        draw={draw}
-        setIsDrawing={setIsDrawing}
+        strokes={strokes}
+        kanjiBusy={loading}
         clearKanjiCanvas={clearKanjiCanvas}
         judgeKanji={judgeKanji}
+        skipKanji={skipKanji}
         setStrokes={setStrokes}
         setQuizItems={setQuizItems}
-        setQuizAnswers={setQuizAnswers}
+        resetQuizState={resetQuizState}
         fetchAndFilterWrongWords={fetchAndFilterWrongWords}
         showWrongList={showWrongList}
         setShowWrongList={setShowWrongList}
@@ -1264,6 +1264,7 @@ function App() {
         title={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? '香川県　覚えるべき漢字（書きver.）' : '漢字テスト 設定'}
         randomAllCount={activeContentId === CONTENT_IDS.camp_kagawa_kanji ? 20 : null}
         keepWrongHistory={activeContentId === CONTENT_IDS.camp_kagawa_kanji}
+        setIsCampReviewMode={setIsCampReviewMode}
       />
 
       <ChemistrySetupView 

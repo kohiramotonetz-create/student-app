@@ -14,6 +14,7 @@ function QuizPlayView({
   practice,
   setPractice,
   selectedBook,
+  activeContentId,
   mode,
   isKobunMode,
   speakEn,
@@ -165,11 +166,11 @@ function QuizPlayView({
             </table>
           </div>
           <button className="secondary" onClick={() => {
-            const returnStep = selectedBook.contentId?.startsWith('camp_') ? 'camp-menu' : 'menu';
+            const returnStep = (activeContentId || selectedBook.contentId)?.startsWith('camp_') ? 'camp-menu' : 'menu';
             resetQuizState();
             setSelectedBook({ name: '', data: [] });
             setStep(returnStep);
-          }}>{selectedBook.contentId?.startsWith('camp_') ? '合宿メニューへ戻る' : 'メニューへ戻る'}</button>
+          }}>{(activeContentId || selectedBook.contentId)?.startsWith('camp_') ? '合宿メニューへ戻る' : 'メニューへ戻る'}</button>
         </div>
       )}
     </>

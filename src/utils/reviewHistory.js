@@ -37,7 +37,7 @@ export const createLogHistory = (answers, contentId, { isReviewMode = false } = 
       throw new Error(`Missing questionId for ${contentId || 'unknown content'}`);
     }
 
-    const result = answer.ok && contentId === 'preposition_test' && isReviewMode
+    const result = answer.ok && usesStableQuestionIds && isReviewMode
       ? '◎'
       : (answer.ok ? '○' : '×');
     return `[${index + 1}]${key}(${result})`;

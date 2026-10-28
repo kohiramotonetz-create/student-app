@@ -37,6 +37,27 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### A・B・C統合版／Phase ②-4 最終監査・ローカルコミット（Issue番号未指定）
+
+- 日付: 2026-10-28
+- 状態: 統合版の利用者Windows Chrome主要PC操作合格を受領。Phase ②-4で15ファイルを最終監査し、実装・テストを追加変更せずローカルコミット対象を確定。push・PR・mainマージ・本番反映は未実施。
+- 基準: GitHub main / origin/main / ローカルmainはいずれも `715f47d5eab52db71de87e2253ee2a4c1d82a422`。branch `codex/integrate-abc-local-20261028`。元mainのpull・reset・rebaseなし。
+- A/C統合: Cを正本として通常漢字復習のquestion/answer→ja/en変換、1文字1枠（送り仮名込み・縦一列・最大360 CSSpx）、DPR/270論理座標、枠順の270×480認識入力、「覚えていない」、空欄時未採点、確認cancel時状態維持、処理中の二重確定防止を保持。Aの重複適用なし。Bの詳細は既存S-007項目を更新。
+- 競合調整: KanjiTestView.jsxの復習初期化1箇所。通常・合宿とも既存resetQuizStateでQ1・回答等を初期化してから合宿復習modeを設定。合宿復習はシャッフル後最大20問。不要になったsetQuizAnswers propのみ削除。
+- 結果戻り先: 既存画面のselectedBook.contentIdが空になる合宿漢字経路が原因。QuizPlayViewへactiveContentIdを渡し、結果ボタンの戻り先と文言だけに使用。合宿理科・社会・漢字は合宿メニュー、通常教材は既存メニュー。通常/復習それぞれ回帰確認。
+- test結果: npm testは117件成功・2件skip・失敗0（全119件）。元mainは36件成功・2件skip。実ハンドラのVMモックで復習0/1/20/21/35件、社会複数分野、◎解除・○保持・再×、旧/新キー順序、通常/合宿漢字の再開始Q1、枠/座標/DPR、空欄・cancel・最終skip、連打/判定中処理、保存回数、結果戻り先、前置詞answerDetails、認証契約を検証。
+- build結果: npm run build成功。node scripts/verify-abc-integration.mjs --check成功（模擬認証/SSO/セッション・履歴・採点・保存・CSP・送信先置換・隔離build）。git diff --check成功。
+- lint結果: npm run lintは既存8件で失敗（App.jsx 6件、ChemistryPlayView.jsx 2件）。基準mainとファイル/ルール/メッセージの全8件が一致。変更ファイルはApp.jsxの既存6件のみ、新規エラー0。既存8件は修正していない。
+- ローカル確認: 専用5193のモックをPC側で起動し、Windows Chromeで確認ページ・通常模擬ログイン後ホーム・合宿漢字復習Q1と2文字枠・模擬SSO後ホームとreload後セッション復元を表示確認。合宿理科は復習1問の模擬一括採点→結果→合宿メニューまで進み、採点1回・保存1回・履歴◎を確認。sandbox内起動はChrome到達不可（localhost EACCES）、PC側起動後に到達成功。スキップ確認ダイアログ操作時はブラウザ操作ツールがtimeoutし、当該確認タブを閉じて復旧。スキップ完了以降のPC操作を確認済みとはしていない。これは統合準備時のエージェント確認記録。後続の利用者PC操作合格結果は次項に記載。
+- 統合版PC確認（利用者申告）: Aは通常漢字復習Q1・問題/文字枠・手書き模擬採点・結果/自分の回答/模範解答を確認。Cは文字数対応の縦枠・十字線・筆跡・縮小/スクロール・空欄再入力・skip cancel/確定/×/表示を確認。合宿理科は最大20問・2/20・結果→合宿メニュー・35→33件、社会は歴史/地理/公民同時選択・最大20問・10/20・結果→合宿メニュー・105→95件を確認。合宿漢字はQ1/20・文字枠/十字線・手書き採点/次問・skip・結果→合宿メニュー・対象数減少を確認。主要PC操作合格。実GAS・認識精度・iPad実機の合格を意味しない。
+- Phase ②-4再検証: npm test 117成功・2skip・失敗0、build成功、lintは基準mainと同じ既存8件・新規0、git diff --checkおよび統合モック--check成功。saveLog/getLogsのpayload宣言を基準mainと照合、前置詞answerDetails・studentSessionToken維持、attemptId/isReviewの保存payload追加なし。
+- 保全/範囲: 元A・B・C・④のHEAD/branch/statusと変更ファイルSHA-256を監査記録し、終了時25/25件一致。④の差分取込・変更・巻戻しなし。育成保全branch不変。全24CSVは元mainとバイト一致。認証/SSO・セッション・既存単問/一括採点・通信制御の14ハンドラと4 effectsは基準コード一致。saveLog/getLogsのaction/payload、studentSessionToken、前置詞answerDetails維持、attemptId追加なし。
+- CSV/Gemini/GAS/Spreadsheet/gyoumu-app: CSV・GAS・Spreadsheet・gyoumu-app変更なし。GASソースの追加読取なし。Gemini/認識APIの実通信なし。採点・保存は全てモック。GitHub参照・mainのHEAD照会のみ外部通信実施。
+- 未確認/リスク: 統合版の主要PC操作は利用者確認合格。iPad実機、実APIの認識精度（長い回答含む）、実GAS保存・同時利用・本番は未確認。iPad実機確認は利用者方針により推奨だが必須ではない。既存no-cors保存の成功保証・通信失敗処理追加は対象外。
+- Version: 現在4.3.0 → 今回更新なし（利用者指定）。次Version候補未指定。4.3.0維持。共通定数、ログイン/ホーム右下表示コード、Version History変更なし。
+- Commit: `fix: integrate kanji input and camp review improvements`（本コミット）。push / PR / mainマージ / clasp push / GASデプロイ / Vercelデプロイ / 本番確認は全て未実施。関連gyoumu-appコミット/Issueなし。
+- 操作方法と詳細監査: docs/ABC_INTEGRATION_LOCAL.md。
+
 ### 育成関連コード分離 Phase 1（Issue番号未指定）
 
 - 日付: 2026-10-28
@@ -407,10 +428,13 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ### S-007 合宿コンテンツ 復習機能・複数分野選択対応
 
-- 状態: レビュー済み実装として完了。実装・test・build完了。ブラウザ確認、通常ログイン、SSO、本番確認は未実施
+- 状態: 初期実装後、2026-10-28にB改修を独立worktreeで実装・模擬検証し、利用者の主要PC操作確認を受領。その後A/Cと統合し、統合版の利用者主要PC操作合格を受領。Phase ②-4で最終監査・ローカルコミット。push・本番反映は未実施
+- B改修基準: GitHub main / ローカルmain / origin/main `715f47d5eab52db71de87e2253ee2a4c1d82a422`。branch `codex/camp-review-local`、worktree `C:/Users/netz/AppData/Local/Temp/student-app-camp-review-20261028`。旧PR #1の一括適用なし
 - 変更内容:
   - 合宿の漢字・理科・社会へ、既存ログから要復習問題を取得して一覧表示し、「間違えた問題のみトライ」できる導線を追加
-  - 合宿では履歴中に一度でも不正解がある問題を復習対象として保持し、復習後に正解しても自動削除しない仕様を追加
+  - 初期仕様は過去誤答を正解後も保持。B改修は合宿3教材の誤答復習を最大20問とし、復習1回正解を `◎` で記録して要復習対象から解除。通常正解 `○` では解除せず、解除後の再誤答 `×` で再登録
+  - 理科の復習は教材全体。社会は復習専用の歴史・地理・公民チェック欄で複数選択し、選択範囲内の誤答から合計最大20問。未選択ではログ取得せず案内。通常出題のジャンル・分野選択は維持
+  - 合宿復習限定で、固定IDキーと旧問題文キーの履歴を元の `getLogs` 配列・エントリ順に戻して判定。日付解釈・ログ型正規化・推測による問題文対応付け・既存ログMigrationは追加していない。前置詞と通常漢字の履歴規則は維持
   - 復習対象が0件の場合は「現在、間違えた問題はありません。」と表示
   - 理科の問題ジャンルをチェックボックスによる複数選択へ変更
   - 社会の歴史／地理配下の分野をチェックボックスによる複数選択へ変更
@@ -420,27 +444,32 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
   - 新規ログには問題文を保存せず固定キーを保存し、一覧表示時にCSVの現在の問題文・解答を参照
   - 問題文形式の既存ログは、CSV文言が一致する間は後方互換で読込
 - 再利用した既存実装: `getLogs` による履歴取得、`saveLog` による採点後保存、要復習一覧UI、既存手書き入力、理科・社会のReact一次判定と `checkAnswersWithGemini` 一括判定
-- 保存方式: 既存のGASログシートと `history` を継続利用。合宿の新規履歴は `contentId::questionId` を保存する。localStorage、復習専用CSV、削除処理の追加なし
+- 保存方式: 既存のGASログシートと `history` を継続利用。合宿の新規履歴は `contentId::questionId` を保存し、B改修では復習正解のみ `◎` とする。保存列・payload項目・attemptIdの追加なし。localStorage、復習専用CSV、削除処理の追加なし
 - CSV影響:
-  - 変更前: 合宿漢字4列、理科3列、社会4列。固定問題IDなし
-  - 変更後: 各CSVの先頭へ `id` 列を追加し、行番号・問題文に依存しない固定の不透明IDを全3,655問へ付与
+  - 初期実装の変更前: 合宿漢字4列、理科3列、社会4列。固定問題IDなし
+  - 初期実装の変更後: 各CSVの先頭へ `id` 列を追加し、行番号・問題文に依存しない固定の不透明IDを全3,655問へ付与
   - 既存データへの影響: ID列以外の全フィールドが変更前と完全一致することを確認。今後は既存行のIDを維持する必要があり、ID変更・再採番・再利用は禁止
+  - B改修: CSV列・内容・IDは全て変更なし
 - Gemini影響: 採点ロジック、React一次判定、一括判定方式、Gemini呼び出し条件は変更なし。外部Gemini API実通信なし
-- GAS影響: GASソース変更なし。既存 `getLogs` と `saveLog` を再利用し、合宿ログの `history` 値だけを固定キー形式へ変更
-- build結果: 2026-08-09 `npm run build` 成功
-- lint結果: 2026-08-09 `npm run lint` は既存8件で失敗（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）。今回変更箇所の新規lintエラーなし
-- test結果: 2026-08-09 `npm test` 成功（13件。固定キー保存、questionId欠落時の拒否、既存ログ互換、通常コンテンツ互換を含む）
-- `git diff --check`: 2026-08-09 成功
-- ローカル確認: ブラウザ確認未実施
-- 通常ログイン: 未確認
-- SSO: 未確認
+- GAS影響: B改修ではGASの読取・変更・通信とも未実施。既存契約を維持し、合宿ログの復習正解記号のみ拡張。Spreadsheet・実生徒データ不使用
+- build結果: 2026-10-28 `npm run build` 成功
+- lint結果: 2026-10-28 `npm run lint` は既存8件で失敗（`App.jsx` 6件、`ChemistryPlayView.jsx` 2件）。B改修による新規lintエラーなし
+- test結果: 2026-10-28 `npm test` 67件成功・2件skip・失敗0。B追加31件で3教材0/1/20/21/35件、社会単独/複数/全部、◎解除・○維持・再×登録、旧/新キー混在順序、前置詞・通常漢字回帰、既存保存payload、実採点ハンドラの模擬通信を確認。Reactハンドラを抽出したVMテストでありブラウザE2E・実GAS保存成功の証明ではない
+- `git diff --check`: 2026-10-28 成功。追加テスト・モックスクリプトの `node --check` 成功
+- ローカル確認: `node scripts/verify-camp-review.mjs --check` でソケットなしのモックmiddleware・API送信先置換・変換後buildを確認。envDir:false、実.env読取なし、CSP connect-src self。既存node_modulesをjunction参照し依存導入なし。サーバー未起動・URL到達未確認。後続操作確認用コマンドは `node scripts/verify-camp-review.mjs`（専用5191、模擬ID local-camp / mock-only）
+- C適用確認: Cの実ファイルには未適用。読み取りの `git apply --check` はKanjiTestView.jsxで不適合。改行を揃えた一時コピーの3-way確認では同ファイルの初期化箇所1競合のみ。C/Aの通常復習resetを残してBのmode設定を追加する調整が必要。App.jsx・CampView.jsx・reviewHistory.jsは3-way競合なし。C/A/④の既存差分9/5/4ファイルはSHA-256再照合で全て一致し、各statusも開始時と一致
+- 既存機能確認: 全24CSVはmainとバイト一致。Version・ホーム・ログイン・依存定義・Vite設定は改行差を除きmainと一致。単問Gemini・一括採点・手書き判定・通常漢字開始・描画の6ハンドラは基準コードと一致。既存lintとのルール/メッセージ/ファイル比較も8件全て一致
+- 統合版追記: 承認済み仕様として、合宿漢字復習もQ1へ初期化し、Cの文字枠/覚えていないと共存。合宿3教材の通常/復習結果から合宿メニューに戻る。統合版は117件成功・2件skip、build成功、新規lintエラーなし。詳細はA・B・C統合版項目を参照。
+- 残る確認・対象外: 実GASのgetLogs順序・保存成功、iPad実機、同時利用、本番は未確認。保存は既存no-corsのため成功応答を保証しない。統合版の主要PC操作は利用者確認合格（理科35→33、社会105→95、合宿漢字対象数減少）
+- 通常ログイン: 既存単体テストのみ。実認証は未確認
+- SSO: 既存単体テストのみ。実認証は未確認
 - Gemini: 実通信未実施
-- Commit: `feat: add camp review mode and multi-category selection`（本コミット）
-- Push: 2026-08-09 `feature/s-007-camp-review` をGitHubへpush
-- mainマージ: 未実施
-- Vercelデプロイ: 2026-08-09 Git連携によるPreviewデプロイ成功（READY）。本番デプロイ未実施
+- Commit: 初期実装 `feat: add camp review mode and multi-category selection`。B改修はA/C統合版として本コミットに含める
+- Push: 初期実装は2026-08-09 `feature/s-007-camp-review` をGitHubへpush。B改修は未push・PR未作成
+- mainマージ: 初期実装のマージ `a3131c5` は現在mainの祖先。B改修は未マージ
+- Vercelデプロイ: 初期実装は2026-08-09 Git連携Preview成功（READY）。B改修はclasp push・GAS/Vercelデプロイとも未実施
 - 本番確認: 未実施
-- Version: 変更なし（現在Version 4.2.1）
+- Version: B改修は指示により4.3.0維持。共通定数・ログイン右下・ホーム右下の表示コード不変。Version History追加なし
 - 関連gyoumu-appコミット / Issue: なし。gyoumu-app変更なし
 
 ### S-008 既存ログMigration（Issue候補）

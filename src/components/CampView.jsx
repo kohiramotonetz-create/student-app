@@ -14,6 +14,7 @@ function CampView({
   setSelectedBook,
   setMode,
   questionCount,
+  setIsCampReviewMode,
   fetchAndFilterWrongWords,
   showWrongList,
   setShowWrongList,
@@ -23,6 +24,7 @@ function CampView({
   const [selectedGenre, setSelectedGenre] = useState('');
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [selectedFields, setSelectedFields] = useState([]);
+  const [selectedReviewSubjects, setSelectedReviewSubjects] = useState([]);
   const data = activeContentId === CONTENT_IDS.camp_science_qa ? campScienceData : campSocialData;
   const isSocial = activeContentId === CONTENT_IDS.camp_social_qa;
   const genres = useMemo(
@@ -54,6 +56,7 @@ function CampView({
               setSelectedGenre('');
               setSelectedGenres([]);
               setSelectedFields([]);
+              setSelectedReviewSubjects([]);
               setShowWrongList(false);
               openContent(content.contentId, content.step);
             }}>
@@ -71,9 +74,10 @@ function CampView({
     : data.filter((item) => selectedGenres.includes(item.genre));
   const content = CAMP_CONTENTS.find(({ contentId }) => contentId === activeContentId);
 
-  const startQuiz = (items, limit = questionCount) => {
+  const startQuiz = (items, limit = questionCount, isReviewMode = false) => {
     if (!canStartContent(activeContentId)) return;
     resetQuizState();
+    setIsCampReviewMode(isReviewMode);
     setMode('en-ja');
     setSelectedBook({ name: content?.displayName || '', data: items, contentId: activeContentId });
     const shuffledItems = [...items].sort(() => 0.5 - Math.random());
@@ -136,14 +140,46 @@ function CampView({
         if (target.length === 0) return alert('最低1件選択してください。');
         startQuiz(target);
       }}>スタート！</button>
+      {isSocial && (
+        <div className="config-group" role="group" aria-label="復習するジャンル（複数選択可）">
+          <label>復習するジャンル（複数選択可）:</label>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+            <button className="secondary" type="button" onClick={() => {
+              setSelectedReviewSubjects(genres);
+              setShowWrongList(false);
+            }}>復習ジャンルを全選択</button>
+            <button className="secondary" type="button" onClick={() => {
+              setSelectedReviewSubjects([]);
+              setShowWrongList(false);
+            }}>復習ジャンルを全解除</button>
+          </div>
+          <div className="camp-genre-list">
+            {genres.map((subject) => (
+              <label key={subject} className="camp-genre-row">
+                <input type="checkbox" className="camp-genre-checkbox"
+                  checked={selectedReviewSubjects.includes(subject)}
+                  onChange={() => {
+                    toggleSelection(subject, selectedReviewSubjects, setSelectedReviewSubjects);
+                    setShowWrongList(false);
+                  }} />
+                <span className="camp-genre-name">{subject}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
       <button
         className="nav-btn"
         style={{ backgroundColor: '#dc3545' }}
-        onClick={() => fetchAndFilterWrongWords(content?.logSheetName, data, {
-          keepWrongHistory: true,
-          contentId: activeContentId,
-          emptyMessage: '現在、間違えた問題はありません。'
-        })}
+        onClick={() => {
+          if (isSocial && selectedReviewSubjects.length === 0) return alert('復習するジャンルを最低1件選択してください。');
+          fetchAndFilterWrongWords(content?.logSheetName,
+            isSocial ? data.filter((item) => selectedReviewSubjects.includes(item.subject)) : data, {
+              resolveWithReviewSuccess: true,
+              contentId: activeContentId,
+              emptyMessage: '現在、間違えた問題はありません。'
+            });
+        }}
       >🔍 過去の間違えたものリストを表示</button>
       {showWrongList && wrongWordsList.length > 0 && (
         <div style={{ marginTop: '20px', borderTop: '2px solid #dc3545', paddingTop: '20px', textAlign: 'left' }}>
@@ -165,7 +201,7 @@ function CampView({
             </table>
           </div>
           <button className="nav-btn" style={{ backgroundColor: '#28a745', width: '100%' }} onClick={() => {
-            startQuiz(wrongWordsList.map(({ rawItem }) => rawItem), null);
+            startQuiz(wrongWordsList.map(({ rawItem }) => rawItem), questionCount, true);
           }}>🔥 間違えた問題のみトライ！</button>
         </div>
       )}
