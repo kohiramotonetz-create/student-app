@@ -40,9 +40,9 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 ### 育成関連コード分離 Phase 1（Issue番号未指定）
 
 - 日付: 2026-10-28
-- 状態: Phase 1実装とPhase 2A最終監査・ローカル検証を完了。分離作業ブランチへのローカルcommit対象（本コミット）。未push・main未反映・本番未確認。
+- 状態: Phase 1実装、Phase 2A最終監査、Phase 2Bローカル実操作確認、Phase 2Cの2ブランチ通常pushとPreview READY確認を完了。Phase 3Aは既存Issueの記録更新とmain向けPR作成まで。main未反映・Production未デプロイ・本番未確認。
 - 基準: 保存済みorigin/main `714d7cff1cdda2bdd4f4eaf1d992a47b35584bd4`。fetch/pullなし。
-- 保全: `codex/character-growth-development`を714d7cfに新規作成。Phase A〜Fのソース・テスト・CHANGELOGを含む元ツリーを変更せず保持。保全はローカルのみ、pushなし。
+- 保全: `codex/character-growth-development`を714d7cfに新規作成。Phase A〜Fのソース・テスト・CHANGELOGを含む元ツリーを変更せず保持。Phase 2Cで同名GitHubブランチへ通常push済み。ローカル・GitHubともHEADは714d7cfのまま。
 - 作業: `codex/split-growth-from-main`、作業基点 `714d7cf`。新規worktree `C:/Users/netz/.codex/worktrees/split-growth-from-main/student-app`だけで変更。
 - 育成専用8ソースを分離: `src/constants/{characterMaster,itemMaster,releaseFeatures}.js`、`src/utils/{characterCare,experienceProgress,streakPoints,localXpVerification,localShopVerification}.js`。
 - 育成専用10テストを分離: `test/{characterCare,characterProgress,experienceProgress,itemMaster,localCharacterCare,localCharacterCompletion,localEquipmentVerification,localShopVerification,localStreakPoints,streakPoints}.test.js`。
@@ -66,8 +66,17 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 - Version: 4.3.0から変更なし。ログイン・ホームの共通定数を維持。Version History変更なし。
 - Phase 2A最終監査: 2026-10-28、Phase 1の39ファイルを全件確認。削除23ファイルは保全ブランチの基準内容と一致。session認証、ログイン/SSO/touch、既存14関数、過去CHANGELOGを維持。CSV・25教材定義・Versionは基準と同一。未使用コード・残存育成実装・import漏れなし。
 - Phase 2A再検証: npm test 36件成功（通常時のブラウザ親2件skip）、build成功、lintは同じ既存8件のみ。専用ブラウザ20件成功、PC/スマートフォン8画像の差分0。52ケースのログ契約一致、attemptId/isReview付加なし。実GAS・本番は未確認。
-- Commit: 本項目を含むローカルコミット `refactor: separate character growth implementation from student app`。
-- Push / mainマージ / rebase / reset / clasp push / GASデプロイ / Vercelデプロイ / 本番データ変更: 未実施。
+- Phase 2Bローカル実操作: localhostの常駐モックで確認完了（反復入力はブラウザ操作ツールで実施）。前置詞通常20問と誤答20問の復習20/20、理科20問18/20と復習2/2、公民「国会」7問5/7と復習2/2、古文20問19/20と復習1/1、結果保存・ホーム復帰・session再認証を確認。全25教材の完走確認ではない。
+- Phase 2Bホーム: PC 1440×1000 / スマートフォン幅390×844で①今日のミッション、②学習をはじめる、③キャラクター育成「作成中・・・」、④最近の学習・復習「横断集計機能は準備中」、ヘッダー・ログアウト・4項目ナビ・Version 4.3.0を確認。横はみ出しなし。既存画像との目視比較であり、Phase 2Aの差分0ピクセル検証とは区別。
+- Phase 2Bログ: モック保存9件すべてにcontentId / history / score / total / session情報があり、attemptId / isReviewなし。前置詞の通常・復習で各20件のanswerDetailsを維持。育成API呼出し、アプリconsole / page error、外部接続の遮断イベントは0件。9件には出題順を取り違えた社会復習0/2の試行を含み、表示問題に合わせた再試行で2/2を確認。
+- Phase 2B確認範囲: 認証・採点・ログ保存/取得はすべてローカルモック。漢字手書き認識、実GAS / Gemini、SSO実接続、全教材・全問の操作、本番データ・同時利用は未確認。通常漢字復習・合宿復習等の既存不具合候補は修正していない。test / build / lintの再実行はなし。
+- Phase 2C GitHub: `codex/character-growth-development` = `714d7cff1cdda2bdd4f4eaf1d992a47b35584bd4`、`codex/split-growth-from-main` = `ad85116141eed20a2ecfc37b887edb13840bc80c`の通常push後HEADを確認。GitHub mainは714d7cfのまま。元mainの未コミット17語と他worktreeのHEAD・差分を維持。
+- Phase 2C Preview: GitHub連携の `https://student-dviyi9sej-kotas-projects-f3ee9ea6.vercel.app/` がREADY。対象SHAはad85116、sourceはgit、Previewフィルターでも一致しProductionではない。push以降の新規Productionデプロイは0件。
+- Preview画面の確認範囲: エージェントのChrome確認はVercel認証画面まで。既存CLI認証も利用できず、Previewのスキマくんログイン画面・Version表示・アプリconsole / 静的ファイル取得エラーは未確認。利用者側での追加確認は確認待ち。
+- Preview実ログイン・学習操作: 未確認。本番生徒アカウントを使用せず、実GASへの認証・学習ログ送信も行っていない。Phase 2Bのローカルモック確認をPreview成功として扱わない。
+- Phase 3A直前監査: 追加変更はCHANGELOGのみ。25教材定義・全CSV・公民240問（社会703問）・Version 4.3.0は714d7cfと一致。育成専用コード・報酬・育成API・attempt連携の残存なし。③作成中・④準備中の静的UIを維持。過去の育成開発記録とVersion Historyは保持。文書更新のためtest / build / lintは再実行せず、Phase 2Aの自動検証結果とPhase 2Bの操作確認を区別する。
+- Commit: Phase 2Aの育成分離は `ad85116141eed20a2ecfc37b887edb13840bc80c`（`refactor: separate character growth implementation from student app`）。Phase 3AはCHANGELOGのみの記録更新（本コミット）。
+- Push: Phase 2Cで保全ブランチ714d7cfと分離ブランチad85116の通常push完了。Phase 3Aのpush対象も分離ブランチのみ。mainへのpush・マージ、rebase、reset、force push、clasp push、GAS / Productionデプロイ、本番データ変更は未実施。
 - 関連gyoumu-appコミット / Issue: なし。gyoumu-app変更なし。
 
 ### 新ホーム先行公開準備：キャラクター育成を作成中表示（Issue番号未指定）
