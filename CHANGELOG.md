@@ -37,6 +37,28 @@ student-app（スキマ君）自身の変更と、student-appの挙動へ直接�
 
 ## Issue History
 
+### ④ Gemini単問採点の安定化・ローカル実装（Issue番号未指定）
+
+- 日付: 2026-10-28
+- 状態: 独立worktreeで実装・自動検証完了。利用者によるローカルモックのPC操作8項目が合格し、単問10秒timeoutを利用者が正式採用。利用者からcommit・通常push・PR・チェック/Preview確認後の通常Merge commit・Vercel自動Production反映確認まで承認済み。以下のリリース実施状況は本コミット作成時点の記録。
+- 基準: GitHub mainのA・B・C統合済み `13f28a0ab339d2735ccd877ea51e9277bfae29fd`。branch `codex/fix-single-gemini-stability-local-20261028`。元mainとorigin/mainは715f47dのまま変更せず、新規worktreeへ分離。旧④worktreeの未コミット差分は読み取り専用で保全。
+- 変更内容: 単問の通信失敗・採点不能をfalseへ変換しない。入力・問題番号・既回答を保持し、回答確定・誤答履歴・保存へ進まない。既存の一次判定・呼出条件を維持し、正常なfalseは不正解として確定する。
+- 応答契約: 取得済み採点GASのJSON `{ result: "true" }` / `{ result: "false" }` に合わせ、result文字列の前後空白除去後の完全一致だけを採用。部分一致、boolean型、空文字、null、不正JSON、HTTP200内のGASエラー文字列は採点エラー。生の応答・内部例外を生徒画面へ表示しない。
+- 通信制御: 単問の待機上限10000ms（10秒）を利用者が正式採用。timeout・通信エラー・異常応答の指定3メッセージを使う。自動Retryなし。要求の識別はReact内のrefだけで行い、二重送信・二重確定と、無効化済み要求の結果/通知/loading更新を抑止。新しいGAS用識別子は送らない。一括採点の90000msは不変。
+- 旧④からの取り込み: 回答保持、手動再試行、連打防止、10秒timeoutの意図とテストを最新mainへ個別反映。旧App.jsxの一括上書きなし。今回、厳密な応答判定・3種類の通知・要求識別と遅延応答検証を追加。
+- テストモック修正: 初回166件中3件が実resetQuizStateのsetIsCampReviewModeをモックが提供せず失敗したため停止。再開承認後に3件すべて同じReferenceErrorであることを再現し、モックのstate/setterだけを補完。実アプリ処理の削除・無効化やassertionの緩和なし。
+- test結果: `npm test` は164成功・2skip・失敗0（全166件）。基準mainは117成功・2skip。単問47件でtrue/false・前後空白・不正文字列・GASエラー・不正JSON・ネットワーク・timeout・連打・手動再試行・連続timeout・遅延応答・初期化後の要求競合・既回答/保存順序を検証。実Axios XHR adapterのメモリ内模擬通信を含む。既存の漢字/合宿復習・文字枠・結果戻り先・前置詞・ログ契約・認証/SSOテストも成功。
+- build結果: `npm run build` 成功。`node scripts/verify-single-gemini.mjs --check` 成功（9種類の単問応答、模擬認証/SSO/session、履歴/保存/一括/認識、CSP、送信先置換、隔離build）。`node --check` と `git diff --check` 成功。
+- lint結果: 全体は既存8件（App.jsx 6件、ChemistryPlayView.jsx 2件）で失敗。基準mainとのファイル/ルール/メッセージ比較で全8件一致、新規0。変更ファイルのlintはApp.jsxの既存6件のみ。他の変更JS・追加utility/テストは0。既存lint8件は修正していない。
+- ローカル確認: 専用5204で外部API遮断モックを起動。確認ページ `/__single` と通常アプリ `/` のHTTP200・connect-src selfを確認し、通常HTMLに検証パネルなし。模擬ID `local-single` / password `mock-only`。起動は `node scripts/verify-single-gemini.mjs`。既存5193/5195/5197等は操作していない。
+- CodexによるChrome実操作: 未実施。Chrome接続ツールがtimeoutし、Windows操作ツールでのChrome起動もアプリ承認timeoutとなった。Playwright等の既存ブラウザ実行ライブラリも未導入。サーバー起動・自動モック検証をPC実操作成功として扱わない。
+- 利用者によるPC操作確認（利用者申告）: 正解○、不正解×、通信エラー、エラー後の手動再試行、10秒timeout、遅延応答の無視、Gemini異常応答、連打防止の8項目すべて合格。実GASを使用しないローカルモックでの確認であり、CodexによるChrome実操作とは区別する。
+- 保存/既存機能影響: saveLog/getLogsの既存payload・no-cors/keepalive・studentSessionToken・前置詞answerDetailsは変更なし。保存payloadへのattemptId/isReview追加なし。25教材定義・全24CSV・ホーム・Version表示・A/B/Cコンポーネントは未変更。既存2テストの変更は追加refのモック注入のみ。保存/履歴/一括/認証/漢字等12ハンドラの基準コード一致、元④とA/B/C保留フォルダ275/275ファイルのSHA-256一致を確認。
+- GAS/Gemini/Spreadsheet/gyoumu-app: すべて未変更。今回の再開では外部API通信なし。実GAS・Gemini・認識API・Spreadsheet・実生徒データ不使用。通常ログイン/SSOはモックテストのみ成功、実接続は未確認。
+- 残るリスク: 10秒は利用者が正式採用済み。ただし、実GAS・Geminiの応答速度と同時利用・本番確認は未実施。10秒経過後もGAS内部の処理が継続する可能性があり、GAS内部停止やGemini重複実行の防止は保証しない。本番運用でtimeoutが頻発した場合は利用者と秒数を再検討する。フロントで失敗後の古い結果は採用しないが、GASがすでにtrue/falseへ変換した内部異常はフロントから識別できない。既存no-cors保存の成否確認は③の対象で今回は変更しない。
+- Version: 現在4.3.0 → 更新なし（利用者指定）。ログイン/ホーム右下の共通定数表示を維持。Version Historyへ新番号追加なし。
+- Commit: `fix: stabilize single Gemini grading and retry handling`（本コミット）。作成時点でpush / PR / mainマージ / Vercel自動反映は未実施。以後のSHA・チェック・Preview・Productionの結果はPRとリリース完了報告に記録する。clasp push / GASデプロイ / 本番データ変更は未実施。関連gyoumu-appコミット/Issueなし。実GASを使用する採点・保存確認はリリース承認の対象外。
+
 ### A・B・C統合版／Phase ②-4 最終監査・ローカルコミット（Issue番号未指定）
 
 - 日付: 2026-10-28

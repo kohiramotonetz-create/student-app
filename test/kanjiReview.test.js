@@ -72,7 +72,7 @@ function harness({ index = 0, contentId = 'kanji_test', logs = [], candidates = 
     kanjiList: items, campKanjiData: [], selectedKanjiIds: [0, 1],
     qIndex: index, quizItems: [], quizAnswers: [], currentInput: 'old', practice: 'old',
     quizReview: { visible: true }, campDraftAnswers: [], isCampGrading: false,
-    campNavigationLockRef: { current: false }, strokes: [], canvasRef: { current: null },
+    singleQuizSubmissionRef: { current: null }, campNavigationLockRef: { current: false }, strokes: [], canvasRef: { current: null },
     wrongWordsList: [], showWrongList: false, step: 'kanji-setup',
     axios: { post: async (url, body) => { assert.equal(url, 'mock-log'); requests.push(JSON.parse(body)); return { data: logs }; } },
     fetch: async (url, options) => {

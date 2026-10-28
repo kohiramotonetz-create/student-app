@@ -21,6 +21,12 @@ import {
   parseBatchGeminiResults
 } from './utils/batchGradingDiagnostics';
 import {
+  SINGLE_GRADING_TIMEOUT_MS,
+  SINGLE_GRADING_MESSAGES,
+  parseSingleGradingResult,
+  getSingleGradingErrorMessage
+} from './utils/singleGrading';
+import {
   createLogHistory,
   getReviewLookupKeys,
   isReviewQuestionUnresolved,
@@ -396,8 +402,13 @@ function App() {
   const [isCampReviewMode, setIsCampReviewMode] = useState(false);
   const [isPrepositionReviewMode, setIsPrepositionReviewMode] = useState(false);
   const campNavigationLockRef = useRef(false);
+  const singleQuizSubmissionRef = useRef(null);
+
+  useEffect(() => () => { singleQuizSubmissionRef.current = null; }, []);
 
   const resetQuizState = () => {
+    if (singleQuizSubmissionRef.current?.pending) setLoading(false);
+    singleQuizSubmissionRef.current = null;
     setIsCampReviewMode(false);
     setQIndex(0); setQuizAnswers([]); setCurrentInput(""); setPractice(""); setQuizReview({ visible: false, record: null });
     setCampDraftAnswers([]); setIsCampGrading(false); campNavigationLockRef.current = false;
@@ -638,6 +649,7 @@ function App() {
   };
 
   const proceedToNext = () => {
+    singleQuizSubmissionRef.current = null;
     const finalAnswers = [...quizAnswers]; 
     if (qIndex + 1 < quizItems.length) {
       setQIndex(qIndex + 1); setQuizReview({ visible: false, record: null }); setCurrentInput(""); setPractice("");
@@ -648,19 +660,16 @@ function App() {
   };
 
   const callAiJudge = async (word, correct, userAns) => {
-    try {
-      const response = await axios.post(GAS_URL, JSON.stringify({
-        action: "checkWithGemini", 
-        apiKey: API_KEY,
-        word, correct, userAns
-      }), { headers: { 'Content-Type': 'text/plain' } });
-
-      const res = response.data.result;
-      console.log("🤖 Geminiからの生の回答:", res);
-      return String(res).toLowerCase().includes("true");
-    } catch {
-      return false; 
-    }
+    const response = await axios.post(GAS_URL, JSON.stringify({
+      action: "checkWithGemini",
+      apiKey: API_KEY,
+      word, correct, userAns
+    }), {
+      headers: { 'Content-Type': 'text/plain' },
+      timeout: SINGLE_GRADING_TIMEOUT_MS,
+      timeoutErrorMessage: SINGLE_GRADING_MESSAGES.timeout
+    });
+    return parseSingleGradingResult(response.data);
   };
 
   const isCampBatchQuiz = activeContentId === CONTENT_IDS.camp_science_qa
@@ -746,45 +755,61 @@ function App() {
   };
 
   const submitQuizAnswer = async () => {
-    const item = quizItems[qIndex];
-    const prefix = (selectedBook.name === '書き単') ? `[${item.part}] ` : "";
-    const qText = prefix + ((mode === 'ja-en') ? item.ja : item.en);
-    const rawC = (mode === 'ja-en') ? item.en : item.ja;
-    const clean = normalizeQuizAnswer;
-    const removeParentheses = (s) => s ? s.replace(/\（.*?\）|\(.*?\)/g, "") : "";
-    const userInput = clean(currentInput);
+    if (singleQuizSubmissionRef.current || quizReview.visible) return;
+    // Identity stays inside React; do not add identifiers to the GAS payload.
+    const submission = { pending: true };
+    singleQuizSubmissionRef.current = submission;
+    let answerRecorded = false;
+    try {
+      const item = quizItems[qIndex];
+      const prefix = (selectedBook.name === '書き単') ? `[${item.part}] ` : "";
+      const qText = prefix + ((mode === 'ja-en') ? item.ja : item.en);
+      const rawC = (mode === 'ja-en') ? item.en : item.ja;
+      const clean = normalizeQuizAnswer;
+      const removeParentheses = (s) => s ? s.replace(/\（.*?\）|\(.*?\)/g, "") : "";
+      const userInput = clean(currentInput);
 
-    const isPrepositionQuiz = activeContentId === CONTENT_IDS.preposition_test;
-    let isCorrect = isPrepositionQuiz
-      ? isPrepositionAnswerCorrect(currentInput, rawC, mode)
-      : rawC.split(/[/／]/).some(ans => {
-        const correctAns = clean(ans);
-        const correctAnsNoParen = clean(removeParentheses(ans));
-        return userInput === correctAns || (correctAnsNoParen !== "" && userInput === correctAnsNoParen);
-      });
+      const isPrepositionQuiz = activeContentId === CONTENT_IDS.preposition_test;
+      let isCorrect = isPrepositionQuiz
+        ? isPrepositionAnswerCorrect(currentInput, rawC, mode)
+        : rawC.split(/[/／]/).some(ans => {
+          const correctAns = clean(ans);
+          const correctAnsNoParen = clean(removeParentheses(ans));
+          return userInput === correctAns || (correctAnsNoParen !== "" && userInput === correctAnsNoParen);
+        });
 
-    console.log("--- 判定プロセス開始 ---");
-    console.log("問題:", item.en, " / 正解:", rawC, " / 入力:", currentInput);
-    console.log("① 文字一致判定の結果:", isCorrect);
+      console.log("--- 判定プロセス開始 ---");
+      console.log("問題:", item.en, " / 正解:", rawC, " / 入力:", currentInput);
+      console.log("① 文字一致判定の結果:", isCorrect);
 
-    if (!isPrepositionQuiz && !isCorrect && currentInput.trim() !== "" && mode === 'en-ja') {
-      console.log("🚀 文字不一致のため、Gemini APIに問い合わせます..."); 
-      setLoading(true); 
-      try {
-        const aiResult = await callAiJudge(item.en, rawC, currentInput);
-        console.log("🤖 AI判定の結果:", aiResult); 
-        isCorrect = aiResult;
-      } catch (err) {
-        console.error("❌ AI呼び出し中にエラー:", err);
+      if (!isPrepositionQuiz && !isCorrect && currentInput.trim() !== "" && mode === 'en-ja') {
+        console.log("🚀 文字不一致のため、Gemini APIに問い合わせます...");
+        setLoading(true);
+        try {
+          const aiResult = await callAiJudge(item.en, rawC, currentInput);
+          if (singleQuizSubmissionRef.current !== submission) return;
+          isCorrect = aiResult;
+        } catch (error) {
+          if (singleQuizSubmissionRef.current === submission) alert(getSingleGradingErrorMessage(error));
+          return;
+        } finally {
+          if (singleQuizSubmissionRef.current === submission) setLoading(false);
+        }
+      } else {
+        console.log("⏭️ AIは呼び出しませんでした (理由: 文字一致、空欄、またはja-enモード)");
       }
-      setLoading(false);
-    } else {
-      console.log("⏭️ AIは呼び出しませんでした (理由: 文字一致、空欄、またはja-enモード)");
-    }
 
-    const record = { q: qText, a: currentInput, correct: rawC, en: item.en || "", ok: isCorrect, rawItem: item };
-    setQuizAnswers(prev => [...prev, record]); 
-    setQuizReview({ visible: true, record });
+      if (singleQuizSubmissionRef.current !== submission) return;
+      const record = { q: qText, a: currentInput, correct: rawC, en: item.en || "", ok: isCorrect, rawItem: item };
+      setQuizAnswers(prev => [...prev, record]);
+      setQuizReview({ visible: true, record });
+      submission.pending = false;
+      answerRecorded = true;
+    } finally {
+      if (singleQuizSubmissionRef.current === submission && !answerRecorded) {
+        singleQuizSubmissionRef.current = null;
+      }
+    }
   };
 
   const finishPractice = () => {
